@@ -135,6 +135,9 @@ pub fn run() {
             instance::commands::get_instances_storage,
             instance::commands::open_data_folder,
             instance::commands::clear_cache,
+            instance::commands::get_instance_resourcepacks,
+            instance::commands::get_instance_shaders,
+            instance::commands::get_instance_datapacks,
             // Minecraft version commands
             minecraft::commands::get_minecraft_versions,
             minecraft::commands::get_minecraft_version_details,

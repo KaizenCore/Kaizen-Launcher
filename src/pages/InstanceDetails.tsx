@@ -1159,6 +1159,20 @@ export function InstanceDetails() {
                 <Download className="h-4 w-4" />
                 {t("instanceDetails.browseModrinth")}
               </TabsTrigger>
+              {/* Only show resource packs, shaders, datapacks for client instances */}
+              {!instance.is_server && !instance.is_proxy && (
+                <>
+                  <TabsTrigger value="resourcepacks" className="gap-2">
+                    {t("browse.resourcePacks")}
+                  </TabsTrigger>
+                  <TabsTrigger value="shaders" className="gap-2">
+                    {t("browse.shaders")}
+                  </TabsTrigger>
+                  <TabsTrigger value="datapacks" className="gap-2">
+                    {t("browse.datapacks")}
+                  </TabsTrigger>
+                </>
+              )}
             </TabsList>
 
             {/* Installed Mods/Plugins Sub-Tab */}
@@ -1239,6 +1253,78 @@ export function InstanceDetails() {
                 </CardContent>
               </Card>
             </TabsContent>
+
+            {/* Resource Packs Sub-Tab */}
+            {!instance.is_server && !instance.is_proxy && (
+              <TabsContent value="resourcepacks">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t("browse.resourcePacks")}</CardTitle>
+                    <CardDescription>
+                      {t("browse.searchResourcePacks")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ModrinthBrowser
+                      instanceId={instanceId!}
+                      mcVersion={instance.mc_version}
+                      loader={instance.loader}
+                      isServer={instance.is_server}
+                      onModInstalled={loadMods}
+                      contentType="resourcepack"
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {/* Shaders Sub-Tab */}
+            {!instance.is_server && !instance.is_proxy && (
+              <TabsContent value="shaders">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t("browse.shaders")}</CardTitle>
+                    <CardDescription>
+                      {t("browse.searchShaders")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ModrinthBrowser
+                      instanceId={instanceId!}
+                      mcVersion={instance.mc_version}
+                      loader={instance.loader}
+                      isServer={instance.is_server}
+                      onModInstalled={loadMods}
+                      contentType="shader"
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
+
+            {/* Datapacks Sub-Tab */}
+            {!instance.is_server && !instance.is_proxy && (
+              <TabsContent value="datapacks">
+                <Card>
+                  <CardHeader>
+                    <CardTitle>{t("browse.datapacks")}</CardTitle>
+                    <CardDescription>
+                      {t("browse.searchDatapacks")}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <ModrinthBrowser
+                      instanceId={instanceId!}
+                      mcVersion={instance.mc_version}
+                      loader={instance.loader}
+                      isServer={instance.is_server}
+                      onModInstalled={loadMods}
+                      contentType="datapack"
+                    />
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            )}
           </Tabs>
         </TabsContent>
         )}

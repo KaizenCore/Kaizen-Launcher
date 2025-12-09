@@ -6,17 +6,31 @@ use tauri::State;
 
 use super::{build_facets, ModrinthClient, SearchHit, SearchQuery, Version, VersionFile};
 
-/// Determine the content folder name based on loader type
-fn get_content_folder(loader: Option<&str>, is_server: bool) -> &'static str {
-    match loader.map(|l| l.to_lowercase()).as_deref() {
-        // Mod loaders - use "mods" folder
-        Some("fabric") | Some("forge") | Some("neoforge") | Some("quilt") => "mods",
-        // Plugin servers - use "plugins" folder
-        Some("paper") | Some("velocity") | Some("bungeecord") | Some("waterfall")
-        | Some("purpur") | Some("spigot") | Some("bukkit") => "plugins",
-        // Vanilla server - no mods/plugins
-        None if is_server => "plugins",
-        // Vanilla client or unknown
+/// Determine the content folder name based on project type and loader
+fn get_content_folder(project_type: Option<&str>, loader: Option<&str>, is_server: bool) -> &'static str {
+    match project_type {
+        // Resource packs go to resourcepacks/ folder
+        Some("resourcepack") => "resourcepacks",
+        // Shaders go to shaderpacks/ folder
+        Some("shader") => "shaderpacks",
+        // Datapacks are handled specially - they go to world folder
+        // This returns a placeholder; actual path is computed separately
+        Some("datapack") => "datapacks",
+        // Mods/plugins based on loader type
+        Some("mod") | Some("plugin") | None => {
+            match loader.map(|l| l.to_lowercase()).as_deref() {
+                // Mod loaders - use "mods" folder
+                Some("fabric") | Some("forge") | Some("neoforge") | Some("quilt") => "mods",
+                // Plugin servers - use "plugins" folder
+                Some("paper") | Some("velocity") | Some("bungeecord") | Some("waterfall")
+                | Some("purpur") | Some("spigot") | Some("bukkit") => "plugins",
+                // Vanilla server - no mods/plugins
+                None if is_server => "plugins",
+                // Vanilla client or unknown
+                _ => "mods",
+            }
+        }
+        // Unknown project type - default to mods
         _ => "mods",
     }
 }
@@ -155,7 +169,6 @@ pub async fn search_modrinth_mods(
 
     // Build facets for filtering
     let game_versions = game_version.as_ref().map(|v| vec![v.as_str()]);
-    let loaders = loader.as_ref().map(|l| vec![l.as_str()]);
 
     // Convert categories to &str slice
     let categories_strs: Option<Vec<&str>> = categories
@@ -164,6 +177,12 @@ pub async fn search_modrinth_mods(
 
     // Default to "mod" if not specified, but allow "plugin" for servers
     let ptype = project_type.as_deref().unwrap_or("mod");
+
+    // Only include loaders for mods and plugins - shaders, resourcepacks, datapacks don't use loaders
+    let loaders = match ptype {
+        "mod" | "plugin" => loader.as_ref().map(|l| vec![l.as_str()]),
+        _ => None, // resourcepack, shader, datapack don't need loader filter
+    };
 
     let facets = build_facets(
         Some(ptype),
@@ -210,14 +229,20 @@ pub async fn get_modrinth_mod_versions(
     project_id: String,
     game_version: Option<String>,
     loader: Option<String>,
+    project_type: Option<String>,
 ) -> AppResult<Vec<ModVersionInfo>> {
     let state = state.read().await;
     let client = ModrinthClient::new(&state.http_client);
 
-    // Normalize loader name for Modrinth API (lowercase)
-    let normalized_loader = loader.map(|l| l.to_lowercase());
-    let loaders = normalized_loader.as_ref().map(|l| vec![l.as_str()]);
     let game_versions = game_version.as_ref().map(|v| vec![v.as_str()]);
+
+    // Only include loaders for mods and plugins - shaders, resourcepacks, datapacks don't use loaders
+    let ptype = project_type.as_deref().unwrap_or("mod");
+    let normalized_loader = loader.map(|l| l.to_lowercase());
+    let loaders = match ptype {
+        "mod" | "plugin" => normalized_loader.as_ref().map(|l| vec![l.as_str()]),
+        _ => None, // resourcepack, shader, datapack don't need loader filter
+    };
 
     let versions = client
         .get_project_versions(&project_id, loaders.as_deref(), game_versions.as_deref())
@@ -236,6 +261,29 @@ struct ModMetadata {
     icon_url: Option<String>,
 }
 
+/// Helper function to find the first world folder in saves/
+async fn find_world_folder(instance_dir: &std::path::Path) -> Option<String> {
+    let saves_dir = instance_dir.join("saves");
+    if !saves_dir.exists() {
+        return None;
+    }
+
+    let mut entries = match tokio::fs::read_dir(&saves_dir).await {
+        Ok(e) => e,
+        Err(_) => return None,
+    };
+
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        if let Ok(file_type) = entry.file_type().await {
+            if file_type.is_dir() {
+                return Some(entry.file_name().to_string_lossy().to_string());
+            }
+        }
+    }
+
+    None
+}
+
 /// Install a mod from Modrinth to an instance
 #[tauri::command]
 pub async fn install_modrinth_mod(
@@ -243,6 +291,7 @@ pub async fn install_modrinth_mod(
     instance_id: String,
     project_id: String,
     version_id: String,
+    project_type: Option<String>,
 ) -> AppResult<String> {
     let state_guard = state.read().await;
     let client = ModrinthClient::new(&state_guard.http_client);
@@ -273,14 +322,23 @@ pub async fn install_modrinth_mod(
         .or_else(|| version.files.first())
         .ok_or_else(|| AppError::Instance("No files found for this version".to_string()))?;
 
-    // Determine destination folder based on loader type
-    let folder_name = get_content_folder(instance.loader.as_deref(), instance.is_server);
+    // Determine destination folder based on project type and loader
+    let ptype = project_type.as_deref();
+    let folder_name = get_content_folder(ptype, instance.loader.as_deref(), instance.is_server);
 
-    let target_dir = state_guard
+    let instance_dir = state_guard
         .data_dir
         .join("instances")
-        .join(&instance.game_dir)
-        .join(folder_name);
+        .join(&instance.game_dir);
+
+    // Handle datapacks specially - they go into saves/<world>/datapacks/
+    let target_dir = if ptype == Some("datapack") {
+        // Find existing world folder or use default "world"
+        let world_name = find_world_folder(&instance_dir).await.unwrap_or_else(|| "world".to_string());
+        instance_dir.join("saves").join(&world_name).join("datapacks")
+    } else {
+        instance_dir.join(folder_name)
+    };
 
     // Create directory if it doesn't exist
     tokio::fs::create_dir_all(&target_dir)
@@ -304,7 +362,11 @@ pub async fn install_modrinth_mod(
         .map_err(|e| AppError::Network(e.to_string()))?;
 
     // Save metadata file with icon_url
-    let meta_filename = format!("{}.meta.json", file.filename.trim_end_matches(".jar"));
+    // Strip appropriate extension based on file type
+    let base_filename = file.filename
+        .trim_end_matches(".jar")
+        .trim_end_matches(".zip");
+    let meta_filename = format!("{}.meta.json", base_filename);
     let meta_path = target_dir.join(&meta_filename);
     let metadata = ModMetadata {
         name: project.title,
@@ -317,27 +379,32 @@ pub async fn install_modrinth_mod(
         let _ = tokio::fs::write(&meta_path, meta_json).await;
     }
 
+    let content_type_name = match ptype {
+        Some("resourcepack") => "resource pack",
+        Some("shader") => "shader",
+        Some("datapack") => "datapack",
+        Some("plugin") => "plugin",
+        _ => if folder_name == "plugins" { "plugin" } else { "mod" },
+    };
+
     log::info!(
         "Installed {} {} (version {}) to instance {} (folder: {})",
-        if folder_name == "plugins" {
-            "plugin"
-        } else {
-            "mod"
-        },
+        content_type_name,
         project_id,
         version_id,
         instance_id,
-        folder_name
+        target_dir.display()
     );
 
     Ok(file.filename.clone())
 }
 
-/// Get list of installed mod project IDs for an instance
+/// Get list of installed content project IDs for an instance
 #[tauri::command]
 pub async fn get_installed_mod_ids(
     state: State<'_, SharedState>,
     instance_id: String,
+    project_type: Option<String>,
 ) -> AppResult<Vec<String>> {
     let state_guard = state.read().await;
 
@@ -346,21 +413,30 @@ pub async fn get_installed_mod_ids(
         .map_err(AppError::from)?
         .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
 
-    let folder_name = get_content_folder(instance.loader.as_deref(), instance.is_server);
-    let mods_dir = state_guard
+    let ptype = project_type.as_deref();
+    let folder_name = get_content_folder(ptype, instance.loader.as_deref(), instance.is_server);
+
+    let instance_dir = state_guard
         .data_dir
         .join("instances")
-        .join(&instance.game_dir)
-        .join(folder_name);
+        .join(&instance.game_dir);
 
-    if !mods_dir.exists() {
+    // Handle datapacks specially
+    let content_dir = if ptype == Some("datapack") {
+        let world_name = find_world_folder(&instance_dir).await.unwrap_or_else(|| "world".to_string());
+        instance_dir.join("saves").join(&world_name).join("datapacks")
+    } else {
+        instance_dir.join(folder_name)
+    };
+
+    if !content_dir.exists() {
         return Ok(vec![]);
     }
 
     let mut project_ids = Vec::new();
-    let mut entries = tokio::fs::read_dir(&mods_dir)
+    let mut entries = tokio::fs::read_dir(&content_dir)
         .await
-        .map_err(|e| AppError::Io(format!("Failed to read mods directory: {}", e)))?;
+        .map_err(|e| AppError::Io(format!("Failed to read {} directory: {}", folder_name, e)))?;
 
     while let Some(entry) = entries
         .next_entry()
@@ -476,6 +552,7 @@ pub async fn install_modrinth_mods_batch(
     state: State<'_, SharedState>,
     instance_id: String,
     mods: Vec<(String, String)>, // Vec of (project_id, version_id)
+    project_type: Option<String>,
 ) -> AppResult<Vec<String>> {
     let state_guard = state.read().await;
     let client = ModrinthClient::new(&state_guard.http_client);
@@ -486,12 +563,21 @@ pub async fn install_modrinth_mods_batch(
         .map_err(AppError::from)?
         .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
 
-    let folder_name = get_content_folder(instance.loader.as_deref(), instance.is_server);
-    let target_dir = state_guard
+    let ptype = project_type.as_deref();
+    let folder_name = get_content_folder(ptype, instance.loader.as_deref(), instance.is_server);
+
+    let instance_dir = state_guard
         .data_dir
         .join("instances")
-        .join(&instance.game_dir)
-        .join(folder_name);
+        .join(&instance.game_dir);
+
+    // Handle datapacks specially
+    let target_dir = if ptype == Some("datapack") {
+        let world_name = find_world_folder(&instance_dir).await.unwrap_or_else(|| "world".to_string());
+        instance_dir.join("saves").join(&world_name).join("datapacks")
+    } else {
+        instance_dir.join(folder_name)
+    };
 
     // Create directory if it doesn't exist
     tokio::fs::create_dir_all(&target_dir)

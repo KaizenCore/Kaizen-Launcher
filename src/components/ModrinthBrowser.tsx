@@ -80,12 +80,16 @@ interface DependencyInfo {
   slug: string
 }
 
+// Content types supported by Modrinth
+export type ContentType = "mod" | "resourcepack" | "shader" | "datapack"
+
 interface ModrinthBrowserProps {
   instanceId: string
   mcVersion: string
   loader: string | null
   isServer: boolean
   onModInstalled: () => void
+  contentType?: ContentType
 }
 
 function formatDownloads(num: number): string {
@@ -247,6 +251,61 @@ const PLUGIN_CATEGORIES: { value: string; labelKey: TranslationKey }[] = [
   { value: "world-management", labelKey: "modrinth.categoryWorldManagement" },
 ]
 
+// Resource pack categories
+const RESOURCEPACK_CATEGORIES: { value: string; labelKey: TranslationKey }[] = [
+  { value: "8x-", labelKey: "modrinth.categoryRes8x" },
+  { value: "16x", labelKey: "modrinth.categoryRes16x" },
+  { value: "32x", labelKey: "modrinth.categoryRes32x" },
+  { value: "48x", labelKey: "modrinth.categoryRes48x" },
+  { value: "64x", labelKey: "modrinth.categoryRes64x" },
+  { value: "128x", labelKey: "modrinth.categoryRes128x" },
+  { value: "256x", labelKey: "modrinth.categoryRes256x" },
+  { value: "512x+", labelKey: "modrinth.categoryRes512x" },
+  { value: "realistic", labelKey: "modrinth.categoryRealistic" },
+  { value: "simplistic", labelKey: "modrinth.categorySimplistic" },
+  { value: "themed", labelKey: "modrinth.categoryThemed" },
+  { value: "tweaks", labelKey: "modrinth.categoryTweaks" },
+  { value: "font", labelKey: "modrinth.categoryFont" },
+  { value: "gui", labelKey: "modrinth.categoryGui" },
+  { value: "utility", labelKey: "modrinth.categoryUtility" },
+]
+
+// Shader categories
+const SHADER_CATEGORIES: { value: string; labelKey: TranslationKey }[] = [
+  { value: "atmosphere", labelKey: "modrinth.categoryAtmosphere" },
+  { value: "bloom", labelKey: "modrinth.categoryBloom" },
+  { value: "cartoon", labelKey: "modrinth.categoryCartoon" },
+  { value: "cursed", labelKey: "modrinth.categoryCursed" },
+  { value: "fantasy", labelKey: "modrinth.categoryFantasy" },
+  { value: "lightweight", labelKey: "modrinth.categoryLightweight" },
+  { value: "potato", labelKey: "modrinth.categoryPotato" },
+  { value: "semi-realistic", labelKey: "modrinth.categorySemiRealistic" },
+  { value: "vanilla-like", labelKey: "modrinth.categoryVanillaLike" },
+]
+
+// Datapack categories
+const DATAPACK_CATEGORIES: { value: string; labelKey: TranslationKey }[] = [
+  { value: "adventure", labelKey: "modrinth.categoryAdventure" },
+  { value: "cursed", labelKey: "modrinth.categoryCursed" },
+  { value: "decoration", labelKey: "modrinth.categoryDecoration" },
+  { value: "economy", labelKey: "modrinth.categoryEconomy" },
+  { value: "equipment", labelKey: "modrinth.categoryEquipment" },
+  { value: "food", labelKey: "modrinth.categoryFood" },
+  { value: "game-mechanics", labelKey: "modrinth.categoryMechanics" },
+  { value: "library", labelKey: "modrinth.categoryLibrary" },
+  { value: "magic", labelKey: "modrinth.categoryMagic" },
+  { value: "management", labelKey: "modrinth.categoryManagement" },
+  { value: "minigame", labelKey: "modrinth.categoryMinigame" },
+  { value: "mobs", labelKey: "modrinth.categoryMobs" },
+  { value: "optimization", labelKey: "modrinth.categoryOptimization" },
+  { value: "social", labelKey: "modrinth.categorySocial" },
+  { value: "storage", labelKey: "modrinth.categoryStorage" },
+  { value: "technology", labelKey: "modrinth.categoryTechnology" },
+  { value: "transportation", labelKey: "modrinth.categoryTransportation" },
+  { value: "utility", labelKey: "modrinth.categoryUtility" },
+  { value: "worldgen", labelKey: "modrinth.categoryWorldgen" },
+]
+
 const SORT_OPTIONS: { value: string; labelKey: TranslationKey }[] = [
   { value: "relevance", labelKey: "modrinth.sortRelevance" },
   { value: "downloads", labelKey: "modrinth.sortDownloads" },
@@ -255,37 +314,69 @@ const SORT_OPTIONS: { value: string; labelKey: TranslationKey }[] = [
   { value: "updated", labelKey: "modrinth.sortUpdated" },
 ]
 
-// Determine if this loader uses mods or plugins
-function getProjectType(loader: string | null): { projectType: string; itemLabel: string; itemLabelSingular: string } {
+// Determine the project type, item labels and categories based on contentType and loader
+function getContentConfig(contentType: ContentType | undefined, loader: string | null): {
+  projectType: string
+  itemLabel: string
+  itemLabelSingular: string
+  categories: { value: string; labelKey: TranslationKey }[]
+} {
+  // If contentType is explicitly set, use it
+  if (contentType === "resourcepack") {
+    return {
+      projectType: "resourcepack",
+      itemLabel: "resource packs",
+      itemLabelSingular: "resource pack",
+      categories: RESOURCEPACK_CATEGORIES,
+    }
+  }
+  if (contentType === "shader") {
+    return {
+      projectType: "shader",
+      itemLabel: "shaders",
+      itemLabelSingular: "shader",
+      categories: SHADER_CATEGORIES,
+    }
+  }
+  if (contentType === "datapack") {
+    return {
+      projectType: "datapack",
+      itemLabel: "datapacks",
+      itemLabelSingular: "datapack",
+      categories: DATAPACK_CATEGORIES,
+    }
+  }
+
+  // Default behavior based on loader (for mods/plugins)
   if (!loader) {
-    return { projectType: "mod", itemLabel: "mods", itemLabelSingular: "mod" }
+    return { projectType: "mod", itemLabel: "mods", itemLabelSingular: "mod", categories: MOD_CATEGORIES }
   }
 
   const loaderLower = loader.toLowerCase()
 
   // Mod loaders - search for mods
   if (["fabric", "forge", "neoforge", "quilt"].includes(loaderLower)) {
-    return { projectType: "mod", itemLabel: "mods", itemLabelSingular: "mod" }
+    return { projectType: "mod", itemLabel: "mods", itemLabelSingular: "mod", categories: MOD_CATEGORIES }
   }
 
   // Plugin servers - search for plugins
   if (["paper", "spigot", "bukkit", "purpur", "folia"].includes(loaderLower)) {
-    return { projectType: "plugin", itemLabel: "plugins", itemLabelSingular: "plugin" }
+    return { projectType: "plugin", itemLabel: "plugins", itemLabelSingular: "plugin", categories: PLUGIN_CATEGORIES }
   }
 
   // Proxy servers - search for plugins
   if (["velocity", "bungeecord", "waterfall"].includes(loaderLower)) {
-    return { projectType: "plugin", itemLabel: "plugins", itemLabelSingular: "plugin" }
+    return { projectType: "plugin", itemLabel: "plugins", itemLabelSingular: "plugin", categories: PLUGIN_CATEGORIES }
   }
 
-  return { projectType: "mod", itemLabel: "mods", itemLabelSingular: "mod" }
+  return { projectType: "mod", itemLabel: "mods", itemLabelSingular: "mod", categories: MOD_CATEGORIES }
 }
 
-export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isServer, onModInstalled }: ModrinthBrowserProps) {
+export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isServer, onModInstalled, contentType }: ModrinthBrowserProps) {
   const { t } = useTranslation()
-  // Determine project type based on loader, not just isServer
-  // Note: _isServer is kept for potential future use but loader is now the source of truth
-  const { projectType, itemLabel, itemLabelSingular } = getProjectType(loader)
+  // Determine project type based on contentType first, then loader
+  // Note: _isServer is kept for potential future use but loader/contentType are now the source of truth
+  const { projectType, itemLabel, itemLabelSingular, categories } = getContentConfig(contentType, loader)
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ModSearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -295,7 +386,6 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
   // Filters
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [sortBy, setSortBy] = useState<string>("downloads")
-  const categories = projectType === "plugin" ? PLUGIN_CATEGORIES : MOD_CATEGORIES
 
   // Pagination
   const ITEMS_PER_PAGE = 20
@@ -322,12 +412,12 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
   // Load installed mod IDs on mount and after each installation
   const loadInstalledMods = useCallback(async () => {
     try {
-      const ids = await invoke<string[]>("get_installed_mod_ids", { instanceId })
+      const ids = await invoke<string[]>("get_installed_mod_ids", { instanceId, projectType })
       setInstalledModIds(new Set(ids))
     } catch (err) {
       console.error("Failed to load installed mod IDs:", err)
     }
-  }, [instanceId])
+  }, [instanceId, projectType])
 
   useEffect(() => {
     loadInstalledMods()
@@ -457,6 +547,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         projectId: mod.project_id,
         gameVersion: mcVersion,
         loader: loader,
+        projectType: projectType,
       })
       setModVersions(versions)
       if (versions.length > 0) {
@@ -526,6 +617,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         instanceId,
         projectId: mod.project_id,
         versionId: versionId,
+        projectType: projectType,
       })
 
       // Then install dependencies if any
@@ -541,6 +633,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
                 projectId: dep.project_id,
                 gameVersion: mcVersion,
                 loader: loader,
+                projectType: projectType,
               })
               if (depVersions.length > 0) {
                 depVersionId = depVersions[0].id
@@ -552,6 +645,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
                 instanceId,
                 projectId: dep.project_id,
                 versionId: depVersionId,
+                projectType: projectType,
               })
             }
           } catch (depErr) {
@@ -614,6 +708,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         projectId: mod.project_id,
         gameVersion: mcVersion,
         loader: loader,
+        projectType: projectType,
       })
 
       if (versions.length === 0) {

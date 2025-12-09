@@ -465,6 +465,249 @@ pub async fn get_instance_mods(
     Ok(mods)
 }
 
+/// Content info for resource packs, shaders, datapacks
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContentInfo {
+    pub name: String,
+    pub version: String,
+    pub filename: String,
+    pub enabled: bool,
+    pub icon_url: Option<String>,
+    pub project_id: Option<String>,
+}
+
+/// Helper function to find the first world folder in saves/
+async fn find_world_folder(instance_dir: &std::path::Path) -> Option<String> {
+    let saves_dir = instance_dir.join("saves");
+    if !saves_dir.exists() {
+        return None;
+    }
+
+    let mut entries = match fs::read_dir(&saves_dir).await {
+        Ok(e) => e,
+        Err(_) => return None,
+    };
+
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        if let Ok(file_type) = entry.file_type().await {
+            if file_type.is_dir() {
+                return Some(entry.file_name().to_string_lossy().to_string());
+            }
+        }
+    }
+
+    None
+}
+
+/// Get installed resource packs for an instance
+#[tauri::command]
+pub async fn get_instance_resourcepacks(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<Vec<ContentInfo>> {
+    get_instance_content(state, instance_id, "resourcepacks", &[".zip"]).await
+}
+
+/// Get installed shaders for an instance
+#[tauri::command]
+pub async fn get_instance_shaders(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<Vec<ContentInfo>> {
+    get_instance_content(state, instance_id, "shaderpacks", &[".zip"]).await
+}
+
+/// Get installed datapacks for an instance
+#[tauri::command]
+pub async fn get_instance_datapacks(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<Vec<ContentInfo>> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let instance_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir);
+
+    // Find world folder for datapacks
+    let world_name = find_world_folder(&instance_dir).await.unwrap_or_else(|| "world".to_string());
+    let datapacks_dir = instance_dir.join("saves").join(&world_name).join("datapacks");
+
+    if !datapacks_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut content = Vec::new();
+    let mut entries = fs::read_dir(&datapacks_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read datapacks directory: {}", e)))?;
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
+        let filename = entry.file_name().to_string_lossy().to_string();
+
+        // Check if it's a zip file (enabled) or disabled
+        let (is_enabled, base_filename) = if filename.ends_with(".zip") {
+            (true, filename.clone())
+        } else if filename.ends_with(".zip.disabled") {
+            (false, filename.replace(".disabled", ""))
+        } else {
+            continue;
+        };
+
+        // Extract name from filename
+        let name = base_filename
+            .trim_end_matches(".zip")
+            .replace('-', " ")
+            .replace('_', " ");
+
+        // Try to read metadata file
+        let meta_filename = format!("{}.meta.json", base_filename.trim_end_matches(".zip"));
+        let meta_path = datapacks_dir.join(&meta_filename);
+        let (icon_url, project_id, meta_name, meta_version) = if meta_path.exists() {
+            match fs::read_to_string(&meta_path).await {
+                Ok(content) => match serde_json::from_str::<ModMetadata>(&content) {
+                    Ok(meta) => (
+                        meta.icon_url,
+                        Some(meta.project_id),
+                        Some(meta.name),
+                        Some(meta.version),
+                    ),
+                    Err(_) => (None, None, None, None),
+                },
+                Err(_) => (None, None, None, None),
+            }
+        } else {
+            (None, None, None, None)
+        };
+
+        content.push(ContentInfo {
+            name: meta_name.unwrap_or(name),
+            version: meta_version.unwrap_or_else(|| "Unknown".to_string()),
+            filename,
+            enabled: is_enabled,
+            icon_url,
+            project_id,
+        });
+    }
+
+    content.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(content)
+}
+
+/// Generic function to get content from a folder
+async fn get_instance_content(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    folder: &str,
+    extensions: &[&str],
+) -> AppResult<Vec<ContentInfo>> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let content_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join(folder);
+
+    if !content_dir.exists() {
+        // Create the directory if it doesn't exist
+        fs::create_dir_all(&content_dir).await.map_err(|e| {
+            AppError::Io(format!("Failed to create {} directory: {}", folder, e))
+        })?;
+        return Ok(vec![]);
+    }
+
+    let mut content = Vec::new();
+    let mut entries = fs::read_dir(&content_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read {} directory: {}", folder, e)))?;
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
+        let filename = entry.file_name().to_string_lossy().to_string();
+
+        // Check if file matches expected extensions
+        let mut is_enabled = false;
+        let mut base_filename = filename.clone();
+        let mut matched = false;
+
+        for ext in extensions {
+            if filename.ends_with(ext) {
+                is_enabled = true;
+                base_filename = filename.clone();
+                matched = true;
+                break;
+            } else if filename.ends_with(&format!("{}.disabled", ext)) {
+                is_enabled = false;
+                base_filename = filename.replace(".disabled", "");
+                matched = true;
+                break;
+            }
+        }
+
+        if !matched {
+            continue;
+        }
+
+        // Extract name from filename
+        let ext_to_strip = extensions.first().unwrap_or(&".zip");
+        let name = base_filename
+            .trim_end_matches(ext_to_strip)
+            .replace('-', " ")
+            .replace('_', " ");
+
+        // Try to read metadata file
+        let meta_filename = format!("{}.meta.json", base_filename.trim_end_matches(ext_to_strip));
+        let meta_path = content_dir.join(&meta_filename);
+        let (icon_url, project_id, meta_name, meta_version) = if meta_path.exists() {
+            match fs::read_to_string(&meta_path).await {
+                Ok(content) => match serde_json::from_str::<ModMetadata>(&content) {
+                    Ok(meta) => (
+                        meta.icon_url,
+                        Some(meta.project_id),
+                        Some(meta.name),
+                        Some(meta.version),
+                    ),
+                    Err(_) => (None, None, None, None),
+                },
+                Err(_) => (None, None, None, None),
+            }
+        } else {
+            (None, None, None, None)
+        };
+
+        content.push(ContentInfo {
+            name: meta_name.unwrap_or(name),
+            version: meta_version.unwrap_or_else(|| "Unknown".to_string()),
+            filename,
+            enabled: is_enabled,
+            icon_url,
+            project_id,
+        });
+    }
+
+    content.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(content)
+}
+
 #[tauri::command]
 pub async fn toggle_mod(
     state: State<'_, SharedState>,
