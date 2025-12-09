@@ -172,10 +172,18 @@ pub fn find_system_java() -> Option<String> {
 
 /// Get Java version from executable
 fn get_java_version(java_path: &Path) -> Option<String> {
-    let output = std::process::Command::new(java_path)
-        .arg("-version")
-        .output()
-        .ok()?;
+    let mut cmd = std::process::Command::new(java_path);
+    cmd.arg("-version");
+
+    // Windows-specific: CREATE_NO_WINDOW flag to hide console window
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = cmd.output().ok()?;
 
     // Java outputs version to stderr
     let stderr = String::from_utf8_lossy(&output.stderr);
@@ -337,18 +345,24 @@ async fn extract_java_archive(archive_path: &Path, dest_dir: &Path) -> AppResult
 
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
         use std::process::Command;
 
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
         // Use PowerShell to extract zip
-        let status = Command::new("powershell")
-            .args([
-                "-Command",
-                &format!(
-                    "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
-                    archive_path.to_string_lossy(),
-                    dest_dir.to_string_lossy()
-                ),
-            ])
+        let mut cmd = Command::new("powershell");
+        cmd.args([
+            "-Command",
+            &format!(
+                "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
+                archive_path.to_string_lossy(),
+                dest_dir.to_string_lossy()
+            ),
+        ]);
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        let status = cmd
             .status()
             .map_err(|e| AppError::Io(format!("Failed to extract archive: {}", e)))?;
 

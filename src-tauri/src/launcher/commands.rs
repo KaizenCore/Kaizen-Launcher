@@ -9,6 +9,10 @@ use std::path::Path;
 use tauri::{Emitter, State};
 use tokio::fs;
 
+// Windows-specific: CREATE_NO_WINDOW flag to hide console window
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 /// Helper to get loader version from instance or return an error
 fn get_loader_version<'a>(instance: &'a Instance, loader_name: &str) -> AppResult<&'a str> {
     instance
@@ -571,9 +575,19 @@ async fn install_forge_server(
     let installer_path_str = installer_path
         .to_str()
         .ok_or_else(|| AppError::Io("Invalid installer path (non-UTF8)".to_string()))?;
-    let output = tokio::process::Command::new(&java_path)
-        .args(["-jar", installer_path_str, "--installServer"])
-        .current_dir(instance_dir)
+
+    let mut cmd = tokio::process::Command::new(&java_path);
+    cmd.args(["-jar", installer_path_str, "--installServer"])
+        .current_dir(instance_dir);
+
+    // On Windows, hide the console window
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = cmd
         .output()
         .await
         .map_err(|e| AppError::Io(format!("Failed to run Forge installer: {}", e)))?;
@@ -767,9 +781,18 @@ async fn install_neoforge_server(
     let installer_path_str = installer_path
         .to_str()
         .ok_or_else(|| AppError::Io("Invalid installer path (non-UTF8)".to_string()))?;
-    let output = tokio::process::Command::new(&java_path)
-        .args(["-jar", installer_path_str, "--installServer"])
-        .current_dir(instance_dir)
+
+    let mut cmd = tokio::process::Command::new(&java_path);
+    cmd.args(["-jar", installer_path_str, "--installServer"])
+        .current_dir(instance_dir);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = cmd
         .output()
         .await
         .map_err(|e| AppError::Io(format!("Failed to run NeoForge installer: {}", e)))?;
@@ -1639,10 +1662,12 @@ pub async fn stop_instance(state: State<'_, SharedState>, instance_id: String) -
         }
         #[cfg(windows)]
         {
+            use std::os::windows::process::CommandExt;
             use std::process::Command;
-            let _ = Command::new("taskkill")
-                .args(["/F", "/PID", &pid.to_string()])
-                .output();
+            let mut cmd = Command::new("taskkill");
+            cmd.args(["/F", "/PID", &pid.to_string()]);
+            cmd.creation_flags(CREATE_NO_WINDOW);
+            let _ = cmd.output();
         }
         Ok(())
     } else {

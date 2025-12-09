@@ -68,10 +68,14 @@ pub async fn stop_tunnel(
 
         #[cfg(windows)]
         {
+            use std::os::windows::process::CommandExt;
             use std::process::Command;
-            let _ = Command::new("taskkill")
-                .args(["/PID", &tunnel.pid.to_string(), "/F"])
-                .status();
+
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            let mut cmd = Command::new("taskkill");
+            cmd.args(["/PID", &tunnel.pid.to_string(), "/F"]);
+            cmd.creation_flags(CREATE_NO_WINDOW);
+            let _ = cmd.status();
         }
 
         // Emit disconnected status

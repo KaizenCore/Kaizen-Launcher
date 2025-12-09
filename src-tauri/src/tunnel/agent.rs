@@ -369,18 +369,24 @@ async fn extract_zip(archive_path: &Path, dest_dir: &Path) -> AppResult<()> {
 
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
         use std::process::Command;
 
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+
         // Use PowerShell's Expand-Archive on Windows
-        let status = Command::new("powershell")
-            .args([
-                "-Command",
-                &format!(
-                    "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
-                    archive_path.to_string_lossy(),
-                    dest_dir.to_string_lossy()
-                ),
-            ])
+        let mut cmd = Command::new("powershell");
+        cmd.args([
+            "-Command",
+            &format!(
+                "Expand-Archive -Path '{}' -DestinationPath '{}' -Force",
+                archive_path.to_string_lossy(),
+                dest_dir.to_string_lossy()
+            ),
+        ]);
+        cmd.creation_flags(CREATE_NO_WINDOW);
+
+        let status = cmd
             .status()
             .map_err(|e| AppError::Io(format!("Failed to extract zip: {}", e)))?;
 

@@ -77,8 +77,15 @@ pub async fn configure_authtoken(data_dir: &Path, authtoken: &str) -> AppResult<
 
     println!("[NGROK] Configuring authtoken...");
 
-    let output = Command::new(&binary_path)
-        .args(["config", "add-authtoken", authtoken])
+    let mut cmd = Command::new(&binary_path);
+    cmd.args(["config", "add-authtoken", authtoken]);
+
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = cmd
         .output()
         .await
         .map_err(|e| AppError::Io(format!("Failed to configure ngrok: {}", e)))?;
@@ -105,10 +112,15 @@ pub async fn is_configured(data_dir: &Path) -> bool {
     }
 
     // Try to run ngrok config check
-    let output = Command::new(&binary_path)
-        .args(["config", "check"])
-        .output()
-        .await;
+    let mut cmd = Command::new(&binary_path);
+    cmd.args(["config", "check"]);
+
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let output = cmd.output().await;
 
     match output {
         Ok(o) => o.status.success(),
