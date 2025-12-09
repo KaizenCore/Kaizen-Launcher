@@ -10,6 +10,7 @@ import { useTheme } from "@/hooks/useTheme"
 import { useTranslation, localeNames, Locale } from "@/i18n"
 import { cn } from "@/lib/utils"
 import { invoke } from "@tauri-apps/api/core"
+import { getVersion } from "@tauri-apps/api/app"
 import { toast } from "sonner"
 import { ThemeCustomizer } from "@/components/theme/ThemeCustomizer"
 import { useUpdateChecker } from "@/hooks/useUpdateChecker"
@@ -68,6 +69,9 @@ export function Settings() {
 
   // Update checker
   const { checking, checkForUpdates, updateInfo, updateAvailable } = useUpdateChecker(false)
+
+  // App version
+  const [appVersion, setAppVersion] = useState<string>("...")
 
   // Java state
   const [javaInstallations, setJavaInstallations] = useState<JavaInstallation[]>([])
@@ -142,6 +146,11 @@ export function Settings() {
   useEffect(() => {
     loadJavaData()
   }, [loadJavaData])
+
+  // Load app version
+  useEffect(() => {
+    getVersion().then(setAppVersion).catch(() => setAppVersion("unknown"))
+  }, [])
 
   const handleInstallJava = async (majorVersion: number) => {
     setInstallingVersion(majorVersion)
@@ -689,7 +698,7 @@ export function Settings() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">{t("common.version")}</span>
-                  <span className="text-sm font-medium">0.1.0</span>
+                  <span className="text-sm font-medium">{appVersion}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">{t("common.build")}</span>

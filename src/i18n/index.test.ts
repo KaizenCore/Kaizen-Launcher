@@ -5,33 +5,33 @@ import { renderHook, act } from "@testing-library/react";
 describe("i18n", () => {
   beforeEach(() => {
     // Reset store to default state
-    useI18nStore.setState({ locale: "fr" });
+    useI18nStore.setState({ locale: "en" });
   });
 
   describe("useTranslation", () => {
-    it("should return French translations by default", () => {
+    it("should return English translations by default", () => {
       const { result } = renderHook(() => useTranslation());
-
-      expect(result.current.locale).toBe("fr");
-      expect(result.current.t("common.loading")).toBe("Chargement...");
-    });
-
-    it("should return English translations when locale is set to en", () => {
-      const { result } = renderHook(() => useTranslation());
-
-      act(() => {
-        result.current.setLocale("en");
-      });
 
       expect(result.current.locale).toBe("en");
       expect(result.current.t("common.loading")).toBe("Loading...");
     });
 
+    it("should return French translations when locale is set to fr", () => {
+      const { result } = renderHook(() => useTranslation());
+
+      act(() => {
+        result.current.setLocale("fr");
+      });
+
+      expect(result.current.locale).toBe("fr");
+      expect(result.current.t("common.loading")).toBe("Chargement...");
+    });
+
     it("should handle nested translation keys", () => {
       const { result } = renderHook(() => useTranslation());
 
-      expect(result.current.t("nav.home")).toBe("Accueil");
-      expect(result.current.t("instances.play")).toBe("Jouer");
+      expect(result.current.t("nav.home")).toBe("Home");
+      expect(result.current.t("instances.play")).toBe("Play");
     });
 
     it("should substitute parameters in translations", () => {

@@ -21,7 +21,7 @@ interface I18nState {
 export const useI18nStore = create<I18nState>()(
   persist(
     (set) => ({
-      locale: "fr",
+      locale: "en",
       setLocale: (locale) => set({ locale }),
     }),
     {
