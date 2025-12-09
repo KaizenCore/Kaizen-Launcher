@@ -415,7 +415,25 @@
   "java": {
     "required": "Java required",
     "notInstalled": "Java is not installed. It is required to run Minecraft.",
-    "install21": "Install Java 21"
+    "install21": "Install Java 21",
+    "version": "Java Version",
+    "installVersion": "Install Java {version}",
+    "installedSuccess": "Java {version} installed successfully",
+    "installError": "Error installing Java {version}",
+    "noInstallation": "No Java installation detected",
+    "defaultAuto": "Default Java (auto)",
+    "bundled": "Bundled",
+    "recommended": "Recommended",
+    "browse": "Browse..."
+  },
+  "ram": {
+    "memoryError": "Unable to retrieve system memory",
+    "zoneLow": "May be insufficient for mods",
+    "zoneOptimal": "Ideal for Vanilla and light mods",
+    "zoneGood": "Perfect for modpacks",
+    "zoneWarning": "GC may cause lag",
+    "zoneDanger": "Too much RAM - GC freeze risk",
+    "recommended": "Recommended:"
   },
   "dialogs": {
     "deleteInstance": {
@@ -650,6 +668,18 @@
     "ramTip4to8": "4-8GB is perfect for most modpacks. Increase G1HeapRegionSize for better performance.",
     "ramTip8to12": "8-12GB: watch for long GC pauses. Use optimized settings and AlwaysPreTouch.",
     "ramTipHigh": "More than 12GB can cause GC freezes. Consider reducing RAM or use ZGC (Java 17+)."
+  },
+  "serverJvmTemplates": {
+    "serverJvmArgs": "Server JVM Arguments",
+    "aikarDesc": "Aikar's optimized flags - recommended for Paper/Spigot/Purpur",
+    "basicDesc": "Basic configuration for small servers (< 10 players)",
+    "zgcDesc": "Low latency Garbage Collector for high performance servers",
+    "graalvmDesc": "Optimized for GraalVM with advanced JIT compilation",
+    "ramTipLow": "Less than 2GB: sufficient for a small vanilla server with few players.",
+    "ramTip2to4": "2-4GB: ideal for a vanilla/Paper server with 5-15 players.",
+    "ramTip4to8": "4-8GB: perfect for a server with plugins and 15-30 players.",
+    "ramTip8to12": "8-12GB: recommended for servers with many plugins and 30-50 players.",
+    "ramTipHigh": "More than 12GB: use Aikar 12GB+ flags to avoid GC pauses."
   },
   "modrinth": {
     "searchPlaceholder": "Search {items} on Modrinth...",

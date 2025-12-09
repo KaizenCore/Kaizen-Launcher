@@ -334,7 +334,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
       }
     } catch (err) {
       console.error("Failed to load versions:", err)
-      toast.error("Impossible de charger les versions")
+      toast.error(t("errors.loadError"))
     } finally {
       setIsLoadingVersions(false)
     }
@@ -358,14 +358,14 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
       // Step 2: Install Minecraft with the loader
       setInstallingMinecraft(true)
       setInstallProgress(null)
-      setMinecraftProgress({ current: 0, message: "Installation de Minecraft..." })
+      setMinecraftProgress({ current: 0, message: t("modpack.installingMinecraft") })
 
       await invoke("install_instance", {
         instanceId: result.instance_id,
       })
     } catch (err) {
       console.error("Failed to install modpack:", err)
-      toast.error(`Erreur: ${err}`)
+      toast.error(`${t("common.error")}: ${err}`)
       setIsInstalling(false)
       setInstallingMinecraft(false)
       setInstallProgress(null)
@@ -388,7 +388,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Rechercher des modpacks sur Modrinth..."
+            placeholder={t("modpack.searchPlaceholder")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -396,7 +396,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
           />
         </div>
         <Button onClick={handleSearch} disabled={isSearching}>
-          {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Rechercher"}
+          {isSearching ? <Loader2 className="h-4 w-4 animate-spin" /> : t("modrinth.search")}
         </Button>
       </div>
 
@@ -496,7 +496,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
         <div className="flex-1" />
         {hasSearched && (
           <Badge variant="secondary" className="text-xs">
-            {totalHits} resultats
+            {totalHits} {t("modrinth.results")}
           </Badge>
         )}
       </div>
@@ -530,11 +530,11 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
         ) : searchResults.length === 0 ? (
           <div className="text-center py-8">
             <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Aucun modpack trouve</p>
+            <p className="text-muted-foreground">{t("modpack.noModpackFound")}</p>
             <p className="text-sm text-muted-foreground mt-1">
               {searchQuery || selectedCategories.length > 0
-                ? "Essayez de modifier vos filtres ou votre recherche"
-                : "Recherchez des modpacks sur Modrinth"}
+                ? t("modpack.tryDifferentSearch")
+                : t("modpack.searchModpacks")}
             </p>
           </div>
         ) : (
@@ -686,7 +686,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
           </Button>
 
           <span className="ml-2 text-sm text-muted-foreground">
-            Page {currentPage} sur {totalPages}
+            {t("modpack.page", { current: String(currentPage), total: String(totalPages) })}
           </span>
         </div>
       )}
@@ -707,14 +707,14 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
               {selectedModpack && installedModpackIds.has(selectedModpack.project_id) && (
                 <Badge variant="outline" className="text-xs bg-green-500/10 text-green-600 border-green-500/20">
                   <Check className="h-2.5 w-2.5 mr-1" />
-                  Installe
+                  {t("modpack.installed")}
                 </Badge>
               )}
             </DialogTitle>
             <DialogDescription>
               {selectedModpack && installedModpackIds.has(selectedModpack.project_id)
-                ? "Ce modpack est deja installe. Selectionnez une version pour creer une nouvelle instance."
-                : "Selectionnez une version a installer"}
+                ? t("modpack.alreadyInstalled")
+                : t("modpack.selectVersionInstall")}
             </DialogDescription>
           </DialogHeader>
 
@@ -725,12 +725,12 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
               </div>
             ) : modpackVersions.length === 0 ? (
               <p className="text-center text-muted-foreground py-4">
-                Aucune version disponible
+                {t("modpack.noVersionAvailable")}
               </p>
             ) : (
               <Select value={selectedVersion} onValueChange={setSelectedVersion}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selectionnez une version" />
+                  <SelectValue placeholder={t("modpack.selectVersion")} />
                 </SelectTrigger>
                 <SelectContent className="max-h-[300px]">
                   {modpackVersions.map((v) => (
@@ -750,7 +750,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
 
           <DialogFooter>
             <Button variant="outline" onClick={() => setSelectedModpack(null)}>
-              Annuler
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleInstall}
@@ -758,7 +758,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
               className="gap-2"
             >
               <Download className="h-4 w-4" />
-              Installer
+              {t("common.install")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -768,7 +768,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
       <Dialog open={isInstalling} onOpenChange={() => {}}>
         <DialogContent className="sm:max-w-[450px]" onPointerDownOutside={(e) => e.preventDefault()}>
           <DialogHeader>
-            <DialogTitle>Installation du modpack</DialogTitle>
+            <DialogTitle>{t("modpack.installing")}</DialogTitle>
             <DialogDescription>
               {selectedModpack?.title}
             </DialogDescription>
@@ -788,7 +788,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
                   <div className="h-4 w-4 rounded-full border-2 border-muted" />
                 )}
                 <span className={`text-sm ${installProgress ? "font-medium" : installingMinecraft ? "text-muted-foreground" : ""}`}>
-                  1. Telechargement des mods
+                  1. {t("modpack.downloadingMods")}
                 </span>
               </div>
               {installProgress && (
@@ -810,7 +810,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
                   <div className="h-4 w-4 rounded-full border-2 border-muted" />
                 )}
                 <span className={`text-sm ${installingMinecraft ? "font-medium" : "text-muted-foreground"}`}>
-                  2. Installation de Minecraft
+                  2. {t("modpack.installingMinecraft")}
                 </span>
               </div>
               {installingMinecraft && minecraftProgress && (

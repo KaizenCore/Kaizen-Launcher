@@ -10,12 +10,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
+import { useTranslation, type TranslationKey } from "@/i18n"
 
 interface ServerJvmTemplate {
   id: string
   name: string
   icon: React.ReactNode
-  description: string
+  descriptionKey: TranslationKey
   getArgs: (ramMb: number) => string
   recommended?: (ramMb: number) => boolean
 }
@@ -44,7 +45,7 @@ const serverTemplates: ServerJvmTemplate[] = [
     id: "aikar",
     name: "Aikar's Flags",
     icon: <Rocket className="h-4 w-4" />,
-    description: "Flags optimises par Aikar - recommande pour Paper/Spigot/Purpur",
+    descriptionKey: "serverJvmTemplates.aikarDesc",
     recommended: (ram) => ram >= 4096,
     getArgs: getAikarFlags,
   },
@@ -52,7 +53,7 @@ const serverTemplates: ServerJvmTemplate[] = [
     id: "basic",
     name: "Basic G1GC",
     icon: <Server className="h-4 w-4" />,
-    description: "Configuration de base pour petits serveurs (< 10 joueurs)",
+    descriptionKey: "serverJvmTemplates.basicDesc",
     recommended: (ram) => ram < 4096,
     getArgs: () => {
       return `-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC`
@@ -62,7 +63,7 @@ const serverTemplates: ServerJvmTemplate[] = [
     id: "zgc",
     name: "ZGC (Java 17+)",
     icon: <Zap className="h-4 w-4" />,
-    description: "Garbage Collector a faible latence pour serveurs haute performance",
+    descriptionKey: "serverJvmTemplates.zgcDesc",
     recommended: () => false,
     getArgs: () => {
       return `-XX:+UseZGC -XX:+ZGenerational -XX:+AlwaysPreTouch -XX:+DisableExplicitGC -XX:+PerfDisableSharedMem`
@@ -72,7 +73,7 @@ const serverTemplates: ServerJvmTemplate[] = [
     id: "graalvm",
     name: "GraalVM",
     icon: <Cpu className="h-4 w-4" />,
-    description: "Optimise pour GraalVM avec compilation JIT avancee",
+    descriptionKey: "serverJvmTemplates.graalvmDesc",
     recommended: () => false,
     getArgs: () => {
       return `-XX:+UseG1GC -XX:+ParallelRefProcEnabled -XX:MaxGCPauseMillis=200 -XX:+UnlockExperimentalVMOptions -XX:+DisableExplicitGC -XX:+AlwaysPreTouch -XX:+EnableJVMCI -XX:+UseJVMCICompiler`
@@ -80,24 +81,25 @@ const serverTemplates: ServerJvmTemplate[] = [
   },
 ]
 
-// Tips based on RAM
-const getServerRamTips = (ramMb: number): string => {
+// Tips based on RAM - returns translation key
+const getServerRamTipKey = (ramMb: number): TranslationKey => {
   if (ramMb < 2048) {
-    return "Moins de 2GB: suffisant pour un petit serveur vanilla avec peu de joueurs."
+    return "serverJvmTemplates.ramTipLow"
   }
   if (ramMb <= 4096) {
-    return "2-4GB: ideal pour un serveur vanilla/Paper avec 5-15 joueurs."
+    return "serverJvmTemplates.ramTip2to4"
   }
   if (ramMb <= 8192) {
-    return "4-8GB: parfait pour un serveur avec plugins et 15-30 joueurs."
+    return "serverJvmTemplates.ramTip4to8"
   }
   if (ramMb <= 12288) {
-    return "8-12GB: recommande pour serveurs avec beaucoup de plugins et 30-50 joueurs."
+    return "serverJvmTemplates.ramTip8to12"
   }
-  return "Plus de 12GB: utilisez les flags Aikar 12GB+ pour eviter les pauses GC."
+  return "serverJvmTemplates.ramTipHigh"
 }
 
 export function ServerJvmTemplates({ value, onChange, ramMb }: ServerJvmTemplatesProps) {
+  const { t } = useTranslation()
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
 
   // Find the recommended template
@@ -111,22 +113,22 @@ export function ServerJvmTemplates({ value, onChange, ramMb }: ServerJvmTemplate
     setSelectedTemplate(template.id)
   }
 
-  const ramTips = getServerRamTips(ramMb)
+  const ramTipKey = getServerRamTipKey(ramMb)
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <Label>Arguments JVM du serveur</Label>
+        <Label>{t("serverJvmTemplates.serverJvmArgs")}</Label>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button variant="ghost" size="sm" className="h-6 px-2 gap-1 text-xs text-muted-foreground">
                 <Info className="h-3 w-3" />
-                Aide
+                {t("jvmTemplates.help")}
               </Button>
             </TooltipTrigger>
             <TooltipContent side="left" className="max-w-sm">
-              <p className="text-sm">{ramTips}</p>
+              <p className="text-sm">{t(ramTipKey)}</p>
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -164,7 +166,7 @@ export function ServerJvmTemplates({ value, onChange, ramMb }: ServerJvmTemplate
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  <p className="text-sm">{template.description}</p>
+                  <p className="text-sm">{t(template.descriptionKey)}</p>
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -174,7 +176,7 @@ export function ServerJvmTemplates({ value, onChange, ramMb }: ServerJvmTemplate
 
       {/* Current RAM info */}
       <p className="text-xs text-muted-foreground">
-        * Recommande pour {ramMb >= 1024 ? `${(ramMb / 1024).toFixed(1)}GB` : `${ramMb}MB`} de RAM
+        * {t("jvmTemplates.recommendedFor", { ram: ramMb >= 1024 ? `${(ramMb / 1024).toFixed(1)}GB` : `${ramMb}MB` })}
       </p>
 
       {/* Textarea for manual editing */}
@@ -184,16 +186,9 @@ export function ServerJvmTemplates({ value, onChange, ramMb }: ServerJvmTemplate
           onChange(e.target.value)
           setSelectedTemplate(null)
         }}
-        placeholder="Arguments JVM personnalises ou selectionnez un template ci-dessus"
+        placeholder={t("jvmTemplates.customArgs")}
         className="font-mono text-xs h-24 resize-none"
       />
-
-      {/* Quick explanation */}
-      <div className="text-xs text-muted-foreground space-y-1">
-        <p><strong>Aikar's Flags:</strong> Le standard pour Paper/Spigot, optimise par la communaute</p>
-        <p><strong>ZGC:</strong> Excellent pour les gros serveurs, necessite Java 17+</p>
-        <p><strong>-Xms/-Xmx:</strong> Sont geres automatiquement par le launcher</p>
-      </div>
     </div>
   )
 }

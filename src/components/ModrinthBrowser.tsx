@@ -122,6 +122,7 @@ const ModSearchCard = memo(function ModSearchCard({
   onOpenVersions,
   onQuickInstall,
 }: ModSearchCardProps) {
+  const { t } = useTranslation()
   return (
     <Card className="overflow-hidden">
       <CardContent className="p-4">
@@ -149,13 +150,13 @@ const ModSearchCard = memo(function ModSearchCard({
             <div className="flex items-start justify-between gap-2">
               <div>
                 <h3 className="font-semibold text-lg leading-tight">{mod.title}</h3>
-                <p className="text-sm text-muted-foreground">par {mod.author}</p>
+                <p className="text-sm text-muted-foreground">{t("modrinth.by")} {mod.author}</p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 {isInstalled ? (
                   <Badge variant="secondary" className="gap-1">
                     <Check className="h-3 w-3" />
-                    Installe
+                    {t("browse.installed")}
                   </Badge>
                 ) : (
                   <>
@@ -166,7 +167,7 @@ const ModSearchCard = memo(function ModSearchCard({
                       className="gap-1"
                     >
                       <ChevronDown className="h-4 w-4" />
-                      Versions
+                      {t("modrinth.versions")}
                     </Button>
                     <Button
                       size="sm"
@@ -179,7 +180,7 @@ const ModSearchCard = memo(function ModSearchCard({
                       ) : (
                         <Download className="h-4 w-4" />
                       )}
-                      Installer
+                      {t("common.install")}
                     </Button>
                   </>
                 )}
@@ -473,7 +474,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
   const checkAndInstall = async (mod: ModSearchResult, versionId: string) => {
     // Check if the mod is already installed
     if (installedModIds.has(mod.project_id)) {
-      toast.error(`${mod.title} est deja installe`)
+      toast.error(`${mod.title} ${t("modrinth.alreadyInstalled")}`)
       setInstallingModId(null)
       return
     }
@@ -517,7 +518,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
     const toastId = `install-${mod.project_id}`
 
     const totalItems = 1 + depsToInstall.length
-    toast.loading(`Installation de ${mod.title}${totalItems > 1 ? ` et ${depsToInstall.length} dependance(s)` : ""}...`, { id: toastId })
+    toast.loading(totalItems > 1 ? t("modrinth.installingWithDeps", { title: mod.title, count: String(depsToInstall.length) }) : `${t("common.install")} ${mod.title}...`, { id: toastId })
 
     try {
       // First install the main mod
@@ -559,7 +560,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         }
       }
 
-      toast.success(`${mod.title}${totalItems > 1 ? ` et ${depsToInstall.length} dependance(s)` : ""} installe(s) avec succes`, { id: toastId })
+      toast.success(t("modrinth.installedWithDeps", { title: mod.title, count: String(depsToInstall.length) }), { id: toastId })
       setSelectedMod(null)
       setShowDependencies(false)
       setPendingInstall(null)
@@ -568,7 +569,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
       onModInstalled()
     } catch (err) {
       console.error(`Failed to install ${itemLabelSingular}:`, err)
-      toast.error(`Erreur lors de l'installation: ${err}`, { id: toastId })
+      toast.error(`${t("errors.installError")}: ${err}`, { id: toastId })
     } finally {
       setIsInstalling(false)
       setInstallingModId(null)
@@ -606,7 +607,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
   const handleQuickInstall = async (mod: ModSearchResult) => {
     setInstallingModId(mod.project_id)
     const toastId = `install-${mod.project_id}`
-    toast.loading(`Verification des dependances...`, { id: toastId })
+    toast.loading(t("modrinth.checkingDeps"), { id: toastId })
     try {
       // Get versions and install the first (latest compatible) one
       const versions = await invoke<ModVersionInfo[]>("get_modrinth_mod_versions", {
@@ -616,7 +617,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
       })
 
       if (versions.length === 0) {
-        toast.error("Aucune version compatible trouvee", { id: toastId })
+        toast.error(t("modrinth.noCompatibleVersionFound"), { id: toastId })
         setInstallingModId(null)
         return
       }
@@ -625,7 +626,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
       await checkAndInstall(mod, versions[0].id)
     } catch (err) {
       console.error(`Failed to install ${itemLabelSingular}:`, err)
-      toast.error(`Erreur lors de l'installation: ${err}`, { id: toastId })
+      toast.error(`${t("errors.installError")}: ${err}`, { id: toastId })
       setInstallingModId(null)
     } finally {
       setInstallingModId(null)
@@ -643,7 +644,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={`Rechercher des ${itemLabel} sur Modrinth...`}
+            placeholder={t("modrinth.searchPlaceholder", { items: itemLabel })}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -654,7 +655,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
           {isSearching ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
-            "Rechercher"
+            t("modrinth.search")
           )}
         </Button>
       </div>
@@ -680,7 +681,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
           <PopoverTrigger asChild>
             <Button variant="outline" className="gap-2">
               <SlidersHorizontal className="h-4 w-4" />
-              Categories
+              {t("modrinth.categories")}
               {selectedCategories.length > 0 && (
                 <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
                   {selectedCategories.length}
@@ -691,7 +692,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
           <PopoverContent className="w-[280px] p-0" align="start">
             <div className="p-3 border-b">
               <div className="flex items-center justify-between">
-                <span className="font-medium text-sm">Filtrer par categorie</span>
+                <span className="font-medium text-sm">{t("modrinth.filterByCategory")}</span>
                 {selectedCategories.length > 0 && (
                   <Button
                     variant="ghost"
@@ -702,7 +703,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
                       performSearch(searchQuery, [], sortBy)
                     }}
                   >
-                    Tout effacer
+                    {t("modrinth.clearAll")}
                   </Button>
                 )}
               </div>
@@ -733,7 +734,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         {activeFiltersCount > 0 && (
           <Button variant="ghost" size="sm" onClick={clearFilters} className="gap-1 text-muted-foreground">
             <X className="h-3 w-3" />
-            Effacer les filtres
+            {t("modrinth.clearFilters")}
           </Button>
         )}
 
@@ -749,7 +750,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         )}
         {hasSearched && (
           <Badge variant="secondary" className="text-xs">
-            {totalHits} resultats
+            {totalHits} {t("modrinth.results")}
           </Badge>
         )}
       </div>
@@ -783,11 +784,11 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         ) : searchResults.length === 0 ? (
           <div className="text-center py-8">
             <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">Aucun {itemLabelSingular} trouve</p>
+            <p className="text-muted-foreground">{t("modrinth.noItemFound", { item: itemLabelSingular })}</p>
             <p className="text-sm text-muted-foreground mt-1">
               {searchQuery || selectedCategories.length > 0
-                ? "Essayez de modifier vos filtres ou votre recherche"
-                : `Aucun ${itemLabelSingular} compatible avec ${mcVersion}${loader ? ` et ${loader}` : ""}`}
+                ? t("modrinth.tryDifferentFilters")
+                : t("modrinth.noCompatible", { item: itemLabelSingular, version: mcVersion }) + (loader ? ` ${t("modrinth.andLoader", { loader })}` : "")}
             </p>
           </div>
         ) : (
@@ -849,7 +850,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
           </Button>
 
           <span className="ml-2 text-sm text-muted-foreground">
-            Page {currentPage} sur {totalPages}
+            {t("modpack.page", { current: String(currentPage), total: String(totalPages) })}
           </span>
         </div>
       )}
@@ -860,7 +861,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
           <DialogHeader>
             <DialogTitle>{selectedMod?.title}</DialogTitle>
             <DialogDescription>
-              Selectionnez une version a installer
+              {t("modrinth.selectVersion")}
             </DialogDescription>
           </DialogHeader>
 
@@ -870,17 +871,17 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
             </div>
           ) : modVersions.length === 0 ? (
             <div className="text-center py-8">
-              <p className="text-muted-foreground">Aucune version compatible</p>
+              <p className="text-muted-foreground">{t("modrinth.noCompatibleVersion")}</p>
               <p className="text-sm text-muted-foreground mt-1">
-                Ce {itemLabelSingular} n'a pas de version pour {mcVersion}
-                {loader && ` avec ${loader}`}
+                {t("modrinth.noVersionFor", { item: itemLabelSingular, version: mcVersion })}
+                {loader && ` ${t("modrinth.andLoader", { loader })}`}
               </p>
             </div>
           ) : (
             <div className="space-y-4">
               <Select value={selectedVersion} onValueChange={setSelectedVersion}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Selectionnez une version" />
+                  <SelectValue placeholder={t("modpack.selectVersion")} />
                 </SelectTrigger>
                 <SelectContent>
                   {modVersions.map((version) => (
@@ -901,18 +902,18 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
 
               {selectedVersionInfo && (
                 <div className="text-sm text-muted-foreground space-y-1">
-                  <p>Version: {selectedVersionInfo.version_number}</p>
-                  <p>Minecraft: {selectedVersionInfo.game_versions.join(", ")}</p>
-                  <p>Loaders: {selectedVersionInfo.loaders.join(", ")}</p>
+                  <p>{t("modrinth.version")} {selectedVersionInfo.version_number}</p>
+                  <p>{t("modrinth.minecraft")} {selectedVersionInfo.game_versions.join(", ")}</p>
+                  <p>{t("modrinth.loaders")} {selectedVersionInfo.loaders.join(", ")}</p>
                   {selectedVersionInfo.files[0] && (
-                    <p>Taille: {formatSize(selectedVersionInfo.files[0].size)}</p>
+                    <p>{t("modrinth.size")} {formatSize(selectedVersionInfo.files[0].size)}</p>
                   )}
                 </div>
               )}
 
               <div className="flex justify-end gap-2">
                 <Button variant="outline" onClick={() => setSelectedMod(null)}>
-                  Annuler
+                  {t("common.cancel")}
                 </Button>
                 <Button
                   onClick={handleInstallMod}
@@ -924,7 +925,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
                   ) : (
                     <Download className="h-4 w-4" />
                   )}
-                  Installer
+                  {t("common.install")}
                 </Button>
               </div>
             </div>
@@ -943,10 +944,10 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <AlertTriangle className="h-5 w-5 text-yellow-500" />
-              Dependances detectees
+              {t("modrinth.dependenciesDetected")}
             </DialogTitle>
             <DialogDescription>
-              {pendingInstall?.mod.title} necessite les {itemLabel} suivants pour fonctionner correctement.
+              {t("modrinth.requiresFollowing", { title: pendingInstall?.mod.title || "", items: itemLabel })}
             </DialogDescription>
           </DialogHeader>
 
@@ -1005,7 +1006,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
                             variant={isRequired ? "destructive" : "secondary"}
                             className="text-xs"
                           >
-                            {isRequired ? "Requis" : "Optionnel"}
+                            {isRequired ? t("modrinth.required") : t("modrinth.optional")}
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground line-clamp-1">
@@ -1027,7 +1028,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
                 setPendingInstall(null)
               }}
             >
-              Annuler
+              {t("common.cancel")}
             </Button>
             <Button
               onClick={handleConfirmInstallWithDeps}
@@ -1039,7 +1040,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
               ) : (
                 <Download className="h-4 w-4" />
               )}
-              Installer ({1 + selectedDependencies.size} {itemLabel})
+              {t("modrinth.installCount", { count: String(1 + selectedDependencies.size), items: itemLabel })}
             </Button>
           </DialogFooter>
         </DialogContent>

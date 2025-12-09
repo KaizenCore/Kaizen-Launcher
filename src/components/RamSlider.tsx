@@ -5,6 +5,7 @@ import { Wand2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { cn } from "@/lib/utils"
+import { useTranslation } from "@/i18n"
 
 interface SystemMemoryInfo {
   total_mb: number
@@ -24,6 +25,7 @@ interface RamSliderProps {
 type RamZone = "low" | "optimal" | "good" | "warning" | "danger"
 
 export function RamSlider({ value, onChange, label, minValue = 512, recommendedValue = "max" }: RamSliderProps) {
+  const { t } = useTranslation()
   const [systemMemory, setSystemMemory] = useState<SystemMemoryInfo | null>(null)
 
   useEffect(() => {
@@ -31,9 +33,9 @@ export function RamSlider({ value, onChange, label, minValue = 512, recommendedV
       .then(setSystemMemory)
       .catch((err) => {
         console.error("Failed to get system memory:", err)
-        toast.error("Impossible de recuperer la memoire systeme")
+        toast.error(t("ram.memoryError"))
       })
-  }, [])
+  }, [t])
 
   const maxRam = useMemo(() => {
     if (!systemMemory) return 16384
@@ -73,11 +75,11 @@ export function RamSlider({ value, onChange, label, minValue = 512, recommendedV
 
   const getZoneDescription = (z: RamZone): string => {
     switch (z) {
-      case "low": return "Peut etre insuffisant pour les mods"
-      case "optimal": return "Ideal pour Vanilla et mods legers"
-      case "good": return "Parfait pour les modpacks"
-      case "warning": return "Le GC peut causer des lags"
-      case "danger": return "Trop de RAM - risque de freezes GC"
+      case "low": return t("ram.zoneLow")
+      case "optimal": return t("ram.zoneOptimal")
+      case "good": return t("ram.zoneGood")
+      case "warning": return t("ram.zoneWarning")
+      case "danger": return t("ram.zoneDanger")
     }
   }
 
@@ -238,7 +240,7 @@ export function RamSlider({ value, onChange, label, minValue = 512, recommendedV
       {/* Recommendation */}
       {systemMemory && (
         <div className="text-xs text-muted-foreground text-right">
-          Recommande: {formatRam(systemMemory.recommended_min_mb)} - {formatRam(systemMemory.recommended_max_mb)}
+          {t("ram.recommended")} {formatRam(systemMemory.recommended_min_mb)} - {formatRam(systemMemory.recommended_max_mb)}
         </div>
       )}
 

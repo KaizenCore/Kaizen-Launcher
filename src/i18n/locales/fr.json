@@ -415,7 +415,25 @@
   "java": {
     "required": "Java requis",
     "notInstalled": "Java n'est pas installe. Il est necessaire pour lancer Minecraft.",
-    "install21": "Installer Java 21"
+    "install21": "Installer Java 21",
+    "version": "Version Java",
+    "installVersion": "Installer Java {version}",
+    "installedSuccess": "Java {version} installe avec succes",
+    "installError": "Erreur lors de l'installation de Java {version}",
+    "noInstallation": "Aucune installation Java detectee",
+    "defaultAuto": "Java par defaut (auto)",
+    "bundled": "Integre",
+    "recommended": "Recommande",
+    "browse": "Parcourir..."
+  },
+  "ram": {
+    "memoryError": "Impossible de recuperer la memoire systeme",
+    "zoneLow": "Peut etre insuffisant pour les mods",
+    "zoneOptimal": "Ideal pour Vanilla et mods legers",
+    "zoneGood": "Parfait pour les modpacks",
+    "zoneWarning": "Le GC peut causer des lags",
+    "zoneDanger": "Trop de RAM - risque de freezes GC",
+    "recommended": "Recommande:"
   },
   "dialogs": {
     "deleteInstance": {
@@ -650,6 +668,18 @@
     "ramTip4to8": "4-8GB est parfait pour la plupart des modpacks. Augmentez G1HeapRegionSize pour de meilleures performances.",
     "ramTip8to12": "8-12GB: attention aux pauses GC longues. Utilisez des parametres optimises et AlwaysPreTouch.",
     "ramTipHigh": "Plus de 12GB peut causer des freezes GC. Considerez de reduire la RAM ou utilisez ZGC (Java 17+)."
+  },
+  "serverJvmTemplates": {
+    "serverJvmArgs": "Arguments JVM du serveur",
+    "aikarDesc": "Flags optimises par Aikar - recommande pour Paper/Spigot/Purpur",
+    "basicDesc": "Configuration de base pour petits serveurs (< 10 joueurs)",
+    "zgcDesc": "Garbage Collector a faible latence pour serveurs haute performance",
+    "graalvmDesc": "Optimise pour GraalVM avec compilation JIT avancee",
+    "ramTipLow": "Moins de 2GB: suffisant pour un petit serveur vanilla avec peu de joueurs.",
+    "ramTip2to4": "2-4GB: ideal pour un serveur vanilla/Paper avec 5-15 joueurs.",
+    "ramTip4to8": "4-8GB: parfait pour un serveur avec plugins et 15-30 joueurs.",
+    "ramTip8to12": "8-12GB: recommande pour serveurs avec beaucoup de plugins et 30-50 joueurs.",
+    "ramTipHigh": "Plus de 12GB: utilisez les flags Aikar 12GB+ pour eviter les pauses GC."
   },
   "modrinth": {
     "searchPlaceholder": "Rechercher des {items} sur Modrinth...",

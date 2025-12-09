@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { open } from "@tauri-apps/plugin-dialog"
+import { useTranslation } from "@/i18n"
 
 interface JavaInstallation {
   version: string
@@ -30,6 +31,7 @@ interface JavaSelectorProps {
 }
 
 export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaSelectorProps) {
+  const { t } = useTranslation()
   const [installations, setInstallations] = useState<JavaInstallation[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isInstalling, setIsInstalling] = useState(false)
@@ -54,10 +56,10 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
     try {
       await invoke("install_java_version", { majorVersion: recommendedVersion })
       await loadInstallations()
-      toast.success(`Java ${recommendedVersion} installe avec succes`)
+      toast.success(t("java.installedSuccess", { version: String(recommendedVersion) }))
     } catch (error) {
       console.error("Failed to install Java:", error)
-      toast.error(`Erreur lors de l'installation de Java ${recommendedVersion}`)
+      toast.error(t("java.installError", { version: String(recommendedVersion) }))
     } finally {
       setIsInstalling(false)
     }
@@ -95,7 +97,7 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <Label className="text-sm">Version Java</Label>
+        <Label className="text-sm">{t("java.version")}</Label>
         {!hasRecommendedVersion && !isLoading && (
           <Button
             variant="ghost"
@@ -109,7 +111,7 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
             ) : (
               <Download className="h-3 w-3" />
             )}
-            Installer Java {recommendedVersion}
+            {t("java.installVersion", { version: String(recommendedVersion) })}
           </Button>
         )}
       </div>
@@ -124,7 +126,7 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
             {isLoading ? (
               <span className="flex items-center gap-2 text-muted-foreground">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Chargement...
+                {t("common.loading")}
               </span>
             ) : value ? (
               selectedInstallation ? (
@@ -136,7 +138,7 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
                   </Badge>
                   {selectedInstallation.is_bundled && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      Integre
+                      {t("java.bundled")}
                     </Badge>
                   )}
                 </span>
@@ -147,7 +149,7 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
                 </span>
               )
             ) : (
-              <span className="text-muted-foreground">Java par defaut (auto)</span>
+              <span className="text-muted-foreground">{t("java.defaultAuto")}</span>
             )}
             <ChevronDown className="h-4 w-4 opacity-50 flex-shrink-0" />
           </Button>
@@ -158,7 +160,7 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
             <div className="w-4 h-4 flex items-center justify-center">
               {!value && <Check className="h-3.5 w-3.5" />}
             </div>
-            <span>Java par defaut (auto)</span>
+            <span>{t("java.defaultAuto")}</span>
           </DropdownMenuItem>
 
           <DropdownMenuSeparator />
@@ -166,7 +168,7 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
           {/* Installed versions */}
           {installations.length === 0 ? (
             <div className="px-2 py-3 text-center">
-              <p className="text-sm text-muted-foreground mb-2">Aucune installation Java detectee</p>
+              <p className="text-sm text-muted-foreground mb-2">{t("java.noInstallation")}</p>
               <Button
                 size="sm"
                 onClick={handleInstallRecommended}
@@ -178,7 +180,7 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
                 ) : (
                   <Download className="h-3.5 w-3.5" />
                 )}
-                Installer Java {recommendedVersion}
+                {t("java.installVersion", { version: String(recommendedVersion) })}
               </Button>
             </div>
           ) : (
@@ -200,12 +202,12 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
                   </Badge>
                   {installation.is_bundled && (
                     <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                      Integre
+                      {t("java.bundled")}
                     </Badge>
                   )}
                   {installation.major_version === recommendedVersion && (
                     <Badge className="text-[10px] px-1.5 py-0 bg-green-500/20 text-green-500 hover:bg-green-500/30">
-                      Recommande
+                      {t("java.recommended")}
                     </Badge>
                   )}
                 </DropdownMenuItem>
@@ -218,7 +220,7 @@ export function JavaSelector({ value, onChange, recommendedVersion = 21 }: JavaS
           <DropdownMenuItem onClick={handleBrowse} className="gap-2">
             <div className="w-4 h-4" />
             <FolderOpen className="h-3.5 w-3.5" />
-            <span>Parcourir...</span>
+            <span>{t("java.browse")}</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

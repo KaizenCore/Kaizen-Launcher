@@ -589,6 +589,7 @@ function LabelWithTooltip({ htmlFor, className, children, tooltip }: {
 }
 
 function ValueEditor({ keyName, value, onChange, onDelete, depth = 0, tooltip, comments, keyPath }: ValueEditorProps) {
+  const { t } = useTranslation()
   const [isExpanded, setIsExpanded] = useState(depth < 2)
 
   // Format key name for display
@@ -788,7 +789,7 @@ function ValueEditor({ keyName, value, onChange, onDelete, depth = 0, tooltip, c
             ))}
             {value.length === 0 && (
               <p className="text-sm text-muted-foreground py-2">
-                Aucun element. Cliquez sur + pour ajouter.
+                {t("configEditor.noElement")}
               </p>
             )}
           </div>
@@ -905,7 +906,7 @@ function VisualConfigEditor({ content, fileType, onChange }: VisualConfigEditorP
       setConfigComments(parsed.comments)
       setParseError(null)
     } else {
-      setParseError("Impossible de parser ce fichier. Utilisez le mode texte.")
+      setParseError(t("configEditor.unableToParseVisual"))
     }
   }, [content, fileType])
 
@@ -924,7 +925,7 @@ function VisualConfigEditor({ content, fileType, onChange }: VisualConfigEditorP
         <Settings2 className="h-12 w-12 text-muted-foreground mb-4" />
         <p className="text-muted-foreground">{parseError}</p>
         <p className="text-sm text-muted-foreground mt-2">
-          Le mode visuel ne supporte que les fichiers JSON et TOML valides.
+          {t("configEditor.visualOnlyJson")}
         </p>
       </div>
     )
@@ -934,7 +935,7 @@ function VisualConfigEditor({ content, fileType, onChange }: VisualConfigEditorP
     return (
       <div className="flex flex-col items-center justify-center h-full text-center p-8">
         <Settings2 className="h-12 w-12 text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">Structure de config non supportee</p>
+        <p className="text-muted-foreground">{t("configEditor.unsupportedStructure")}</p>
       </div>
     )
   }
@@ -995,7 +996,7 @@ function VisualConfigEditor({ content, fileType, onChange }: VisualConfigEditorP
           ))}
           {Object.keys(filteredConfig).length === 0 && (
             <p className="text-center text-muted-foreground py-8">
-              {searchFilter ? "Aucun resultat pour ce filtre" : "Fichier de config vide"}
+              {searchFilter ? t("configEditor.noResultFilter") : t("configEditor.emptyConfig")}
             </p>
           )}
         </div>
