@@ -1,6 +1,6 @@
 use crate::error::{AppError, AppResult};
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::Path;
 use tokio::fs;
 
 const VERSION_MANIFEST_URL: &str =
@@ -216,10 +216,7 @@ pub async fn fetch_version_details(
 }
 
 /// Cache the version manifest locally
-pub async fn cache_version_manifest(
-    data_dir: &PathBuf,
-    manifest: &VersionManifest,
-) -> AppResult<()> {
+pub async fn cache_version_manifest(data_dir: &Path, manifest: &VersionManifest) -> AppResult<()> {
     let cache_dir = data_dir.join("cache");
     fs::create_dir_all(&cache_dir)
         .await
@@ -237,7 +234,7 @@ pub async fn cache_version_manifest(
 }
 
 /// Load cached version manifest
-pub async fn load_cached_manifest(data_dir: &PathBuf) -> AppResult<Option<VersionManifest>> {
+pub async fn load_cached_manifest(data_dir: &Path) -> AppResult<Option<VersionManifest>> {
     let cache_file = data_dir.join("cache").join("version_manifest.json");
 
     if !cache_file.exists() {
@@ -256,7 +253,7 @@ pub async fn load_cached_manifest(data_dir: &PathBuf) -> AppResult<Option<Versio
 
 /// Save version details to the versions directory
 pub async fn save_version_details(
-    data_dir: &PathBuf,
+    data_dir: &Path,
     version_id: &str,
     details: &VersionDetails,
 ) -> AppResult<()> {
@@ -278,7 +275,7 @@ pub async fn save_version_details(
 
 /// Load saved version details
 pub async fn load_version_details(
-    data_dir: &PathBuf,
+    data_dir: &Path,
     version_id: &str,
 ) -> AppResult<Option<VersionDetails>> {
     let version_file = data_dir

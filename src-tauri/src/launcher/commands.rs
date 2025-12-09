@@ -175,11 +175,7 @@ async fn install_server_instance(
     instance: &Instance,
     app: &tauri::AppHandle,
 ) -> AppResult<()> {
-    let loader_str = instance
-        .loader
-        .as_ref()
-        .map(|s| s.as_str())
-        .unwrap_or("vanilla");
+    let loader_str = instance.loader.as_deref().unwrap_or("vanilla");
 
     tracing::info!(
         "[INSTALL] Installing server: {} for MC {}",
@@ -208,7 +204,7 @@ async fn install_server_instance(
             install_vanilla_server(client, instance_dir, &instance.mc_version, app).await?;
         }
         "fabric" => {
-            let loader_version = get_loader_version(&instance, "Fabric server")?;
+            let loader_version = get_loader_version(instance, "Fabric server")?;
             install_fabric_server(
                 client,
                 instance_dir,
@@ -219,7 +215,7 @@ async fn install_server_instance(
             .await?;
         }
         "forge" => {
-            let loader_version = get_loader_version(&instance, "Forge server")?;
+            let loader_version = get_loader_version(instance, "Forge server")?;
             install_forge_server(
                 client,
                 instance_dir,
@@ -230,7 +226,7 @@ async fn install_server_instance(
             .await?;
         }
         "neoforge" => {
-            let loader_version = get_loader_version(&instance, "NeoForge server")?;
+            let loader_version = get_loader_version(instance, "NeoForge server")?;
             install_neoforge_server(
                 client,
                 instance_dir,
@@ -241,7 +237,7 @@ async fn install_server_instance(
             .await?;
         }
         "paper" => {
-            let loader_version = get_loader_version(&instance, "Paper server")?;
+            let loader_version = get_loader_version(instance, "Paper server")?;
             install_paper_server(
                 client,
                 instance_dir,
@@ -252,7 +248,7 @@ async fn install_server_instance(
             .await?;
         }
         "purpur" => {
-            let loader_version = get_loader_version(&instance, "Purpur server")?;
+            let loader_version = get_loader_version(instance, "Purpur server")?;
             install_purpur_server(
                 client,
                 instance_dir,
@@ -263,7 +259,7 @@ async fn install_server_instance(
             .await?;
         }
         "folia" => {
-            let loader_version = get_loader_version(&instance, "Folia server")?;
+            let loader_version = get_loader_version(instance, "Folia server")?;
             install_folia_server(
                 client,
                 instance_dir,
@@ -274,7 +270,7 @@ async fn install_server_instance(
             .await?;
         }
         "pufferfish" => {
-            let loader_version = get_loader_version(&instance, "Pufferfish server")?;
+            let loader_version = get_loader_version(instance, "Pufferfish server")?;
             install_pufferfish_server(client, instance_dir, loader_version, app).await?;
         }
         "spigot" => {
@@ -283,24 +279,24 @@ async fn install_server_instance(
             ));
         }
         "spongevanilla" => {
-            let loader_version = get_loader_version(&instance, "SpongeVanilla")?;
+            let loader_version = get_loader_version(instance, "SpongeVanilla")?;
             install_sponge_server(client, instance_dir, loader_version, "spongevanilla", app)
                 .await?;
         }
         "spongeforge" => {
-            let loader_version = get_loader_version(&instance, "SpongeForge")?;
+            let loader_version = get_loader_version(instance, "SpongeForge")?;
             install_sponge_server(client, instance_dir, loader_version, "spongeforge", app).await?;
         }
         "velocity" => {
-            let loader_version = get_loader_version(&instance, "Velocity")?;
+            let loader_version = get_loader_version(instance, "Velocity")?;
             install_velocity_server(client, instance_dir, loader_version, app).await?;
         }
         "waterfall" => {
-            let loader_version = get_loader_version(&instance, "Waterfall")?;
+            let loader_version = get_loader_version(instance, "Waterfall")?;
             install_waterfall_server(client, instance_dir, loader_version, app).await?;
         }
         "bungeecord" => {
-            let loader_version = get_loader_version(&instance, "BungeeCord")?;
+            let loader_version = get_loader_version(instance, "BungeeCord")?;
             install_bungeecord_server(client, instance_dir, loader_version, app).await?;
         }
         _ => {
@@ -865,7 +861,7 @@ async fn install_paper_server(
     let build: i32 = loader_version
         .replace("build-", "")
         .split('-')
-        .last()
+        .next_back()
         .and_then(|s| s.parse().ok())
         .ok_or_else(|| AppError::Instance("Invalid Paper build number".to_string()))?;
 

@@ -66,7 +66,7 @@ pub async fn fetch_versions_for_mc(
     // NeoForge versions are like "21.1.216", "21.1.1", etc.
     filtered.sort_by(|a, b| {
         let parse_version = |v: &str| -> Vec<u32> {
-            v.split(|c| c == '.' || c == '-')
+            v.split(['.', '-'])
                 .filter_map(|p| p.parse::<u32>().ok())
                 .collect()
         };

@@ -665,9 +665,9 @@ pub async fn get_instance_logs(
 
         let metadata = entry.metadata().await.ok();
         let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
-        let modified = metadata.and_then(|m| m.modified().ok()).and_then(|t| {
+        let modified = metadata.and_then(|m| m.modified().ok()).map(|t| {
             let datetime: chrono::DateTime<chrono::Local> = t.into();
-            Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string())
+            datetime.format("%Y-%m-%d %H:%M:%S").to_string()
         });
 
         logs.push(LogFileInfo {
@@ -857,9 +857,9 @@ async fn collect_config_files(
                 .unwrap_or_else(|_| filename.clone());
 
             let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
-            let modified = metadata.and_then(|m| m.modified().ok()).and_then(|t| {
+            let modified = metadata.and_then(|m| m.modified().ok()).map(|t| {
                 let datetime: chrono::DateTime<chrono::Local> = t.into();
-                Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string())
+                datetime.format("%Y-%m-%d %H:%M:%S").to_string()
             });
 
             configs.push(ConfigFileInfo {

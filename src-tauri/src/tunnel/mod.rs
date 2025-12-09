@@ -46,20 +46,21 @@ impl std::str::FromStr for TunnelProvider {
 }
 
 /// Tunnel status
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum TunnelStatus {
+    #[default]
     Disconnected,
     Connecting,
-    Connected { url: String },
-    WaitingForClaim { claim_url: String },
-    Error { message: String },
-}
-
-impl Default for TunnelStatus {
-    fn default() -> Self {
-        TunnelStatus::Disconnected
-    }
+    Connected {
+        url: String,
+    },
+    WaitingForClaim {
+        claim_url: String,
+    },
+    Error {
+        message: String,
+    },
 }
 
 /// Tunnel configuration stored in database

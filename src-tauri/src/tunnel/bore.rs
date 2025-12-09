@@ -85,10 +85,8 @@ pub async fn start_bore_tunnel(
                 // Check for URL in the line
                 let found_url = if let Some(captures) = URL_REGEX.captures(&line) {
                     captures.get(1).map(|m| m.as_str().to_string())
-                } else if let Some(m) = HOST_PORT_REGEX.find(&line) {
-                    Some(m.as_str().to_string())
                 } else {
-                    None
+                    HOST_PORT_REGEX.find(&line).map(|m| m.as_str().to_string())
                 };
 
                 if let Some(minecraft_addr) = found_url {
@@ -162,10 +160,8 @@ pub async fn start_bore_tunnel(
                 // Check for URL in stderr too
                 let found_url = if let Some(captures) = URL_REGEX.captures(&line) {
                     captures.get(1).map(|m| m.as_str().to_string())
-                } else if let Some(m) = HOST_PORT_REGEX.find(&line) {
-                    Some(m.as_str().to_string())
                 } else {
-                    None
+                    HOST_PORT_REGEX.find(&line).map(|m| m.as_str().to_string())
                 };
 
                 if let Some(minecraft_addr) = found_url {

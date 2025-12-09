@@ -31,6 +31,7 @@ pub struct ServerLogEvent {
 }
 
 /// Launch Minecraft for the given instance
+#[allow(clippy::too_many_arguments)]
 pub async fn launch_minecraft(
     instance_dir: &Path,
     data_dir: &Path,
@@ -101,7 +102,7 @@ pub async fn launch_minecraft(
     let mut game_args = build_game_args(
         version,
         account,
-        &instance_dir,
+        instance_dir,
         &assets_dir,
         &version.asset_index.id,
     );
@@ -162,7 +163,7 @@ pub async fn launch_minecraft(
 
     // Build the command
     let mut cmd = Command::new(&java);
-    cmd.current_dir(&instance_dir);
+    cmd.current_dir(instance_dir);
     cmd.args(&jvm_args);
     cmd.arg(&version.main_class);
     cmd.args(&game_args);

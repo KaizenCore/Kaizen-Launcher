@@ -66,20 +66,20 @@ pub fn run() {
             // Initialize app state
             let runtime = tokio::runtime::Runtime::new().map_err(|e| {
                 eprintln!("Failed to create Tokio runtime: {}", e);
-                tauri::Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to create runtime: {}", e),
-                ))
+                tauri::Error::Io(std::io::Error::other(format!(
+                    "Failed to create runtime: {}",
+                    e
+                )))
             })?;
 
             let state = runtime
                 .block_on(async { AppState::new().await })
                 .map_err(|e| {
                     eprintln!("Failed to initialize app state: {}", e);
-                    tauri::Error::Io(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("Failed to initialize app state: {}", e),
-                    ))
+                    tauri::Error::Io(std::io::Error::other(format!(
+                        "Failed to initialize app state: {}",
+                        e
+                    )))
                 })?;
 
             // Initialize logging after we have the data directory

@@ -260,11 +260,11 @@ pub async fn start_ngrok_tunnel(
                 } else if let Some(captures) = FORWARDING_REGEX.captures(&line) {
                     // Interactive format: Forwarding tcp://host:port
                     captures.get(1).map(|m| m.as_str().to_string())
-                } else if let Some(m) = URL_REGEX.find(&line) {
-                    // Plain URL format
-                    Some(m.as_str().trim_start_matches("tcp://").to_string())
                 } else {
-                    None
+                    // Plain URL format
+                    URL_REGEX
+                        .find(&line)
+                        .map(|m| m.as_str().trim_start_matches("tcp://").to_string())
                 };
 
                 if let Some(minecraft_addr) = found_url {
@@ -339,10 +339,10 @@ pub async fn start_ngrok_tunnel(
                 // Check for URL in stderr too
                 let minecraft_addr = if let Some(captures) = LOGFMT_URL_REGEX.captures(&line) {
                     captures.get(1).map(|m| m.as_str().to_string())
-                } else if let Some(m) = URL_REGEX.find(&line) {
-                    Some(m.as_str().trim_start_matches("tcp://").to_string())
                 } else {
-                    None
+                    URL_REGEX
+                        .find(&line)
+                        .map(|m| m.as_str().trim_start_matches("tcp://").to_string())
                 };
 
                 if let Some(minecraft_addr) = minecraft_addr {

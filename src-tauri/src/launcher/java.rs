@@ -307,8 +307,6 @@ fn get_platform_info() -> (&'static str, &'static str) {
 
     let arch = if cfg!(target_arch = "aarch64") {
         "aarch64"
-    } else if cfg!(target_arch = "x86_64") {
-        "x64"
     } else {
         "x64"
     };

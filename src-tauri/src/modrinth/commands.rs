@@ -138,6 +138,7 @@ pub struct ModSearchResponse {
 
 /// Search for mods on Modrinth
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn search_modrinth_mods(
     state: State<'_, SharedState>,
     query: String,
@@ -166,9 +167,9 @@ pub async fn search_modrinth_mods(
 
     let facets = build_facets(
         Some(ptype),
-        categories_strs.as_ref().map(|c| c.as_slice()),
-        game_versions.as_ref().map(|v| v.as_slice()),
-        loaders.as_ref().map(|l| l.as_slice()),
+        categories_strs.as_deref(),
+        game_versions.as_deref(),
+        loaders.as_deref(),
     );
 
     // Sort index: relevance, downloads, follows, newest, updated
@@ -219,11 +220,7 @@ pub async fn get_modrinth_mod_versions(
     let game_versions = game_version.as_ref().map(|v| vec![v.as_str()]);
 
     let versions = client
-        .get_project_versions(
-            &project_id,
-            loaders.as_ref().map(|l| l.as_slice()),
-            game_versions.as_ref().map(|v| v.as_slice()),
-        )
+        .get_project_versions(&project_id, loaders.as_deref(), game_versions.as_deref())
         .await
         .map_err(|e| AppError::Network(e.to_string()))?;
 
@@ -951,12 +948,12 @@ pub async fn install_modrinth_modpack(
                         hasher.update(&bytes);
                         let file_hash = format!("{:x}", hasher.finalize());
 
-                        if file_hash == file.hashes.sha1 {
-                            if tokio::fs::write(&file_path, &bytes).await.is_ok() {
-                                success = true;
-                                used_url = Some(url.clone());
-                                break;
-                            }
+                        if file_hash == file.hashes.sha1
+                            && tokio::fs::write(&file_path, &bytes).await.is_ok()
+                        {
+                            success = true;
+                            used_url = Some(url.clone());
+                            break;
                         }
                     }
                 }

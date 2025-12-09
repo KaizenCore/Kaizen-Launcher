@@ -288,7 +288,7 @@ async fn download_assets_to_instance_with_progress(
         asset_index.objects.len()
     );
 
-    for (_name, object) in &asset_index.objects {
+    for object in asset_index.objects.values() {
         let hash_prefix = &object.hash[..2];
         let object_path = objects_dir.join(hash_prefix).join(&object.hash);
         let url = format!("{}/{}/{}", RESOURCES_URL, hash_prefix, object.hash);

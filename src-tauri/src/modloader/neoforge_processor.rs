@@ -412,7 +412,7 @@ async fn download_data_files(
     // Collect artifact references from data entries
     let mut artifacts_to_download: Vec<(String, std::path::PathBuf)> = Vec::new();
 
-    for (_key, entry) in data {
+    for entry in data.values() {
         let value = &entry.client;
 
         // Check if it's an artifact reference like [net.neoforged.neoform:neoform:1.21.10-20251010.172816:mappings@tsrg.lzma]
@@ -515,6 +515,7 @@ async fn download_processor_libraries(
     // First pass: extract all available files from the archive synchronously
     // to avoid holding ZipFile across await points
     let mut extracted_files: Vec<(std::path::PathBuf, Vec<u8>, String)> = Vec::new();
+    #[allow(clippy::type_complexity)]
     let mut need_download: Vec<(std::path::PathBuf, String, Option<(String, Option<String>)>)> =
         Vec::new();
 
@@ -803,8 +804,8 @@ fn get_jar_main_class(jar_path: &Path) -> AppResult<String> {
         .map_err(|e| AppError::Io(format!("Failed to read manifest: {}", e)))?;
 
     for line in contents.lines() {
-        if line.starts_with("Main-Class:") {
-            return Ok(line["Main-Class:".len()..].trim().to_string());
+        if let Some(stripped) = line.strip_prefix("Main-Class:") {
+            return Ok(stripped.trim().to_string());
         }
     }
 

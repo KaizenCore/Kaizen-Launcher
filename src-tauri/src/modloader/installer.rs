@@ -488,7 +488,7 @@ fn extract_forge_profile(
                     l.downloads
                         .as_ref()
                         .and_then(|d| d.artifact.as_ref())
-                        .map(|a| {
+                        .and_then(|a| {
                             // Extract base URL from full URL
                             if a.url.is_empty() {
                                 None
@@ -496,7 +496,6 @@ fn extract_forge_profile(
                                 Some(FORGE_MAVEN.to_string())
                             }
                         })
-                        .flatten()
                 }),
             })
             .collect(),
@@ -662,12 +661,9 @@ async fn download_forge_libraries(
         if !downloaded {
             if let Some(ref url) = lib.url {
                 let full_url = format!("{}/{}", url.trim_end_matches('/'), path);
-                match download_file(client, &full_url, &dest, None).await {
-                    Ok(_) => {
-                        println!("[FORGE] Downloaded from maven: {}", lib.name);
-                        downloaded = true;
-                    }
-                    Err(_) => {}
+                if download_file(client, &full_url, &dest, None).await.is_ok() {
+                    println!("[FORGE] Downloaded from maven: {}", lib.name);
+                    downloaded = true;
                 }
             }
         }
@@ -675,24 +671,18 @@ async fn download_forge_libraries(
         // Try Forge maven as fallback
         if !downloaded {
             let full_url = format!("{}/{}", FORGE_MAVEN, path);
-            match download_file(client, &full_url, &dest, None).await {
-                Ok(_) => {
-                    println!("[FORGE] Downloaded from Forge maven: {}", lib.name);
-                    downloaded = true;
-                }
-                Err(_) => {}
+            if download_file(client, &full_url, &dest, None).await.is_ok() {
+                println!("[FORGE] Downloaded from Forge maven: {}", lib.name);
+                downloaded = true;
             }
         }
 
         // Try Minecraft libraries as final fallback
         if !downloaded {
             let mc_url = format!("https://libraries.minecraft.net/{}", path);
-            match download_file(client, &mc_url, &dest, None).await {
-                Ok(_) => {
-                    println!("[FORGE] Downloaded from Minecraft: {}", lib.name);
-                    downloaded = true;
-                }
-                Err(_) => {}
+            if download_file(client, &mc_url, &dest, None).await.is_ok() {
+                println!("[FORGE] Downloaded from Minecraft: {}", lib.name);
+                downloaded = true;
             }
         }
 
@@ -794,12 +784,9 @@ async fn download_neoforge_libraries(
         if !downloaded {
             if let Some(ref url) = lib.url {
                 let full_url = format!("{}/{}", url.trim_end_matches('/'), path);
-                match download_file(client, &full_url, &dest, None).await {
-                    Ok(_) => {
-                        println!("[NEOFORGE] Downloaded from maven: {}", lib.name);
-                        downloaded = true;
-                    }
-                    Err(_) => {}
+                if download_file(client, &full_url, &dest, None).await.is_ok() {
+                    println!("[NEOFORGE] Downloaded from maven: {}", lib.name);
+                    downloaded = true;
                 }
             }
         }
@@ -807,24 +794,18 @@ async fn download_neoforge_libraries(
         // Try NeoForge maven as fallback
         if !downloaded {
             let full_url = format!("{}/{}", NEOFORGE_MAVEN, path);
-            match download_file(client, &full_url, &dest, None).await {
-                Ok(_) => {
-                    println!("[NEOFORGE] Downloaded from NeoForge maven: {}", lib.name);
-                    downloaded = true;
-                }
-                Err(_) => {}
+            if download_file(client, &full_url, &dest, None).await.is_ok() {
+                println!("[NEOFORGE] Downloaded from NeoForge maven: {}", lib.name);
+                downloaded = true;
             }
         }
 
         // Try Minecraft libraries as final fallback
         if !downloaded {
             let mc_url = format!("https://libraries.minecraft.net/{}", path);
-            match download_file(client, &mc_url, &dest, None).await {
-                Ok(_) => {
-                    println!("[NEOFORGE] Downloaded from Minecraft: {}", lib.name);
-                    downloaded = true;
-                }
-                Err(_) => {}
+            if download_file(client, &mc_url, &dest, None).await.is_ok() {
+                println!("[NEOFORGE] Downloaded from Minecraft: {}", lib.name);
+                downloaded = true;
             }
         }
 
