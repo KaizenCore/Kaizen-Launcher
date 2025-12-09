@@ -75,8 +75,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Install npm dependencies
-        run: npm ci
+      - name: Install npm dependencies (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
+
+      - name: Install npm dependencies (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
+          if (Test-Path package-lock.json) { Remove-Item -Force package-lock.json }
+          npm install
+        shell: pwsh
 
       - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
