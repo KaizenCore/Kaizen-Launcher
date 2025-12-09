@@ -16,6 +16,12 @@ use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 use tokio::sync::Mutex;
 
+// Windows-specific: CREATE_NO_WINDOW flag to hide console window
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 #[derive(Clone, Serialize)]
 pub struct InstanceStatusEvent {
     pub instance_id: String,
@@ -189,6 +195,12 @@ pub async fn launch_minecraft(
     }
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
+
+    // On Windows, hide the console window
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     // Spawn the process
     let mut child = cmd
@@ -752,6 +764,12 @@ pub async fn launch_server(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .stdin(Stdio::piped());
+
+    // On Windows, hide the console window
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     let mut child = cmd
         .spawn()

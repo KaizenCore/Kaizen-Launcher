@@ -12,6 +12,12 @@ use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 use zip::ZipArchive;
 
+// Windows-specific: CREATE_NO_WINDOW flag to hide console window
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 const NEOFORGE_MAVEN: &str = "https://maven.neoforged.net/releases";
 const MC_LIBRARIES: &str = "https://libraries.minecraft.net";
 
@@ -267,6 +273,12 @@ async fn run_neoforge_installer_headless(
         .arg(install_dir)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+
+    // On Windows, hide the console window
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     let output = cmd
         .output()
@@ -736,6 +748,12 @@ async fn run_single_processor(
         .args(&args)
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+
+    // On Windows, hide the console window
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     let output = cmd
         .output()

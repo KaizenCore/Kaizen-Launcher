@@ -13,6 +13,12 @@ use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::RwLock;
 
+// Windows-specific: CREATE_NO_WINDOW flag to hide console window
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
+
 // Pre-compiled regex patterns for bore output parsing
 static URL_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"listening at ([a-zA-Z0-9.-]+:\d+)").expect("Invalid bore URL regex"));
@@ -42,6 +48,12 @@ pub async fn start_bore_tunnel(
     cmd.args(["local", &config.target_port.to_string(), "--to", "bore.pub"])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
+
+    // On Windows, hide the console window
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
 
     let mut child = cmd
         .spawn()
