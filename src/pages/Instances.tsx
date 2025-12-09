@@ -508,7 +508,7 @@ export function Instances() {
 
   // Filter and sort instances
   const filteredInstances = useMemo(() => {
-    let filtered = instances.filter((instance) => {
+    const filtered = instances.filter((instance) => {
       // Filter by tab
       if (activeTab === "client" && (instance.is_server || instance.is_proxy)) return false
       if (activeTab === "server" && (!instance.is_server || instance.is_proxy)) return false
