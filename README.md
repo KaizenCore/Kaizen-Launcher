@@ -1,5 +1,11 @@
 # Kaizen Launcher
 
+> **Early Access Preview**
+>
+> This project is currently in **early beta** and under active development. Features may be incomplete, unstable, or subject to change. Use at your own risk and expect bugs!
+>
+> We welcome feedback and bug reports via [GitHub Issues](https://github.com/KaizenCore/Kaizen-Launcher/issues).
+
 A modern, feature-rich Minecraft launcher built with Tauri 2, React 19, and TypeScript.
 
 ## Features

@@ -1,8 +1,15 @@
 import { Minus, Square, X } from "lucide-react"
 import { getCurrentWindow } from "@tauri-apps/api/window"
+import { getVersion } from "@tauri-apps/api/app"
 import { Button } from "@/components/ui/button"
+import { useEffect, useState } from "react"
 
 export function TitleBar() {
+  const [version, setVersion] = useState<string>("")
+
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => setVersion(""))
+  }, [])
   const handleMinimize = async () => {
     const appWindow = getCurrentWindow()
     await appWindow.minimize()
@@ -34,6 +41,14 @@ export function TitleBar() {
         <span className="text-sm font-medium text-foreground/80">
           Kaizen Launcher
         </span>
+        <span className="px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide bg-amber-500/20 text-amber-500 border border-amber-500/30 rounded">
+          Dev Preview
+        </span>
+        {version && (
+          <span className="text-[10px] text-muted-foreground">
+            v{version}
+          </span>
+        )}
       </div>
 
       {/* Spacer */}
