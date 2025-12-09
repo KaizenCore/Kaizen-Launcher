@@ -18,11 +18,11 @@ static CLAIM_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"https://playit\.gg/claim/[a-zA-Z0-9]+").expect("Invalid claim regex")
 });
 static TUNNEL_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"([a-zA-Z0-9-]+\.(joinmc\.link|playit\.gg|playit-cloud\.me))").expect("Invalid tunnel regex")
+    Regex::new(r"([a-zA-Z0-9-]+\.(joinmc\.link|playit\.gg|playit-cloud\.me))")
+        .expect("Invalid tunnel regex")
 });
-static IP_PORT_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"(\d+\.\d+\.\d+\.\d+:\d+)").expect("Invalid IP:port regex")
-});
+static IP_PORT_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"(\d+\.\d+\.\d+\.\d+:\d+)").expect("Invalid IP:port regex"));
 
 /// Start a playit.gg tunnel
 pub async fn start_playit_tunnel(
@@ -56,9 +56,9 @@ pub async fn start_playit_tunnel(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| {
-        AppError::Io(format!("Failed to start playit: {}", e))
-    })?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| AppError::Io(format!("Failed to start playit: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
     println!("[PLAYIT] Started with PID: {}", pid);

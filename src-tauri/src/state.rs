@@ -3,8 +3,8 @@ use crate::tunnel::RunningTunnel;
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
 use tokio::process::ChildStdin;
+use tokio::sync::{Mutex, RwLock};
 
 /// Tracks running Minecraft instances
 pub type RunningInstances = Arc<RwLock<HashMap<String, u32>>>; // instance_id -> pid
@@ -33,7 +33,8 @@ impl AppState {
         std::fs::create_dir_all(&data_dir)?;
 
         // Initialize encryption key
-        let encryption_key = crypto::get_or_create_key(&data_dir).await
+        let encryption_key = crypto::get_or_create_key(&data_dir)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to initialize encryption: {}", e))?;
 
         // Initialize database
@@ -61,7 +62,8 @@ impl AppState {
     }
 
     async fn run_migrations(db: &SqlitePool) -> anyhow::Result<()> {
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             -- Comptes Microsoft
             CREATE TABLE IF NOT EXISTS accounts (
                 id TEXT PRIMARY KEY,
@@ -76,11 +78,13 @@ impl AppState {
             );
 
             CREATE INDEX IF NOT EXISTS idx_accounts_active ON accounts(is_active);
-        "#)
+        "#,
+        )
         .execute(db)
         .await?;
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             -- Instances
             CREATE TABLE IF NOT EXISTS instances (
                 id TEXT PRIMARY KEY,
@@ -103,7 +107,8 @@ impl AppState {
             CREATE INDEX IF NOT EXISTS idx_instances_mc_version ON instances(mc_version);
             CREATE INDEX IF NOT EXISTS idx_instances_loader ON instances(loader);
             CREATE INDEX IF NOT EXISTS idx_instances_name ON instances(name);
-        "#)
+        "#,
+        )
         .execute(db)
         .await?;
 
@@ -129,19 +134,22 @@ impl AppState {
         .execute(db)
         .await?;
 
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             -- Settings
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL,
                 updated_at TEXT DEFAULT (datetime('now'))
             );
-        "#)
+        "#,
+        )
         .execute(db)
         .await?;
 
         // Default settings
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             INSERT OR IGNORE INTO settings (key, value) VALUES
                 ('theme', '"system"'),
                 ('language', '"fr"'),
@@ -150,7 +158,8 @@ impl AppState {
                 ('max_concurrent_downloads', '5'),
                 ('show_snapshots', 'false'),
                 ('check_updates', 'true')
-        "#)
+        "#,
+        )
         .execute(db)
         .await?;
 
@@ -172,7 +181,8 @@ impl AppState {
             .await;
 
         // Migration: Tunnel configurations table
-        sqlx::query(r#"
+        sqlx::query(
+            r#"
             CREATE TABLE IF NOT EXISTS tunnel_configs (
                 id TEXT PRIMARY KEY,
                 instance_id TEXT NOT NULL UNIQUE,
@@ -187,7 +197,8 @@ impl AppState {
             );
 
             CREATE INDEX IF NOT EXISTS idx_tunnel_configs_instance ON tunnel_configs(instance_id);
-        "#)
+        "#,
+        )
         .execute(db)
         .await?;
 

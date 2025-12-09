@@ -81,13 +81,21 @@ pub async fn fetch_versions(
     project: PaperProject,
 ) -> AppResult<Vec<String>> {
     let url = format!("{}/projects/{}", PAPER_API, project.as_str());
-    
+
     let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch {} versions: {}", project.as_str(), e))
+        AppError::Network(format!(
+            "Failed to fetch {} versions: {}",
+            project.as_str(),
+            e
+        ))
     })?;
 
     let data: ProjectVersions = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse {} versions: {}", project.as_str(), e))
+        AppError::Network(format!(
+            "Failed to parse {} versions: {}",
+            project.as_str(),
+            e
+        ))
     })?;
 
     Ok(data.versions)
@@ -99,14 +107,27 @@ pub async fn fetch_builds(
     project: PaperProject,
     version: &str,
 ) -> AppResult<Vec<i32>> {
-    let url = format!("{}/projects/{}/versions/{}", PAPER_API, project.as_str(), version);
-    
+    let url = format!(
+        "{}/projects/{}/versions/{}",
+        PAPER_API,
+        project.as_str(),
+        version
+    );
+
     let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch {} builds: {}", project.as_str(), e))
+        AppError::Network(format!(
+            "Failed to fetch {} builds: {}",
+            project.as_str(),
+            e
+        ))
     })?;
 
     let data: VersionBuilds = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse {} builds: {}", project.as_str(), e))
+        AppError::Network(format!(
+            "Failed to parse {} builds: {}",
+            project.as_str(),
+            e
+        ))
     })?;
 
     Ok(data.builds)
@@ -121,23 +142,43 @@ pub async fn fetch_build_info(
 ) -> AppResult<BuildInfo> {
     let url = format!(
         "{}/projects/{}/versions/{}/builds/{}",
-        PAPER_API, project.as_str(), version, build
+        PAPER_API,
+        project.as_str(),
+        version,
+        build
     );
-    
+
     let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch {} build info: {}", project.as_str(), e))
+        AppError::Network(format!(
+            "Failed to fetch {} build info: {}",
+            project.as_str(),
+            e
+        ))
     })?;
 
     response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse {} build info: {}", project.as_str(), e))
+        AppError::Network(format!(
+            "Failed to parse {} build info: {}",
+            project.as_str(),
+            e
+        ))
     })
 }
 
 /// Get the download URL for a specific build
-pub fn get_download_url(project: PaperProject, version: &str, build: i32, filename: &str) -> String {
+pub fn get_download_url(
+    project: PaperProject,
+    version: &str,
+    build: i32,
+    filename: &str,
+) -> String {
     format!(
         "{}/projects/{}/versions/{}/builds/{}/downloads/{}",
-        PAPER_API, project.as_str(), version, build, filename
+        PAPER_API,
+        project.as_str(),
+        version,
+        build,
+        filename
     )
 }
 
@@ -147,21 +188,24 @@ pub async fn fetch_loader_versions(
     project: PaperProject,
 ) -> AppResult<Vec<LoaderVersion>> {
     let versions = fetch_versions(client, project).await?;
-    
+
     let mut loader_versions = Vec::new();
-    
+
     // Get latest build for each version
-    for version in versions.iter().take(10) { // Limit to 10 most recent
+    for version in versions.iter().take(10) {
+        // Limit to 10 most recent
         if let Ok(builds) = fetch_builds(client, project, version).await {
             if let Some(&latest_build) = builds.last() {
-                if let Ok(build_info) = fetch_build_info(client, project, version, latest_build).await {
+                if let Ok(build_info) =
+                    fetch_build_info(client, project, version, latest_build).await
+                {
                     let download_url = get_download_url(
                         project,
                         version,
                         latest_build,
                         &build_info.downloads.application.name,
                     );
-                    
+
                     loader_versions.push(LoaderVersion {
                         version: format!("{}-{}", version, latest_build),
                         stable: build_info.channel == "default",
@@ -172,7 +216,7 @@ pub async fn fetch_loader_versions(
             }
         }
     }
-    
+
     Ok(loader_versions)
 }
 
@@ -182,19 +226,21 @@ pub async fn fetch_paper_for_mc(
     mc_version: &str,
 ) -> AppResult<Vec<LoaderVersion>> {
     let builds = fetch_builds(client, PaperProject::Paper, mc_version).await?;
-    
+
     let mut versions = Vec::new();
-    
+
     // Get latest 5 builds
     for &build in builds.iter().rev().take(5) {
-        if let Ok(build_info) = fetch_build_info(client, PaperProject::Paper, mc_version, build).await {
+        if let Ok(build_info) =
+            fetch_build_info(client, PaperProject::Paper, mc_version, build).await
+        {
             let download_url = get_download_url(
                 PaperProject::Paper,
                 mc_version,
                 build,
                 &build_info.downloads.application.name,
             );
-            
+
             versions.push(LoaderVersion {
                 version: format!("build-{}", build),
                 stable: build_info.channel == "default",
@@ -203,7 +249,7 @@ pub async fn fetch_paper_for_mc(
             });
         }
     }
-    
+
     Ok(versions)
 }
 
@@ -227,14 +273,17 @@ pub struct BungeeCordBuilds {
 /// Fetch BungeeCord builds
 pub async fn fetch_bungeecord_versions(client: &reqwest::Client) -> AppResult<Vec<LoaderVersion>> {
     let url = format!("{}/api/json?tree=builds[number,result,url]", BUNGEECORD_API);
-    
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch BungeeCord builds: {}", e))
-    })?;
 
-    let data: BungeeCordBuilds = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse BungeeCord builds: {}", e))
-    })?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to fetch BungeeCord builds: {}", e)))?;
+
+    let data: BungeeCordBuilds = response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse BungeeCord builds: {}", e)))?;
 
     Ok(data
         .builds
@@ -276,31 +325,42 @@ pub struct PurpurBuildsInfo {
 pub async fn fetch_purpur_versions(client: &reqwest::Client) -> AppResult<Vec<String>> {
     let url = format!("{}/purpur", PURPUR_API);
 
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Purpur versions: {}", e))
-    })?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to fetch Purpur versions: {}", e)))?;
 
-    let data: PurpurVersions = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Purpur versions: {}", e))
-    })?;
+    let data: PurpurVersions = response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Purpur versions: {}", e)))?;
 
     Ok(data.versions)
 }
 
 /// Fetch Purpur builds for a version
-pub async fn fetch_purpur_builds(client: &reqwest::Client, version: &str) -> AppResult<Vec<LoaderVersion>> {
+pub async fn fetch_purpur_builds(
+    client: &reqwest::Client,
+    version: &str,
+) -> AppResult<Vec<LoaderVersion>> {
     let url = format!("{}/purpur/{}", PURPUR_API, version);
 
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Purpur builds: {}", e))
-    })?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to fetch Purpur builds: {}", e)))?;
 
-    let data: PurpurBuilds = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Purpur builds: {}", e))
-    })?;
+    let data: PurpurBuilds = response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Purpur builds: {}", e)))?;
 
     // Get latest 5 builds
-    let versions: Vec<LoaderVersion> = data.builds.all
+    let versions: Vec<LoaderVersion> = data
+        .builds
+        .all
         .iter()
         .rev()
         .take(5)
@@ -319,7 +379,9 @@ pub async fn fetch_purpur_builds(client: &reqwest::Client, version: &str) -> App
 }
 
 /// Fetch all Purpur loader versions
-pub async fn fetch_purpur_loader_versions(client: &reqwest::Client) -> AppResult<Vec<LoaderVersion>> {
+pub async fn fetch_purpur_loader_versions(
+    client: &reqwest::Client,
+) -> AppResult<Vec<LoaderVersion>> {
     let versions = fetch_purpur_versions(client).await?;
     let mut loader_versions = Vec::new();
 
@@ -397,14 +459,12 @@ const SPIGOT_BUILDTOOLS_URL: &str = "https://hub.spigotmc.org/jenkins/job/BuildT
 pub async fn fetch_spigot_versions(_client: &reqwest::Client) -> AppResult<Vec<LoaderVersion>> {
     // Spigot requires BuildTools, we can't directly download server jars
     // Return info about BuildTools instead
-    Ok(vec![
-        LoaderVersion {
-            version: "BuildTools (latest)".to_string(),
-            stable: true,
-            minecraft_version: None,
-            download_url: Some(SPIGOT_BUILDTOOLS_URL.to_string()),
-        },
-    ])
+    Ok(vec![LoaderVersion {
+        version: "BuildTools (latest)".to_string(),
+        stable: true,
+        minecraft_version: None,
+        download_url: Some(SPIGOT_BUILDTOOLS_URL.to_string()),
+    }])
 }
 
 // ============= Sponge =============
@@ -451,13 +511,16 @@ pub async fn fetch_sponge_versions(
         project.as_str()
     );
 
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Sponge versions: {}", e))
-    })?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to fetch Sponge versions: {}", e)))?;
 
-    let data: SpongeVersions = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Sponge versions: {}", e))
-    })?;
+    let data: SpongeVersions = response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Sponge versions: {}", e)))?;
 
     Ok(data
         .artifacts

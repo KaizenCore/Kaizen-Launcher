@@ -72,15 +72,15 @@ pub fn run() {
                 ))
             })?;
 
-            let state = runtime.block_on(async {
-                AppState::new().await
-            }).map_err(|e| {
-                eprintln!("Failed to initialize app state: {}", e);
-                tauri::Error::Io(std::io::Error::new(
-                    std::io::ErrorKind::Other,
-                    format!("Failed to initialize app state: {}", e),
-                ))
-            })?;
+            let state = runtime
+                .block_on(async { AppState::new().await })
+                .map_err(|e| {
+                    eprintln!("Failed to initialize app state: {}", e);
+                    tauri::Error::Io(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Failed to initialize app state: {}", e),
+                    ))
+                })?;
 
             // Initialize logging after we have the data directory
             if let Err(e) = init_logging(&state.data_dir) {

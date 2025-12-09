@@ -1,12 +1,12 @@
+use crate::auth::{microsoft, minecraft, xbox};
 use crate::crypto;
 use crate::db::accounts::Account;
 use crate::error::{AppError, AppResult};
 use crate::state::SharedState;
-use crate::auth::{microsoft, xbox, minecraft};
+use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
 use tauri::State;
-use chrono::{Utc, Duration};
-use tracing::{info, debug};
+use tracing::{debug, info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceCodeInfo {
@@ -20,9 +20,7 @@ pub struct DeviceCodeInfo {
 #[tauri::command]
 pub async fn get_accounts(state: State<'_, SharedState>) -> AppResult<Vec<Account>> {
     let state = state.read().await;
-    let accounts = Account::get_all(&state.db)
-        .await
-        .map_err(AppError::from)?;
+    let accounts = Account::get_all(&state.db).await.map_err(AppError::from)?;
 
     // Decrypt tokens for each account before returning
     let decrypted_accounts: Vec<Account> = accounts
@@ -30,13 +28,16 @@ pub async fn get_accounts(state: State<'_, SharedState>) -> AppResult<Vec<Accoun
         .map(|mut account| {
             // Decrypt access_token if it's encrypted
             if crypto::is_encrypted(&account.access_token) {
-                if let Ok(decrypted) = crypto::decrypt(&state.encryption_key, &account.access_token) {
+                if let Ok(decrypted) = crypto::decrypt(&state.encryption_key, &account.access_token)
+                {
                     account.access_token = decrypted;
                 }
             }
             // Decrypt refresh_token if it's encrypted
             if crypto::is_encrypted(&account.refresh_token) {
-                if let Ok(decrypted) = crypto::decrypt(&state.encryption_key, &account.refresh_token) {
+                if let Ok(decrypted) =
+                    crypto::decrypt(&state.encryption_key, &account.refresh_token)
+                {
                     account.refresh_token = decrypted;
                 }
             }
@@ -82,10 +83,7 @@ pub async fn set_active_account(
 }
 
 #[tauri::command]
-pub async fn delete_account(
-    state: State<'_, SharedState>,
-    account_id: String,
-) -> AppResult<()> {
+pub async fn delete_account(state: State<'_, SharedState>, account_id: String) -> AppResult<()> {
     let state = state.read().await;
     Account::delete(&state.db, &account_id)
         .await
@@ -94,9 +92,7 @@ pub async fn delete_account(
 
 /// Start Microsoft login - returns device code for user authentication
 #[tauri::command]
-pub async fn login_microsoft_start(
-    state: State<'_, SharedState>,
-) -> AppResult<DeviceCodeInfo> {
+pub async fn login_microsoft_start(state: State<'_, SharedState>) -> AppResult<DeviceCodeInfo> {
     let state = state.read().await;
     let device_code = microsoft::request_device_code(&state.http_client).await?;
 
@@ -136,11 +132,8 @@ pub async fn login_microsoft_complete(
 
     // Step 4: Authenticate with Minecraft
     debug!("Authenticating with Minecraft");
-    let mc_token = minecraft::authenticate_minecraft(
-        client,
-        &xsts_token.user_hash,
-        &xsts_token.token,
-    ).await?;
+    let mc_token =
+        minecraft::authenticate_minecraft(client, &xsts_token.user_hash, &xsts_token.token).await?;
 
     // Step 5: Get Minecraft profile
     debug!("Getting Minecraft profile");
@@ -155,10 +148,12 @@ pub async fn login_microsoft_complete(
     let skin_url = profile.skins.first().map(|s| s.url.clone());
 
     // Encrypt tokens before storing
-    let encrypted_access_token = crypto::encrypt(&state_guard.encryption_key, &mc_token.access_token)
-        .map_err(|e| AppError::Encryption(format!("Failed to encrypt access token: {}", e)))?;
-    let encrypted_refresh_token = crypto::encrypt(&state_guard.encryption_key, &ms_token.refresh_token)
-        .map_err(|e| AppError::Encryption(format!("Failed to encrypt refresh token: {}", e)))?;
+    let encrypted_access_token =
+        crypto::encrypt(&state_guard.encryption_key, &mc_token.access_token)
+            .map_err(|e| AppError::Encryption(format!("Failed to encrypt access token: {}", e)))?;
+    let encrypted_refresh_token =
+        crypto::encrypt(&state_guard.encryption_key, &ms_token.refresh_token)
+            .map_err(|e| AppError::Encryption(format!("Failed to encrypt refresh token: {}", e)))?;
 
     // Create account with encrypted tokens for storage
     let account_for_db = Account {
@@ -267,11 +262,8 @@ pub async fn refresh_account_token(
     // Re-authenticate through the chain
     let xbox_token = xbox::authenticate_xbox_live(client, &ms_token.access_token).await?;
     let xsts_token = xbox::get_xsts_token(client, &xbox_token.token).await?;
-    let mc_token = minecraft::authenticate_minecraft(
-        client,
-        &xsts_token.user_hash,
-        &xsts_token.token,
-    ).await?;
+    let mc_token =
+        minecraft::authenticate_minecraft(client, &xsts_token.user_hash, &xsts_token.token).await?;
 
     // Get updated profile
     let profile = minecraft::get_minecraft_profile(client, &mc_token.access_token).await?;
@@ -282,10 +274,12 @@ pub async fn refresh_account_token(
     let skin_url = profile.skins.first().map(|s| s.url.clone());
 
     // Encrypt new tokens before storing
-    let encrypted_access_token = crypto::encrypt(&state_guard.encryption_key, &mc_token.access_token)
-        .map_err(|e| AppError::Encryption(format!("Failed to encrypt access token: {}", e)))?;
-    let encrypted_refresh_token = crypto::encrypt(&state_guard.encryption_key, &ms_token.refresh_token)
-        .map_err(|e| AppError::Encryption(format!("Failed to encrypt refresh token: {}", e)))?;
+    let encrypted_access_token =
+        crypto::encrypt(&state_guard.encryption_key, &mc_token.access_token)
+            .map_err(|e| AppError::Encryption(format!("Failed to encrypt access token: {}", e)))?;
+    let encrypted_refresh_token =
+        crypto::encrypt(&state_guard.encryption_key, &ms_token.refresh_token)
+            .map_err(|e| AppError::Encryption(format!("Failed to encrypt refresh token: {}", e)))?;
 
     // Update account in database with encrypted tokens
     let account_for_db = Account {

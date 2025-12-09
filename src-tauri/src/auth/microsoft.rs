@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::error::{AppError, AppResult};
+use serde::{Deserialize, Serialize};
 
 // Microsoft Azure AD application for Minecraft authentication
 // Kaizen Launcher Azure AD app (Personal accounts only)
@@ -49,17 +49,17 @@ struct TokenErrorResponse {
 pub async fn request_device_code(client: &reqwest::Client) -> AppResult<DeviceCodeResponse> {
     let response = client
         .post("https://login.microsoftonline.com/consumers/oauth2/v2.0/devicecode")
-        .form(&[
-            ("client_id", CLIENT_ID),
-            ("scope", SCOPE),
-        ])
+        .form(&[("client_id", CLIENT_ID), ("scope", SCOPE)])
         .send()
         .await
         .map_err(|e| AppError::Auth(format!("Failed to request device code: {}", e)))?;
 
     if !response.status().is_success() {
         let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::Auth(format!("Device code request failed: {}", error_text)));
+        return Err(AppError::Auth(format!(
+            "Device code request failed: {}",
+            error_text
+        )));
     }
 
     let device_code: DeviceCodeApiResponse = response
@@ -161,7 +161,10 @@ pub async fn refresh_token(
 
     if !response.status().is_success() {
         let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::Auth(format!("Token refresh failed: {}", error_text)));
+        return Err(AppError::Auth(format!(
+            "Token refresh failed: {}",
+            error_text
+        )));
     }
 
     let token: TokenResponse = response
@@ -171,7 +174,9 @@ pub async fn refresh_token(
 
     Ok(MicrosoftToken {
         access_token: token.access_token,
-        refresh_token: token.refresh_token.unwrap_or_else(|| refresh_token.to_string()),
+        refresh_token: token
+            .refresh_token
+            .unwrap_or_else(|| refresh_token.to_string()),
         expires_in: token.expires_in,
     })
 }

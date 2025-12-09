@@ -14,12 +14,10 @@ use tokio::process::Command;
 use tokio::sync::RwLock;
 
 // Pre-compiled regex patterns for bore output parsing
-static URL_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"listening at ([a-zA-Z0-9.-]+:\d+)").expect("Invalid bore URL regex")
-});
-static HOST_PORT_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"bore\.pub:\d+").expect("Invalid bore host:port regex")
-});
+static URL_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"listening at ([a-zA-Z0-9.-]+:\d+)").expect("Invalid bore URL regex"));
+static HOST_PORT_REGEX: Lazy<Regex> =
+    Lazy::new(|| Regex::new(r"bore\.pub:\d+").expect("Invalid bore host:port regex"));
 
 /// Start a bore tunnel
 pub async fn start_bore_tunnel(
@@ -33,23 +31,21 @@ pub async fn start_bore_tunnel(
         return Err(AppError::Custom("bore agent not installed".to_string()));
     }
 
-    println!("[BORE] Starting TCP tunnel for port {}...", config.target_port);
+    println!(
+        "[BORE] Starting TCP tunnel for port {}...",
+        config.target_port
+    );
 
     // Start bore tunnel
     // bore local <PORT> --to bore.pub
     let mut cmd = Command::new(&binary_path);
-    cmd.args([
-        "local",
-        &config.target_port.to_string(),
-        "--to",
-        "bore.pub",
-    ])
-    .stdout(Stdio::piped())
-    .stderr(Stdio::piped());
+    cmd.args(["local", &config.target_port.to_string(), "--to", "bore.pub"])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| {
-        AppError::Io(format!("Failed to start bore: {}", e))
-    })?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| AppError::Io(format!("Failed to start bore: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
     println!("[BORE] Started with PID: {}", pid);

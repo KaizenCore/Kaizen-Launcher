@@ -57,7 +57,7 @@ impl Instance {
                 modrinth_project_id
             FROM instances
             ORDER BY last_played DESC NULLS LAST, created_at DESC
-            "#
+            "#,
         )
         .fetch_all(db)
         .await
@@ -76,7 +76,7 @@ impl Instance {
                 modrinth_project_id
             FROM instances
             WHERE id = ?
-            "#
+            "#,
         )
         .bind(id)
         .fetch_optional(db)
@@ -110,7 +110,10 @@ impl Instance {
             .ok_or(sqlx::Error::RowNotFound)
     }
 
-    pub async fn get_by_modrinth_project_id(db: &SqlitePool, project_id: &str) -> sqlx::Result<Vec<Self>> {
+    pub async fn get_by_modrinth_project_id(
+        db: &SqlitePool,
+        project_id: &str,
+    ) -> sqlx::Result<Vec<Self>> {
         sqlx::query_as::<_, Instance>(
             r#"
             SELECT
@@ -124,7 +127,7 @@ impl Instance {
             FROM instances
             WHERE modrinth_project_id = ?
             ORDER BY created_at DESC
-            "#
+            "#,
         )
         .bind(project_id)
         .fetch_all(db)
@@ -137,7 +140,7 @@ impl Instance {
             SELECT DISTINCT modrinth_project_id
             FROM instances
             WHERE modrinth_project_id IS NOT NULL
-            "#
+            "#,
         )
         .fetch_all(db)
         .await?;
@@ -162,11 +165,13 @@ impl Instance {
     }
 
     pub async fn add_playtime(db: &SqlitePool, id: &str, seconds: i64) -> sqlx::Result<()> {
-        sqlx::query("UPDATE instances SET total_playtime_seconds = total_playtime_seconds + ? WHERE id = ?")
-            .bind(seconds)
-            .bind(id)
-            .execute(db)
-            .await?;
+        sqlx::query(
+            "UPDATE instances SET total_playtime_seconds = total_playtime_seconds + ? WHERE id = ?",
+        )
+        .bind(seconds)
+        .bind(id)
+        .execute(db)
+        .await?;
         Ok(())
     }
 
@@ -184,7 +189,7 @@ impl Instance {
             UPDATE instances
             SET name = ?, memory_min_mb = ?, memory_max_mb = ?, java_path = ?, jvm_args = ?
             WHERE id = ?
-            "#
+            "#,
         )
         .bind(name)
         .bind(memory_min_mb)

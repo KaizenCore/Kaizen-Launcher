@@ -1,9 +1,10 @@
-use serde::{Deserialize, Serialize};
 use crate::error::{AppError, AppResult};
+use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use tokio::fs;
 
-const VERSION_MANIFEST_URL: &str = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
+const VERSION_MANIFEST_URL: &str =
+    "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VersionManifest {
@@ -220,9 +221,9 @@ pub async fn cache_version_manifest(
     manifest: &VersionManifest,
 ) -> AppResult<()> {
     let cache_dir = data_dir.join("cache");
-    fs::create_dir_all(&cache_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to create cache directory: {}", e))
-    })?;
+    fs::create_dir_all(&cache_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create cache directory: {}", e)))?;
 
     let cache_file = cache_dir.join("version_manifest.json");
     let json = serde_json::to_string_pretty(manifest)
@@ -260,9 +261,9 @@ pub async fn save_version_details(
     details: &VersionDetails,
 ) -> AppResult<()> {
     let versions_dir = data_dir.join("versions").join(version_id);
-    fs::create_dir_all(&versions_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to create version directory: {}", e))
-    })?;
+    fs::create_dir_all(&versions_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create version directory: {}", e)))?;
 
     let version_file = versions_dir.join(format!("{}.json", version_id));
     let json = serde_json::to_string_pretty(details)
@@ -342,7 +343,9 @@ mod tests {
         let filtered = filter_versions(&versions, false);
 
         assert_eq!(filtered.len(), 2);
-        assert!(filtered.iter().all(|v| v.version_type == VersionType::Release));
+        assert!(filtered
+            .iter()
+            .all(|v| v.version_type == VersionType::Release));
         assert_eq!(filtered[0].id, "1.20.4");
         assert_eq!(filtered[1].id, "1.20.3");
     }
@@ -360,9 +363,9 @@ mod tests {
         let filtered = filter_versions(&versions, true);
 
         assert_eq!(filtered.len(), 3);
-        assert!(filtered.iter().all(|v| {
-            matches!(v.version_type, VersionType::Release | VersionType::Snapshot)
-        }));
+        assert!(filtered
+            .iter()
+            .all(|v| { matches!(v.version_type, VersionType::Release | VersionType::Snapshot) }));
     }
 
     #[test]

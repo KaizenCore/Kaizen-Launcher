@@ -2,8 +2,8 @@
 
 use crate::cache::ApiCache;
 use crate::error::AppResult;
-use crate::modloader::{fabric, forge, neoforge, quilt, paper, LoaderType, LoaderVersion};
 use crate::modloader::paper::{PaperProject, SpongeProject};
+use crate::modloader::{fabric, forge, neoforge, paper, quilt, LoaderType, LoaderVersion};
 use crate::state::SharedState;
 use std::time::Duration;
 use tauri::State;
@@ -38,7 +38,9 @@ pub async fn get_loader_versions(
     let versions = fetch_loader_versions_internal(loader_type, mc_version, client).await?;
 
     // Cache the result
-    let _ = cache.set_with_ttl(&cache_key, &versions, LOADER_CACHE_TTL).await;
+    let _ = cache
+        .set_with_ttl(&cache_key, &versions, LOADER_CACHE_TTL)
+        .await;
 
     Ok(versions)
 }
@@ -60,10 +62,16 @@ pub async fn is_loader_supported(
         LoaderType::NeoForge => neoforge::is_version_supported(client, &mc_version).await,
         LoaderType::Quilt => quilt::is_version_supported(client, &mc_version).await,
         // Server types don't depend on MC version the same way
-        LoaderType::Paper | LoaderType::Purpur | LoaderType::Folia |
-        LoaderType::Pufferfish | LoaderType::Spigot |
-        LoaderType::SpongeVanilla | LoaderType::SpongeForge |
-        LoaderType::Velocity | LoaderType::Waterfall | LoaderType::BungeeCord => Ok(true),
+        LoaderType::Paper
+        | LoaderType::Purpur
+        | LoaderType::Folia
+        | LoaderType::Pufferfish
+        | LoaderType::Spigot
+        | LoaderType::SpongeVanilla
+        | LoaderType::SpongeForge
+        | LoaderType::Velocity
+        | LoaderType::Waterfall
+        | LoaderType::BungeeCord => Ok(true),
     }
 }
 
@@ -80,9 +88,7 @@ pub async fn get_recommended_loader_version(
     match loader_type {
         LoaderType::Vanilla => Ok(None),
 
-        LoaderType::Fabric => {
-            fabric::get_recommended_version(client).await.map(Some)
-        }
+        LoaderType::Fabric => fabric::get_recommended_version(client).await.map(Some),
 
         LoaderType::Forge => {
             if let Some(mc) = mc_version {
@@ -100,15 +106,19 @@ pub async fn get_recommended_loader_version(
             }
         }
 
-        LoaderType::Quilt => {
-            quilt::get_recommended_version(client).await.map(Some)
-        }
+        LoaderType::Quilt => quilt::get_recommended_version(client).await.map(Some),
 
         // Server types - return latest
-        LoaderType::Paper | LoaderType::Purpur | LoaderType::Folia |
-        LoaderType::Pufferfish | LoaderType::Spigot |
-        LoaderType::SpongeVanilla | LoaderType::SpongeForge |
-        LoaderType::Velocity | LoaderType::Waterfall | LoaderType::BungeeCord => {
+        LoaderType::Paper
+        | LoaderType::Purpur
+        | LoaderType::Folia
+        | LoaderType::Pufferfish
+        | LoaderType::Spigot
+        | LoaderType::SpongeVanilla
+        | LoaderType::SpongeForge
+        | LoaderType::Velocity
+        | LoaderType::Waterfall
+        | LoaderType::BungeeCord => {
             // Get versions directly instead of calling the command recursively
             let versions = fetch_loader_versions_internal(loader_type, mc_version, client).await?;
             Ok(versions.into_iter().next().map(|v| v.version))
@@ -157,10 +167,16 @@ async fn fetch_loader_versions_internal(
         LoaderType::Folia => paper::fetch_loader_versions(client, PaperProject::Folia).await,
         LoaderType::Pufferfish => paper::fetch_pufferfish_versions(client).await,
         LoaderType::Spigot => paper::fetch_spigot_versions(client).await,
-        LoaderType::SpongeVanilla => paper::fetch_sponge_versions(client, SpongeProject::SpongeVanilla).await,
-        LoaderType::SpongeForge => paper::fetch_sponge_versions(client, SpongeProject::SpongeForge).await,
+        LoaderType::SpongeVanilla => {
+            paper::fetch_sponge_versions(client, SpongeProject::SpongeVanilla).await
+        }
+        LoaderType::SpongeForge => {
+            paper::fetch_sponge_versions(client, SpongeProject::SpongeForge).await
+        }
         LoaderType::Velocity => paper::fetch_loader_versions(client, PaperProject::Velocity).await,
-        LoaderType::Waterfall => paper::fetch_loader_versions(client, PaperProject::Waterfall).await,
+        LoaderType::Waterfall => {
+            paper::fetch_loader_versions(client, PaperProject::Waterfall).await
+        }
         LoaderType::BungeeCord => paper::fetch_bungeecord_versions(client).await,
     }
 }
@@ -203,7 +219,9 @@ pub async fn get_loader_mc_versions(
 
     // Cache non-empty results
     if !versions.is_empty() {
-        let _ = cache.set_with_ttl(&cache_key, &versions, LOADER_CACHE_TTL).await;
+        let _ = cache
+            .set_with_ttl(&cache_key, &versions, LOADER_CACHE_TTL)
+            .await;
     }
 
     Ok(versions)

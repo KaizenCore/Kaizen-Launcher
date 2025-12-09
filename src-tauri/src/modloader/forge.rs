@@ -6,7 +6,8 @@ use crate::modloader::LoaderVersion;
 use serde::Deserialize;
 
 const FORGE_MAVEN: &str = "https://maven.minecraftforge.net";
-const FORGE_PROMOTIONS: &str = "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
+const FORGE_PROMOTIONS: &str =
+    "https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json";
 
 #[derive(Debug, Deserialize)]
 pub struct ForgePromotions {
@@ -24,13 +25,16 @@ pub struct ForgeVersionList {
 
 /// Fetch Forge promotions (recommended/latest versions per MC version)
 pub async fn fetch_promotions(client: &reqwest::Client) -> AppResult<ForgePromotions> {
-    let response = client.get(FORGE_PROMOTIONS).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Forge promotions: {}", e))
-    })?;
+    let response = client
+        .get(FORGE_PROMOTIONS)
+        .send()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to fetch Forge promotions: {}", e)))?;
 
-    response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Forge promotions: {}", e))
-    })
+    response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Forge promotions: {}", e)))
 }
 
 /// Get available Forge versions for a Minecraft version
@@ -39,9 +43,9 @@ pub async fn fetch_versions_for_mc(
     mc_version: &str,
 ) -> AppResult<Vec<LoaderVersion>> {
     let promotions = fetch_promotions(client).await?;
-    
+
     let mut versions = Vec::new();
-    
+
     // Check for recommended version
     let recommended_key = format!("{}-recommended", mc_version);
     if let Some(version) = promotions.promos.get(&recommended_key) {
@@ -52,7 +56,7 @@ pub async fn fetch_versions_for_mc(
             download_url: Some(get_installer_url(mc_version, version)),
         });
     }
-    
+
     // Check for latest version
     let latest_key = format!("{}-latest", mc_version);
     if let Some(version) = promotions.promos.get(&latest_key) {
@@ -66,14 +70,14 @@ pub async fn fetch_versions_for_mc(
             });
         }
     }
-    
+
     Ok(versions)
 }
 
 /// Get supported Minecraft versions
 pub async fn fetch_supported_versions(client: &reqwest::Client) -> AppResult<Vec<String>> {
     let promotions = fetch_promotions(client).await?;
-    
+
     let mut versions: Vec<String> = promotions
         .promos
         .keys()
@@ -83,11 +87,11 @@ pub async fn fetch_supported_versions(client: &reqwest::Client) -> AppResult<Vec
                 .map(|s| s.to_string())
         })
         .collect();
-    
+
     versions.sort();
     versions.dedup();
     versions.reverse(); // Newest first
-    
+
     Ok(versions)
 }
 

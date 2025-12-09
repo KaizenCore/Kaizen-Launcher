@@ -47,14 +47,16 @@ pub struct FabricLibrary {
 /// Fetch available Fabric loader versions
 pub async fn fetch_loader_versions(client: &reqwest::Client) -> AppResult<Vec<LoaderVersion>> {
     let url = format!("{}/versions/loader", FABRIC_META_API);
-    
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Fabric loader versions: {}", e))
-    })?;
 
-    let versions: Vec<FabricLoaderVersion> = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Fabric loader versions: {}", e))
-    })?;
+    let response =
+        client.get(&url).send().await.map_err(|e| {
+            AppError::Network(format!("Failed to fetch Fabric loader versions: {}", e))
+        })?;
+
+    let versions: Vec<FabricLoaderVersion> = response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Fabric loader versions: {}", e)))?;
 
     Ok(versions
         .into_iter()
@@ -70,14 +72,16 @@ pub async fn fetch_loader_versions(client: &reqwest::Client) -> AppResult<Vec<Lo
 /// Fetch Minecraft versions supported by Fabric
 pub async fn fetch_game_versions(client: &reqwest::Client) -> AppResult<Vec<String>> {
     let url = format!("{}/versions/game", FABRIC_META_API);
-    
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Fabric game versions: {}", e))
-    })?;
 
-    let versions: Vec<FabricGameVersion> = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Fabric game versions: {}", e))
-    })?;
+    let response =
+        client.get(&url).send().await.map_err(|e| {
+            AppError::Network(format!("Failed to fetch Fabric game versions: {}", e))
+        })?;
+
+    let versions: Vec<FabricGameVersion> = response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Fabric game versions: {}", e)))?;
 
     Ok(versions.into_iter().map(|v| v.version).collect())
 }
@@ -99,9 +103,11 @@ pub async fn fetch_profile(
         FABRIC_META_API, mc_version, loader_version
     );
 
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Fabric profile: {}", e))
-    })?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to fetch Fabric profile: {}", e)))?;
 
     if !response.status().is_success() {
         return Err(AppError::Network(format!(
@@ -110,9 +116,10 @@ pub async fn fetch_profile(
         )));
     }
 
-    response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Fabric profile: {}", e))
-    })
+    response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Fabric profile: {}", e)))
 }
 
 /// Get the recommended (latest stable) loader version
@@ -180,9 +187,15 @@ mod tests {
 
         assert_eq!(profile.id, "fabric-loader-0.15.0-1.20.4");
         assert_eq!(profile.inherits_from, "1.20.4");
-        assert_eq!(profile.main_class, "net.fabricmc.loader.impl.launch.knot.KnotClient");
+        assert_eq!(
+            profile.main_class,
+            "net.fabricmc.loader.impl.launch.knot.KnotClient"
+        );
         assert_eq!(profile.libraries.len(), 1);
-        assert_eq!(profile.libraries[0].name, "net.fabricmc:fabric-loader:0.15.0");
+        assert_eq!(
+            profile.libraries[0].name,
+            "net.fabricmc:fabric-loader:0.15.0"
+        );
         assert_eq!(profile.libraries[0].url, "https://maven.fabricmc.net/");
     }
 

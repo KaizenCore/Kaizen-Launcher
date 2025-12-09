@@ -29,9 +29,7 @@ fn open_folder_in_file_manager(path: &Path) -> AppResult<()> {
     #[cfg(target_os = "linux")]
     {
         // Try xdg-open first, fall back to other common file managers
-        let result = std::process::Command::new("xdg-open")
-            .arg(path)
-            .spawn();
+        let result = std::process::Command::new("xdg-open").arg(path).spawn();
 
         if result.is_err() {
             // Fallback to common file managers
@@ -39,11 +37,7 @@ fn open_folder_in_file_manager(path: &Path) -> AppResult<()> {
             let mut opened = false;
 
             for fm in fallbacks {
-                if std::process::Command::new(fm)
-                    .arg(path)
-                    .spawn()
-                    .is_ok()
-                {
+                if std::process::Command::new(fm).arg(path).spawn().is_ok() {
                     opened = true;
                     break;
                 }
@@ -51,7 +45,8 @@ fn open_folder_in_file_manager(path: &Path) -> AppResult<()> {
 
             if !opened {
                 return Err(AppError::Io(
-                    "No file manager found. Please install xdg-open or a graphical file manager.".to_string()
+                    "No file manager found. Please install xdg-open or a graphical file manager."
+                        .to_string(),
                 ));
             }
         }
@@ -98,8 +93,8 @@ fn get_content_folder(loader: Option<&str>, is_server: bool) -> &'static str {
         // Sponge uses mods
         Some("spongevanilla") | Some("spongeforge") => "mods",
         // Plugin servers - use "plugins" folder
-        Some("paper") | Some("purpur") | Some("folia") | Some("pufferfish")
-        | Some("spigot") | Some("bukkit") => "plugins",
+        Some("paper") | Some("purpur") | Some("folia") | Some("pufferfish") | Some("spigot")
+        | Some("bukkit") => "plugins",
         // Proxies - use "plugins" folder
         Some("velocity") | Some("bungeecord") | Some("waterfall") => "plugins",
         // Vanilla server - no mods/plugins
@@ -119,8 +114,8 @@ fn get_config_folder(loader: Option<&str>, is_server: bool) -> &'static str {
         // Sponge uses config folder
         Some("spongevanilla") | Some("spongeforge") => "config",
         // Plugin servers - configs are in "plugins" folder
-        Some("paper") | Some("purpur") | Some("folia") | Some("pufferfish")
-        | Some("spigot") | Some("bukkit") => "plugins",
+        Some("paper") | Some("purpur") | Some("folia") | Some("pufferfish") | Some("spigot")
+        | Some("bukkit") => "plugins",
         // Proxies - configs in plugins folder
         Some("velocity") | Some("bungeecord") | Some("waterfall") => "plugins",
         // Vanilla server - use plugins folder (though it's usually empty)
@@ -133,9 +128,7 @@ fn get_config_folder(loader: Option<&str>, is_server: bool) -> &'static str {
 #[tauri::command]
 pub async fn get_instances(state: State<'_, SharedState>) -> AppResult<Vec<Instance>> {
     let state = state.read().await;
-    Instance::get_all(&state.db)
-        .await
-        .map_err(AppError::from)
+    Instance::get_all(&state.db).await.map_err(AppError::from)
 }
 
 #[tauri::command]
@@ -166,7 +159,9 @@ pub async fn create_instance(
 
     // Validate the instance name
     if name.trim().is_empty() {
-        return Err(AppError::Instance("Instance name cannot be empty".to_string()));
+        return Err(AppError::Instance(
+            "Instance name cannot be empty".to_string(),
+        ));
     }
 
     // For proxies, mc_version is optional
@@ -181,7 +176,13 @@ pub async fn create_instance(
         .trim()
         .to_lowercase()
         .chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '-'
+            }
+        })
         .collect::<String>();
 
     // Create instance directory structure
@@ -196,52 +197,75 @@ pub async fn create_instance(
     }
 
     // Create the instance directory and subdirectories
-    fs::create_dir_all(&instances_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to create instance directory: {}", e))
-    })?;
+    fs::create_dir_all(&instances_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create instance directory: {}", e)))?;
 
     // Create directories based on type
     if is_server || is_proxy {
         // Server/proxy directories - use correct content folder based on loader
         let content_folder = get_content_folder(loader.as_deref(), true);
         for subdir in &[content_folder, "config", "logs", "world"] {
-            fs::create_dir_all(instances_dir.join(subdir)).await.map_err(|e| {
-                AppError::Io(format!("Failed to create {} directory: {}", subdir, e))
-            })?;
+            fs::create_dir_all(instances_dir.join(subdir))
+                .await
+                .map_err(|e| {
+                    AppError::Io(format!("Failed to create {} directory: {}", subdir, e))
+                })?;
         }
     } else {
         // Client directories
-        for subdir in &["mods", "config", "resourcepacks", "shaderpacks", "saves", "screenshots"] {
-            fs::create_dir_all(instances_dir.join(subdir)).await.map_err(|e| {
-                AppError::Io(format!("Failed to create {} directory: {}", subdir, e))
-            })?;
+        for subdir in &[
+            "mods",
+            "config",
+            "resourcepacks",
+            "shaderpacks",
+            "saves",
+            "screenshots",
+        ] {
+            fs::create_dir_all(instances_dir.join(subdir))
+                .await
+                .map_err(|e| {
+                    AppError::Io(format!("Failed to create {} directory: {}", subdir, e))
+                })?;
         }
     }
 
     // Only fetch version details for non-proxy instances
     let java_version = if !is_proxy {
-        let version_details = match versions::load_version_details(&state_guard.data_dir, &mc_version).await? {
-            Some(details) => details,
-            None => {
-                // Fetch the manifest to get the version URL
-                let manifest = versions::fetch_version_manifest(&state_guard.http_client).await?;
+        let version_details =
+            match versions::load_version_details(&state_guard.data_dir, &mc_version).await? {
+                Some(details) => details,
+                None => {
+                    // Fetch the manifest to get the version URL
+                    let manifest =
+                        versions::fetch_version_manifest(&state_guard.http_client).await?;
 
-                let version_info = manifest
-                    .versions
-                    .iter()
-                    .find(|v| v.id == mc_version)
-                    .ok_or_else(|| AppError::Instance(format!(
-                        "Minecraft version {} not found",
-                        mc_version
-                    )))?;
+                    let version_info = manifest
+                        .versions
+                        .iter()
+                        .find(|v| v.id == mc_version)
+                        .ok_or_else(|| {
+                            AppError::Instance(format!(
+                                "Minecraft version {} not found",
+                                mc_version
+                            ))
+                        })?;
 
-                // Fetch and save version details
-                let details = versions::fetch_version_details(&state_guard.http_client, &version_info.url).await?;
-                versions::save_version_details(&state_guard.data_dir, &mc_version, &details).await?;
-                details
-            }
-        };
-        version_details.java_version.as_ref().map(|j| j.major_version)
+                    // Fetch and save version details
+                    let details = versions::fetch_version_details(
+                        &state_guard.http_client,
+                        &version_info.url,
+                    )
+                    .await?;
+                    versions::save_version_details(&state_guard.data_dir, &mc_version, &details)
+                        .await?;
+                    details
+                }
+            };
+        version_details
+            .java_version
+            .as_ref()
+            .map(|j| j.major_version)
     } else {
         Some(21) // Default Java 21 for proxies
     };
@@ -282,20 +306,23 @@ pub async fn create_instance(
 }
 
 #[tauri::command]
-pub async fn delete_instance(
-    state: State<'_, SharedState>,
-    instance_id: String,
-) -> AppResult<()> {
+pub async fn delete_instance(state: State<'_, SharedState>, instance_id: String) -> AppResult<()> {
     let state_guard = state.read().await;
 
     // Get the instance to find its game_dir
-    if let Some(instance) = Instance::get_by_id(&state_guard.db, &instance_id).await.map_err(AppError::from)? {
+    if let Some(instance) = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+    {
         // Delete the instance directory if it exists
-        let instance_dir = state_guard.data_dir.join("instances").join(&instance.game_dir);
+        let instance_dir = state_guard
+            .data_dir
+            .join("instances")
+            .join(&instance.game_dir);
         if instance_dir.exists() {
-            fs::remove_dir_all(&instance_dir).await.map_err(|e| {
-                AppError::Io(format!("Failed to delete instance directory: {}", e))
-            })?;
+            fs::remove_dir_all(&instance_dir)
+                .await
+                .map_err(|e| AppError::Io(format!("Failed to delete instance directory: {}", e)))?;
         }
     }
 
@@ -344,10 +371,16 @@ pub async fn get_instance_mods(
 
     // Determine folder based on loader type
     let folder_name = get_content_folder(instance.loader.as_deref(), instance.is_server);
-    let mods_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join(folder_name);
+    let mods_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join(folder_name);
 
-    println!("[GET_MODS] Instance: {}, loader: {:?}, is_server: {}, folder: {}, path: {:?}",
-        instance.name, instance.loader, instance.is_server, folder_name, mods_dir);
+    println!(
+        "[GET_MODS] Instance: {}, loader: {:?}, is_server: {}, folder: {}, path: {:?}",
+        instance.name, instance.loader, instance.is_server, folder_name, mods_dir
+    );
 
     if !mods_dir.exists() {
         println!("[GET_MODS] Directory does not exist, creating it");
@@ -359,13 +392,15 @@ pub async fn get_instance_mods(
     }
 
     let mut mods = Vec::new();
-    let mut entries = fs::read_dir(&mods_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to read {} directory: {}", folder_name, e))
-    })?;
+    let mut entries = fs::read_dir(&mods_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read {} directory: {}", folder_name, e)))?;
 
-    while let Some(entry) = entries.next_entry().await.map_err(|e| {
-        AppError::Io(format!("Failed to read directory entry: {}", e))
-    })? {
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
         let filename = entry.file_name().to_string_lossy().to_string();
 
         // Check if it's a jar file (enabled) or disabled mod
@@ -397,12 +432,15 @@ pub async fn get_instance_mods(
         let meta_path = mods_dir.join(&meta_filename);
         let (icon_url, project_id, meta_name, meta_version) = if meta_path.exists() {
             match fs::read_to_string(&meta_path).await {
-                Ok(content) => {
-                    match serde_json::from_str::<ModMetadata>(&content) {
-                        Ok(meta) => (meta.icon_url, Some(meta.project_id), Some(meta.name), Some(meta.version)),
-                        Err(_) => (None, None, None, None),
-                    }
-                }
+                Ok(content) => match serde_json::from_str::<ModMetadata>(&content) {
+                    Ok(meta) => (
+                        meta.icon_url,
+                        Some(meta.project_id),
+                        Some(meta.name),
+                        Some(meta.version),
+                    ),
+                    Err(_) => (None, None, None, None),
+                },
                 Err(_) => (None, None, None, None),
             }
         } else {
@@ -411,7 +449,11 @@ pub async fn get_instance_mods(
 
         mods.push(ModInfo {
             name: meta_name.unwrap_or(name),
-            version: meta_version.unwrap_or(if version.is_empty() { "Unknown".to_string() } else { version }),
+            version: meta_version.unwrap_or(if version.is_empty() {
+                "Unknown".to_string()
+            } else {
+                version
+            }),
             filename,
             enabled: is_enabled,
             icon_url,
@@ -439,7 +481,11 @@ pub async fn toggle_mod(
 
     // Determine folder based on loader type
     let folder_name = get_content_folder(instance.loader.as_deref(), instance.is_server);
-    let mods_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join(folder_name);
+    let mods_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join(folder_name);
     let current_path = mods_dir.join(&filename);
 
     let new_filename = if enabled {
@@ -452,9 +498,9 @@ pub async fn toggle_mod(
 
     let new_path = mods_dir.join(&new_filename);
 
-    fs::rename(&current_path, &new_path).await.map_err(|e| {
-        AppError::Io(format!("Failed to rename mod file: {}", e))
-    })?;
+    fs::rename(&current_path, &new_path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to rename mod file: {}", e)))?;
 
     Ok(())
 }
@@ -474,13 +520,17 @@ pub async fn delete_mod(
 
     // Determine folder based on loader type
     let folder_name = get_content_folder(instance.loader.as_deref(), instance.is_server);
-    let mods_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join(folder_name);
+    let mods_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join(folder_name);
     let mod_path = mods_dir.join(&filename);
 
     // Delete the mod file
-    fs::remove_file(&mod_path).await.map_err(|e| {
-        AppError::Io(format!("Failed to delete mod: {}", e))
-    })?;
+    fs::remove_file(&mod_path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to delete mod: {}", e)))?;
 
     // Also delete the associated .meta.json file if it exists
     let base_filename = filename
@@ -497,10 +547,7 @@ pub async fn delete_mod(
 }
 
 #[tauri::command]
-pub async fn open_mods_folder(
-    state: State<'_, SharedState>,
-    instance_id: String,
-) -> AppResult<()> {
+pub async fn open_mods_folder(state: State<'_, SharedState>, instance_id: String) -> AppResult<()> {
     let state_guard = state.read().await;
 
     let instance = Instance::get_by_id(&state_guard.db, &instance_id)
@@ -510,7 +557,11 @@ pub async fn open_mods_folder(
 
     // Determine folder based on loader type
     let folder_name = get_content_folder(instance.loader.as_deref(), instance.is_server);
-    let mods_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join(folder_name);
+    let mods_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join(folder_name);
 
     // Create the directory if it doesn't exist
     if !mods_dir.exists() {
@@ -585,20 +636,26 @@ pub async fn get_instance_logs(
         .map_err(AppError::from)?
         .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
 
-    let logs_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join("logs");
+    let logs_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join("logs");
 
     if !logs_dir.exists() {
         return Ok(vec![]);
     }
 
     let mut logs = Vec::new();
-    let mut entries = fs::read_dir(&logs_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to read logs directory: {}", e))
-    })?;
+    let mut entries = fs::read_dir(&logs_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read logs directory: {}", e)))?;
 
-    while let Some(entry) = entries.next_entry().await.map_err(|e| {
-        AppError::Io(format!("Failed to read directory entry: {}", e))
-    })? {
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
         let filename = entry.file_name().to_string_lossy().to_string();
 
         // Only show .log files (not directories)
@@ -608,12 +665,10 @@ pub async fn get_instance_logs(
 
         let metadata = entry.metadata().await.ok();
         let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
-        let modified = metadata
-            .and_then(|m| m.modified().ok())
-            .and_then(|t| {
-                let datetime: chrono::DateTime<chrono::Local> = t.into();
-                Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string())
-            });
+        let modified = metadata.and_then(|m| m.modified().ok()).and_then(|t| {
+            let datetime: chrono::DateTime<chrono::Local> = t.into();
+            Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string())
+        });
 
         logs.push(LogFileInfo {
             name: filename,
@@ -624,7 +679,9 @@ pub async fn get_instance_logs(
 
     // Sort by modified date (most recent first), then by name
     logs.sort_by(|a, b| {
-        b.modified.cmp(&a.modified).then_with(|| a.name.cmp(&b.name))
+        b.modified
+            .cmp(&a.modified)
+            .then_with(|| a.name.cmp(&b.name))
     });
 
     Ok(logs)
@@ -644,7 +701,8 @@ pub async fn read_instance_log(
         .map_err(AppError::from)?
         .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
 
-    let log_path = state_guard.data_dir
+    let log_path = state_guard
+        .data_dir
         .join("instances")
         .join(&instance.game_dir)
         .join("logs")
@@ -657,19 +715,18 @@ pub async fn read_instance_log(
     let content = if log_name.ends_with(".gz") {
         // Read gzipped file
         use std::io::Read;
-        let file = std::fs::File::open(&log_path).map_err(|e| {
-            AppError::Io(format!("Failed to open log file: {}", e))
-        })?;
+        let file = std::fs::File::open(&log_path)
+            .map_err(|e| AppError::Io(format!("Failed to open log file: {}", e)))?;
         let mut decoder = flate2::read::GzDecoder::new(file);
         let mut content = String::new();
-        decoder.read_to_string(&mut content).map_err(|e| {
-            AppError::Io(format!("Failed to decompress log file: {}", e))
-        })?;
+        decoder
+            .read_to_string(&mut content)
+            .map_err(|e| AppError::Io(format!("Failed to decompress log file: {}", e)))?;
         content
     } else {
-        fs::read_to_string(&log_path).await.map_err(|e| {
-            AppError::Io(format!("Failed to read log file: {}", e))
-        })?
+        fs::read_to_string(&log_path)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to read log file: {}", e)))?
     };
 
     // If tail_lines is specified, only return the last N lines
@@ -683,10 +740,7 @@ pub async fn read_instance_log(
 }
 
 #[tauri::command]
-pub async fn open_logs_folder(
-    state: State<'_, SharedState>,
-    instance_id: String,
-) -> AppResult<()> {
+pub async fn open_logs_folder(state: State<'_, SharedState>, instance_id: String) -> AppResult<()> {
     let state_guard = state.read().await;
 
     let instance = Instance::get_by_id(&state_guard.db, &instance_id)
@@ -694,13 +748,17 @@ pub async fn open_logs_folder(
         .map_err(AppError::from)?
         .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
 
-    let logs_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join("logs");
+    let logs_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join("logs");
 
     // Create logs dir if it doesn't exist
     if !logs_dir.exists() {
-        fs::create_dir_all(&logs_dir).await.map_err(|e| {
-            AppError::Io(format!("Failed to create logs directory: {}", e))
-        })?;
+        fs::create_dir_all(&logs_dir)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to create logs directory: {}", e)))?;
     }
 
     // Open the folder in the system file manager
@@ -735,7 +793,11 @@ pub async fn get_instance_config_files(
 
     // Determine config folder based on loader type
     let config_folder = get_config_folder(instance.loader.as_deref(), instance.is_server);
-    let config_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join(config_folder);
+    let config_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join(config_folder);
 
     if !config_dir.exists() {
         return Ok(vec![]);
@@ -756,13 +818,15 @@ async fn collect_config_files(
     current_dir: &std::path::Path,
     configs: &mut Vec<ConfigFileInfo>,
 ) -> AppResult<()> {
-    let mut entries = fs::read_dir(current_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to read config directory: {}", e))
-    })?;
+    let mut entries = fs::read_dir(current_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read config directory: {}", e)))?;
 
-    while let Some(entry) = entries.next_entry().await.map_err(|e| {
-        AppError::Io(format!("Failed to read directory entry: {}", e))
-    })? {
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
         let path = entry.path();
         let metadata = entry.metadata().await.ok();
 
@@ -787,17 +851,16 @@ async fn collect_config_files(
                 continue; // Skip unsupported file types
             };
 
-            let relative_path = path.strip_prefix(base_dir)
+            let relative_path = path
+                .strip_prefix(base_dir)
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|_| filename.clone());
 
             let size_bytes = metadata.as_ref().map(|m| m.len()).unwrap_or(0);
-            let modified = metadata
-                .and_then(|m| m.modified().ok())
-                .and_then(|t| {
-                    let datetime: chrono::DateTime<chrono::Local> = t.into();
-                    Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string())
-                });
+            let modified = metadata.and_then(|m| m.modified().ok()).and_then(|t| {
+                let datetime: chrono::DateTime<chrono::Local> = t.into();
+                Some(datetime.format("%Y-%m-%d %H:%M:%S").to_string())
+            });
 
             configs.push(ConfigFileInfo {
                 name: filename,
@@ -828,24 +891,28 @@ pub async fn read_config_file(
 
     // Determine config folder based on loader type
     let config_folder = get_config_folder(instance.loader.as_deref(), instance.is_server);
-    let config_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join(config_folder);
+    let config_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join(config_folder);
     let file_path = config_dir.join(&config_path);
 
     // Security: ensure the path is within config directory
-    let canonical_config = config_dir.canonicalize().map_err(|e| {
-        AppError::Io(format!("Failed to resolve config directory: {}", e))
-    })?;
-    let canonical_file = file_path.canonicalize().map_err(|e| {
-        AppError::Io(format!("Config file not found: {}", e))
-    })?;
+    let canonical_config = config_dir
+        .canonicalize()
+        .map_err(|e| AppError::Io(format!("Failed to resolve config directory: {}", e)))?;
+    let canonical_file = file_path
+        .canonicalize()
+        .map_err(|e| AppError::Io(format!("Config file not found: {}", e)))?;
 
     if !canonical_file.starts_with(&canonical_config) {
         return Err(AppError::Instance("Invalid config path".to_string()));
     }
 
-    fs::read_to_string(&file_path).await.map_err(|e| {
-        AppError::Io(format!("Failed to read config file: {}", e))
-    })
+    fs::read_to_string(&file_path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read config file: {}", e)))
 }
 
 /// Save a config file
@@ -865,30 +932,34 @@ pub async fn save_config_file(
 
     // Determine config folder based on loader type
     let config_folder = get_config_folder(instance.loader.as_deref(), instance.is_server);
-    let config_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join(config_folder);
+    let config_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join(config_folder);
     let file_path = config_dir.join(&config_path);
 
     // Security: ensure the path is within config directory
-    let canonical_config = config_dir.canonicalize().map_err(|e| {
-        AppError::Io(format!("Failed to resolve config directory: {}", e))
-    })?;
+    let canonical_config = config_dir
+        .canonicalize()
+        .map_err(|e| AppError::Io(format!("Failed to resolve config directory: {}", e)))?;
 
     // For saving, we check the parent directory since the file might be new
-    let parent = file_path.parent().ok_or_else(|| {
-        AppError::Instance("Invalid config path".to_string())
-    })?;
+    let parent = file_path
+        .parent()
+        .ok_or_else(|| AppError::Instance("Invalid config path".to_string()))?;
 
-    let canonical_parent = parent.canonicalize().map_err(|e| {
-        AppError::Io(format!("Config directory not found: {}", e))
-    })?;
+    let canonical_parent = parent
+        .canonicalize()
+        .map_err(|e| AppError::Io(format!("Config directory not found: {}", e)))?;
 
     if !canonical_parent.starts_with(&canonical_config) {
         return Err(AppError::Instance("Invalid config path".to_string()));
     }
 
-    fs::write(&file_path, content).await.map_err(|e| {
-        AppError::Io(format!("Failed to save config file: {}", e))
-    })
+    fs::write(&file_path, content)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to save config file: {}", e)))
 }
 
 /// Open config folder in file manager
@@ -906,13 +977,17 @@ pub async fn open_config_folder(
 
     // Determine config folder based on loader type
     let config_folder = get_config_folder(instance.loader.as_deref(), instance.is_server);
-    let config_dir = state_guard.data_dir.join("instances").join(&instance.game_dir).join(config_folder);
+    let config_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join(config_folder);
 
     // Create config dir if it doesn't exist
     if !config_dir.exists() {
-        fs::create_dir_all(&config_dir).await.map_err(|e| {
-            AppError::Io(format!("Failed to create config directory: {}", e))
-        })?;
+        fs::create_dir_all(&config_dir)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to create config directory: {}", e)))?;
     }
 
     open_folder_in_file_manager(&config_dir)?;
@@ -1111,9 +1186,7 @@ pub async fn get_instance_icon(
 
 /// Get total mod count across all instances
 #[tauri::command]
-pub async fn get_total_mod_count(
-    state: State<'_, SharedState>,
-) -> AppResult<u32> {
+pub async fn get_total_mod_count(state: State<'_, SharedState>) -> AppResult<u32> {
     let state_guard = state.read().await;
     let instances = Instance::get_all(&state_guard.db)
         .await
@@ -1146,9 +1219,7 @@ pub async fn get_total_mod_count(
 
 /// Get all installed modpack project IDs from Modrinth
 #[tauri::command]
-pub async fn get_installed_modpack_ids(
-    state: State<'_, SharedState>,
-) -> AppResult<Vec<String>> {
+pub async fn get_installed_modpack_ids(state: State<'_, SharedState>) -> AppResult<Vec<String>> {
     let state_guard = state.read().await;
     Instance::get_installed_modpack_ids(&state_guard.db)
         .await
@@ -1258,7 +1329,9 @@ pub async fn get_storage_info(state: State<'_, SharedState>) -> AppResult<Storag
 
 /// Get storage info for each instance
 #[tauri::command]
-pub async fn get_instances_storage(state: State<'_, SharedState>) -> AppResult<Vec<InstanceStorageInfo>> {
+pub async fn get_instances_storage(
+    state: State<'_, SharedState>,
+) -> AppResult<Vec<InstanceStorageInfo>> {
     let state_guard = state.read().await;
     let instances = Instance::get_all(&state_guard.db)
         .await
@@ -1267,7 +1340,10 @@ pub async fn get_instances_storage(state: State<'_, SharedState>) -> AppResult<V
     let mut result = Vec::new();
 
     for instance in instances {
-        let instance_dir = state_guard.data_dir.join("instances").join(&instance.game_dir);
+        let instance_dir = state_guard
+            .data_dir
+            .join("instances")
+            .join(&instance.game_dir);
         let size = if instance_dir.exists() {
             get_dir_size(&instance_dir).await
         } else {
@@ -1313,14 +1389,14 @@ pub async fn clear_cache(state: State<'_, SharedState>) -> AppResult<u64> {
 
     let size = get_dir_size(&cache_dir).await;
 
-    fs::remove_dir_all(&cache_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to clear cache: {}", e))
-    })?;
+    fs::remove_dir_all(&cache_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to clear cache: {}", e)))?;
 
     // Recreate empty cache directory
-    fs::create_dir_all(&cache_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to recreate cache directory: {}", e))
-    })?;
+    fs::create_dir_all(&cache_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to recreate cache directory: {}", e)))?;
 
     Ok(size)
 }

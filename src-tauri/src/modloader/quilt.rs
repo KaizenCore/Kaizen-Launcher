@@ -46,14 +46,16 @@ pub struct QuiltLibrary {
 /// Fetch available Quilt loader versions
 pub async fn fetch_loader_versions(client: &reqwest::Client) -> AppResult<Vec<LoaderVersion>> {
     let url = format!("{}/versions/loader", QUILT_META_API);
-    
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Quilt loader versions: {}", e))
-    })?;
 
-    let versions: Vec<QuiltLoaderVersion> = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Quilt loader versions: {}", e))
-    })?;
+    let response =
+        client.get(&url).send().await.map_err(|e| {
+            AppError::Network(format!("Failed to fetch Quilt loader versions: {}", e))
+        })?;
+
+    let versions: Vec<QuiltLoaderVersion> = response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Quilt loader versions: {}", e)))?;
 
     Ok(versions
         .into_iter()
@@ -70,14 +72,16 @@ pub async fn fetch_loader_versions(client: &reqwest::Client) -> AppResult<Vec<Lo
 /// Fetch Minecraft versions supported by Quilt
 pub async fn fetch_game_versions(client: &reqwest::Client) -> AppResult<Vec<String>> {
     let url = format!("{}/versions/game", QUILT_META_API);
-    
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Quilt game versions: {}", e))
-    })?;
 
-    let versions: Vec<QuiltGameVersion> = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Quilt game versions: {}", e))
-    })?;
+    let response =
+        client.get(&url).send().await.map_err(|e| {
+            AppError::Network(format!("Failed to fetch Quilt game versions: {}", e))
+        })?;
+
+    let versions: Vec<QuiltGameVersion> = response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Quilt game versions: {}", e)))?;
 
     Ok(versions.into_iter().map(|v| v.version).collect())
 }
@@ -99,9 +103,11 @@ pub async fn fetch_profile(
         QUILT_META_API, mc_version, loader_version
     );
 
-    let response = client.get(&url).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch Quilt profile: {}", e))
-    })?;
+    let response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to fetch Quilt profile: {}", e)))?;
 
     if !response.status().is_success() {
         return Err(AppError::Network(format!(
@@ -110,9 +116,10 @@ pub async fn fetch_profile(
         )));
     }
 
-    response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse Quilt profile: {}", e))
-    })
+    response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse Quilt profile: {}", e)))
 }
 
 /// Get the recommended (latest) loader version

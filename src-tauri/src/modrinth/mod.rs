@@ -105,7 +105,7 @@ pub struct Version {
     pub version_number: String,
     pub changelog: Option<String>,
     pub game_versions: Vec<String>,
-    pub version_type: String,  // release, beta, alpha
+    pub version_type: String, // release, beta, alpha
     pub loaders: Vec<String>,
     pub featured: bool,
     pub files: Vec<VersionFile>,
@@ -138,7 +138,7 @@ pub struct Dependency {
     pub version_id: Option<String>,
     pub project_id: Option<String>,
     pub file_name: Option<String>,
-    pub dependency_type: String,  // required, optional, incompatible, embedded
+    pub dependency_type: String, // required, optional, incompatible, embedded
 }
 
 /// Search query parameters
@@ -146,7 +146,7 @@ pub struct Dependency {
 pub struct SearchQuery {
     pub query: String,
     pub facets: Option<String>,
-    pub index: Option<String>,  // relevance, downloads, follows, newest, updated
+    pub index: Option<String>, // relevance, downloads, follows, newest, updated
     pub offset: Option<u32>,
     pub limit: Option<u32>,
 }
@@ -195,7 +195,11 @@ impl<'a> ModrinthClient<'a> {
 
     /// Search for projects on Modrinth
     pub async fn search(&self, query: &SearchQuery) -> Result<SearchResponse, ModrinthError> {
-        let mut url = format!("{}/search?query={}", MODRINTH_API_BASE, urlencoding::encode(&query.query));
+        let mut url = format!(
+            "{}/search?query={}",
+            MODRINTH_API_BASE,
+            urlencoding::encode(&query.query)
+        );
 
         if let Some(facets) = &query.facets {
             url.push_str(&format!("&facets={}", urlencoding::encode(facets)));
@@ -210,14 +214,18 @@ impl<'a> ModrinthClient<'a> {
             url.push_str(&format!("&limit={}", limit));
         }
 
-        let response = self.http_client
+        let response = self
+            .http_client
             .get(&url)
             .send()
             .await
             .map_err(|e| ModrinthError::Network(e.to_string()))?;
 
         if !response.status().is_success() {
-            return Err(ModrinthError::Api(format!("API returned status {}", response.status())));
+            return Err(ModrinthError::Api(format!(
+                "API returned status {}",
+                response.status()
+            )));
         }
 
         response
@@ -230,14 +238,18 @@ impl<'a> ModrinthClient<'a> {
     pub async fn get_project(&self, id_or_slug: &str) -> Result<Project, ModrinthError> {
         let url = format!("{}/project/{}", MODRINTH_API_BASE, id_or_slug);
 
-        let response = self.http_client
+        let response = self
+            .http_client
             .get(&url)
             .send()
             .await
             .map_err(|e| ModrinthError::Network(e.to_string()))?;
 
         if !response.status().is_success() {
-            return Err(ModrinthError::Api(format!("API returned status {}", response.status())));
+            return Err(ModrinthError::Api(format!(
+                "API returned status {}",
+                response.status()
+            )));
         }
 
         response
@@ -262,9 +274,13 @@ impl<'a> ModrinthClient<'a> {
             params.push(format!("loaders={}", urlencoding::encode(&loaders_json)));
         }
         if let Some(versions) = game_versions {
-            let versions_json = serde_json::to_string(versions)
-                .map_err(|e| ModrinthError::Parse(format!("Failed to serialize versions: {}", e)))?;
-            params.push(format!("game_versions={}", urlencoding::encode(&versions_json)));
+            let versions_json = serde_json::to_string(versions).map_err(|e| {
+                ModrinthError::Parse(format!("Failed to serialize versions: {}", e))
+            })?;
+            params.push(format!(
+                "game_versions={}",
+                urlencoding::encode(&versions_json)
+            ));
         }
 
         if !params.is_empty() {
@@ -272,14 +288,18 @@ impl<'a> ModrinthClient<'a> {
             url.push_str(&params.join("&"));
         }
 
-        let response = self.http_client
+        let response = self
+            .http_client
             .get(&url)
             .send()
             .await
             .map_err(|e| ModrinthError::Network(e.to_string()))?;
 
         if !response.status().is_success() {
-            return Err(ModrinthError::Api(format!("API returned status {}", response.status())));
+            return Err(ModrinthError::Api(format!(
+                "API returned status {}",
+                response.status()
+            )));
         }
 
         response
@@ -292,14 +312,18 @@ impl<'a> ModrinthClient<'a> {
     pub async fn get_version(&self, version_id: &str) -> Result<Version, ModrinthError> {
         let url = format!("{}/version/{}", MODRINTH_API_BASE, version_id);
 
-        let response = self.http_client
+        let response = self
+            .http_client
             .get(&url)
             .send()
             .await
             .map_err(|e| ModrinthError::Network(e.to_string()))?;
 
         if !response.status().is_success() {
-            return Err(ModrinthError::Api(format!("API returned status {}", response.status())));
+            return Err(ModrinthError::Api(format!(
+                "API returned status {}",
+                response.status()
+            )));
         }
 
         response
@@ -314,14 +338,18 @@ impl<'a> ModrinthClient<'a> {
         file: &VersionFile,
         dest_path: &std::path::Path,
     ) -> Result<(), ModrinthError> {
-        let response = self.http_client
+        let response = self
+            .http_client
             .get(&file.url)
             .send()
             .await
             .map_err(|e| ModrinthError::Network(e.to_string()))?;
 
         if !response.status().is_success() {
-            return Err(ModrinthError::Api(format!("Download returned status {}", response.status())));
+            return Err(ModrinthError::Api(format!(
+                "Download returned status {}",
+                response.status()
+            )));
         }
 
         let bytes = response
@@ -330,7 +358,7 @@ impl<'a> ModrinthClient<'a> {
             .map_err(|e| ModrinthError::Network(e.to_string()))?;
 
         // Verify SHA1 hash
-        use sha1::{Sha1, Digest};
+        use sha1::{Digest, Sha1};
         let mut hasher = Sha1::new();
         hasher.update(&bytes);
         let hash = format!("{:x}", hasher.finalize());

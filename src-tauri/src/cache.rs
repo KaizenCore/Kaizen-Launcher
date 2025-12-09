@@ -66,8 +66,7 @@ impl ApiCache {
     /// Get the cache file path for a given key
     fn cache_path(&self, key: &str) -> PathBuf {
         // Sanitize key for filesystem
-        let safe_key = key
-            .replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
+        let safe_key = key.replace(['/', '\\', ':', '*', '?', '"', '<', '>', '|'], "_");
         self.cache_dir.join(format!("{}.json", safe_key))
     }
 
@@ -96,7 +95,8 @@ impl ApiCache {
 
     /// Store a value in the cache with default TTL (1 hour)
     pub async fn set<T: Serialize>(&self, key: &str, data: &T) -> AppResult<()> {
-        self.set_with_ttl(key, data, Duration::from_secs(DEFAULT_TTL_SECS)).await
+        self.set_with_ttl(key, data, Duration::from_secs(DEFAULT_TTL_SECS))
+            .await
     }
 
     /// Store a value in the cache with custom TTL
@@ -119,17 +119,14 @@ impl ApiCache {
     }
 
     /// Get a cached value or fetch it using the provided async function
-    pub async fn get_or_fetch<T, F, Fut>(
-        &self,
-        key: &str,
-        fetch_fn: F,
-    ) -> AppResult<T>
+    pub async fn get_or_fetch<T, F, Fut>(&self, key: &str, fetch_fn: F) -> AppResult<T>
     where
         T: Serialize + DeserializeOwned,
         F: FnOnce() -> Fut,
         Fut: std::future::Future<Output = AppResult<T>>,
     {
-        self.get_or_fetch_with_ttl(key, Duration::from_secs(DEFAULT_TTL_SECS), fetch_fn).await
+        self.get_or_fetch_with_ttl(key, Duration::from_secs(DEFAULT_TTL_SECS), fetch_fn)
+            .await
     }
 
     /// Get a cached value or fetch it with custom TTL
@@ -206,7 +203,10 @@ mod tests {
 
         let data = "test_data";
         // Set with 0 TTL (immediately expired)
-        cache.set_with_ttl("expired", &data, Duration::ZERO).await.unwrap();
+        cache
+            .set_with_ttl("expired", &data, Duration::ZERO)
+            .await
+            .unwrap();
 
         // Should return None because it's expired (TTL of 0 means expires immediately)
         let cached: Option<String> = cache.get("expired").await;

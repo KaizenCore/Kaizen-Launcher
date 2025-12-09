@@ -30,12 +30,15 @@ pub struct InstallProgress {
 
 /// Emit progress event
 fn emit_progress(app: &AppHandle, stage: &str, current: u32, total: u32, message: &str) {
-    let _ = app.emit("install-progress", InstallProgress {
-        stage: stage.to_string(),
-        current,
-        total,
-        message: message.to_string(),
-    });
+    let _ = app.emit(
+        "install-progress",
+        InstallProgress {
+            stage: stage.to_string(),
+            current,
+            total,
+            message: message.to_string(),
+        },
+    );
 }
 
 /// Install a Minecraft version into a specific instance directory
@@ -45,26 +48,41 @@ pub async fn install_instance(
     version: &VersionDetails,
     app: &AppHandle,
 ) -> AppResult<()> {
-    println!("[INSTALLER] Starting installation for version: {} in {:?}", version.id, instance_dir);
+    println!(
+        "[INSTALLER] Starting installation for version: {} in {:?}",
+        version.id, instance_dir
+    );
 
     // Create instance subdirectories
     let client_dir = instance_dir.join("client");
     let libraries_dir = instance_dir.join("libraries");
     let assets_dir = instance_dir.join("assets");
 
-    fs::create_dir_all(&client_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to create client directory: {}", e))
-    })?;
+    fs::create_dir_all(&client_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create client directory: {}", e)))?;
 
     // 1. Download client JAR (5% of total)
-    emit_progress(app, "installing", 0, 100, "Telechargement du client Minecraft...");
+    emit_progress(
+        app,
+        "installing",
+        0,
+        100,
+        "Telechargement du client Minecraft...",
+    );
     println!("[INSTALLER] Step 1/3: Downloading client JAR...");
     download_client_to_instance(client, &client_dir, version).await?;
     emit_progress(app, "installing", 5, 100, "Client telecharge!");
     println!("[INSTALLER] Step 1/3: Client JAR downloaded!");
 
     // 2. Download libraries (5% - 35% of total)
-    emit_progress(app, "installing", 5, 100, "Telechargement des bibliotheques...");
+    emit_progress(
+        app,
+        "installing",
+        5,
+        100,
+        "Telechargement des bibliotheques...",
+    );
     println!("[INSTALLER] Step 2/3: Downloading libraries...");
     download_libraries_to_instance_with_progress(client, &libraries_dir, version, app).await?;
     emit_progress(app, "installing", 35, 100, "Bibliotheques telechargees!");
@@ -79,11 +97,14 @@ pub async fn install_instance(
 
     // Mark as installed
     let installed_marker = instance_dir.join(".installed");
-    fs::write(&installed_marker, &version.id).await.map_err(|e| {
-        AppError::Io(format!("Failed to write installed marker: {}", e))
-    })?;
+    fs::write(&installed_marker, &version.id)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to write installed marker: {}", e)))?;
 
-    println!("[INSTALLER] Installation complete for version: {}", version.id);
+    println!(
+        "[INSTALLER] Installation complete for version: {}",
+        version.id
+    );
     Ok(())
 }
 
@@ -121,8 +142,12 @@ pub async fn is_instance_installed(instance_dir: &Path) -> bool {
         instance_dir.join("client").join("client.jar").exists()
     };
 
-    println!("[IS_INSTALLED] {:?}: type={}, installed={}",
-        instance_dir, if is_server { "server" } else { "client" }, is_installed);
+    println!(
+        "[IS_INSTALLED] {:?}: type={}, installed={}",
+        instance_dir,
+        if is_server { "server" } else { "client" },
+        is_installed
+    );
 
     is_installed
 }
@@ -140,12 +165,11 @@ async fn download_client_to_instance(
 
     // Also save version info
     let version_file = client_dir.join("version.json");
-    let version_json = serde_json::to_string_pretty(version).map_err(|e| {
-        AppError::Io(format!("Failed to serialize version: {}", e))
-    })?;
-    fs::write(&version_file, version_json).await.map_err(|e| {
-        AppError::Io(format!("Failed to write version file: {}", e))
-    })?;
+    let version_json = serde_json::to_string_pretty(version)
+        .map_err(|e| AppError::Io(format!("Failed to serialize version: {}", e)))?;
+    fs::write(&version_file, version_json)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to write version file: {}", e)))?;
 
     Ok(())
 }
@@ -159,7 +183,10 @@ async fn download_libraries_to_instance_with_progress(
 ) -> AppResult<()> {
     let mut downloads = Vec::new();
 
-    println!("[INSTALLER] Processing {} libraries...", version.libraries.len());
+    println!(
+        "[INSTALLER] Processing {} libraries...",
+        version.libraries.len()
+    );
 
     for lib in &version.libraries {
         // Check if library should be included based on rules
@@ -207,9 +234,15 @@ async fn download_libraries_to_instance_with_progress(
     download_files_parallel_with_progress(client, downloads, 10, move |current, total| {
         // Libraries are 5% - 35% of total (30% range)
         let percent = 5 + ((current as u32 * 30) / total.max(1) as u32);
-        emit_progress(&app_clone, "installing", percent, 100,
-            &format!("Bibliotheques: {}/{}", current, total));
-    }).await?;
+        emit_progress(
+            &app_clone,
+            "installing",
+            percent,
+            100,
+            &format!("Bibliotheques: {}/{}", current, total),
+        );
+    })
+    .await?;
 
     Ok(())
 }
@@ -224,28 +257,36 @@ async fn download_assets_to_instance_with_progress(
     let indexes_dir = assets_dir.join("indexes");
     let objects_dir = assets_dir.join("objects");
 
-    fs::create_dir_all(&indexes_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to create indexes directory: {}", e))
-    })?;
+    fs::create_dir_all(&indexes_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create indexes directory: {}", e)))?;
 
     // Download asset index
     let asset_index = &version.asset_index;
     let index_path = indexes_dir.join(format!("{}.json", asset_index.id));
 
-    download_file(client, &asset_index.url, &index_path, Some(&asset_index.sha1)).await?;
+    download_file(
+        client,
+        &asset_index.url,
+        &index_path,
+        Some(&asset_index.sha1),
+    )
+    .await?;
 
     // Parse asset index
-    let index_content = fs::read_to_string(&index_path).await.map_err(|e| {
-        AppError::Io(format!("Failed to read asset index: {}", e))
-    })?;
+    let index_content = fs::read_to_string(&index_path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read asset index: {}", e)))?;
 
-    let asset_index: AssetIndex = serde_json::from_str(&index_content).map_err(|e| {
-        AppError::Io(format!("Failed to parse asset index: {}", e))
-    })?;
+    let asset_index: AssetIndex = serde_json::from_str(&index_content)
+        .map_err(|e| AppError::Io(format!("Failed to parse asset index: {}", e)))?;
 
     // Prepare downloads
     let mut downloads = Vec::new();
-    println!("[INSTALLER] Processing {} assets...", asset_index.objects.len());
+    println!(
+        "[INSTALLER] Processing {} assets...",
+        asset_index.objects.len()
+    );
 
     for (_name, object) in &asset_index.objects {
         let hash_prefix = &object.hash[..2];
@@ -263,9 +304,15 @@ async fn download_assets_to_instance_with_progress(
     download_files_parallel_with_progress(client, downloads, 20, move |current, total| {
         // Assets are 35% - 100% of total (65% range)
         let percent = 35 + ((current as u32 * 65) / total.max(1) as u32);
-        emit_progress(&app_clone, "installing", percent, 100,
-            &format!("Assets: {}/{}", current, total));
-    }).await?;
+        emit_progress(
+            &app_clone,
+            "installing",
+            percent,
+            100,
+            &format!("Assets: {}/{}", current, total),
+        );
+    })
+    .await?;
 
     Ok(())
 }
@@ -342,9 +389,15 @@ fn library_name_to_path(name: &str) -> String {
     if parts.len() >= 4 {
         // Has classifier (e.g., net.neoforged:mergetool:2.0.0:api)
         let classifier = parts[3];
-        format!("{}/{}/{}/{}-{}-{}.jar", group, artifact, version, artifact, version, classifier)
+        format!(
+            "{}/{}/{}/{}-{}-{}.jar",
+            group, artifact, version, artifact, version, classifier
+        )
     } else {
-        format!("{}/{}/{}/{}-{}.jar", group, artifact, version, artifact, version)
+        format!(
+            "{}/{}/{}/{}-{}.jar",
+            group, artifact, version, artifact, version
+        )
     }
 }
 
@@ -370,9 +423,15 @@ fn get_artifact_key(name: &str) -> String {
 
 /// Get the classpath for an instance
 /// For NeoForge/Forge, the vanilla client.jar is replaced by the patched client, so we skip it
-pub fn get_instance_classpath(instance_dir: &Path, version: &VersionDetails, loader: Option<&str>) -> Vec<PathBuf> {
+pub fn get_instance_classpath(
+    instance_dir: &Path,
+    version: &VersionDetails,
+    loader: Option<&str>,
+) -> Vec<PathBuf> {
     let libraries_dir = instance_dir.join("libraries");
-    let is_neoforge_or_forge = loader.map(|l| l == "neoforge" || l == "forge").unwrap_or(false);
+    let is_neoforge_or_forge = loader
+        .map(|l| l == "neoforge" || l == "forge")
+        .unwrap_or(false);
     let mut classpath = Vec::new();
     let mut seen_artifacts: std::collections::HashSet<String> = std::collections::HashSet::new();
     let mut found = 0;
@@ -380,7 +439,10 @@ pub fn get_instance_classpath(instance_dir: &Path, version: &VersionDetails, loa
     let mut skipped = 0;
     let mut deduplicated = 0;
 
-    println!("[CLASSPATH] Building classpath from {} libraries", version.libraries.len());
+    println!(
+        "[CLASSPATH] Building classpath from {} libraries",
+        version.libraries.len()
+    );
 
     for lib in &version.libraries {
         if !should_include_library(lib) {
@@ -392,7 +454,10 @@ pub fn get_instance_classpath(instance_dir: &Path, version: &VersionDetails, loa
         // Loader libraries are inserted first, so they take precedence
         let artifact_key = get_artifact_key(&lib.name);
         if seen_artifacts.contains(&artifact_key) {
-            println!("[CLASSPATH] Skipping duplicate artifact: {} (keeping earlier version)", lib.name);
+            println!(
+                "[CLASSPATH] Skipping duplicate artifact: {} (keeping earlier version)",
+                lib.name
+            );
             deduplicated += 1;
             continue;
         }
@@ -405,7 +470,10 @@ pub fn get_instance_classpath(instance_dir: &Path, version: &VersionDetails, loa
                     classpath.push(path);
                     found += 1;
                 } else {
-                    println!("[CLASSPATH] MISSING (downloads): {} -> {:?}", lib.name, path);
+                    println!(
+                        "[CLASSPATH] MISSING (downloads): {} -> {:?}",
+                        lib.name, path
+                    );
                     missing += 1;
                 }
             }
@@ -435,8 +503,10 @@ pub fn get_instance_classpath(instance_dir: &Path, version: &VersionDetails, loa
         println!("[CLASSPATH] Skipping vanilla client.jar (NeoForge/Forge uses patched client)");
     }
 
-    println!("[CLASSPATH] Summary: {} found, {} missing, {} skipped (rules), {} deduplicated",
-        found, missing, skipped, deduplicated);
+    println!(
+        "[CLASSPATH] Summary: {} found, {} missing, {} skipped (rules), {} deduplicated",
+        found, missing, skipped, deduplicated
+    );
 
     classpath
 }

@@ -1,7 +1,5 @@
 use crate::error::{AppError, AppResult};
-use crate::minecraft::versions::{
-    self, VersionInfo, VersionDetails, filter_versions,
-};
+use crate::minecraft::versions::{self, filter_versions, VersionDetails, VersionInfo};
 use crate::state::SharedState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
@@ -32,12 +30,17 @@ pub async fn get_minecraft_versions(
         }
         Err(e) => {
             // Try to use cached version
-            eprintln!("Warning: Failed to fetch version manifest: {}. Trying cache...", e);
+            eprintln!(
+                "Warning: Failed to fetch version manifest: {}. Trying cache...",
+                e
+            );
             versions::load_cached_manifest(&state.data_dir)
                 .await?
-                .ok_or_else(|| AppError::Network(
-                    "Failed to fetch versions and no cached data available".to_string()
-                ))?
+                .ok_or_else(|| {
+                    AppError::Network(
+                        "Failed to fetch versions and no cached data available".to_string(),
+                    )
+                })?
         }
     };
 
@@ -84,9 +87,7 @@ pub async fn get_minecraft_version_details(
 
 /// Refresh the version cache
 #[tauri::command]
-pub async fn refresh_minecraft_versions(
-    state: State<'_, SharedState>,
-) -> AppResult<()> {
+pub async fn refresh_minecraft_versions(state: State<'_, SharedState>) -> AppResult<()> {
     let state = state.read().await;
 
     let manifest = versions::fetch_version_manifest(&state.http_client).await?;

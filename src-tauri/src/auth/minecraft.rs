@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::error::{AppError, AppResult};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MinecraftToken {
@@ -82,7 +82,10 @@ pub async fn authenticate_minecraft(
 
     if !response.status().is_success() {
         let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::Auth(format!("Minecraft auth failed: {}", error_text)));
+        return Err(AppError::Auth(format!(
+            "Minecraft auth failed: {}",
+            error_text
+        )));
     }
 
     let auth_response: MinecraftAuthResponse = response
@@ -119,9 +122,10 @@ pub async fn check_game_ownership(
         .map_err(|e| AppError::Auth(format!("Failed to parse ownership response: {}", e)))?;
 
     // Check for game_minecraft or product_minecraft
-    let owns_game = ownership.items.iter().any(|item| {
-        item.name == "game_minecraft" || item.name == "product_minecraft"
-    });
+    let owns_game = ownership
+        .items
+        .iter()
+        .any(|item| item.name == "game_minecraft" || item.name == "product_minecraft");
 
     Ok(owns_game)
 }
@@ -141,13 +145,16 @@ pub async fn get_minecraft_profile(
 
     if status.as_u16() == 404 {
         return Err(AppError::Auth(
-            "This account does not own Minecraft Java Edition".to_string()
+            "This account does not own Minecraft Java Edition".to_string(),
         ));
     }
 
     if !status.is_success() {
         let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::Auth(format!("Profile fetch failed: {}", error_text)));
+        return Err(AppError::Auth(format!(
+            "Profile fetch failed: {}",
+            error_text
+        )));
     }
 
     let profile: MinecraftProfileResponse = response

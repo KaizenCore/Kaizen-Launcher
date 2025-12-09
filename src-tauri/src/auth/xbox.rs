@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::error::{AppError, AppResult};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct XboxLiveToken {
@@ -102,7 +102,10 @@ pub async fn authenticate_xbox_live(
 
     if !response.status().is_success() {
         let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::Auth(format!("Xbox Live auth failed: {}", error_text)));
+        return Err(AppError::Auth(format!(
+            "Xbox Live auth failed: {}",
+            error_text
+        )));
     }
 
     let auth_response: XboxAuthResponse = response
@@ -123,10 +126,7 @@ pub async fn authenticate_xbox_live(
     })
 }
 
-pub async fn get_xsts_token(
-    client: &reqwest::Client,
-    xbox_token: &str,
-) -> AppResult<XstsToken> {
+pub async fn get_xsts_token(client: &reqwest::Client, xbox_token: &str) -> AppResult<XstsToken> {
     let request = XstsAuthRequest {
         properties: XstsAuthProperties {
             sandbox_id: "RETAIL".to_string(),

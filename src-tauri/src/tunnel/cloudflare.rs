@@ -48,9 +48,9 @@ pub async fn start_cloudflare_tunnel(
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| {
-        AppError::Io(format!("Failed to start cloudflared: {}", e))
-    })?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| AppError::Io(format!("Failed to start cloudflared: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
     println!("[CLOUDFLARE] Started with PID: {}", pid);

@@ -51,7 +51,17 @@ pub async fn get_tunnel_config(
     .await?;
 
     Ok(row.map(
-        |(id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url)| {
+        |(
+            id,
+            instance_id,
+            provider,
+            enabled,
+            auto_start,
+            playit_secret_key,
+            ngrok_authtoken,
+            target_port,
+            tunnel_url,
+        )| {
             TunnelConfig {
                 id,
                 instance_id,
@@ -151,22 +161,38 @@ pub async fn start_tunnel(
         .await?;
 
         let config = row
-            .map(|(id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url)| {
-                TunnelConfig {
+            .map(
+                |(
                     id,
                     instance_id,
-                    provider: provider.parse().unwrap_or(TunnelProvider::Cloudflare),
-                    enabled: enabled != 0,
-                    auto_start: auto_start != 0,
+                    provider,
+                    enabled,
+                    auto_start,
                     playit_secret_key,
                     ngrok_authtoken,
-                    target_port: target_port as i32,
+                    target_port,
                     tunnel_url,
-                }
-            })
+                )| {
+                    TunnelConfig {
+                        id,
+                        instance_id,
+                        provider: provider.parse().unwrap_or(TunnelProvider::Cloudflare),
+                        enabled: enabled != 0,
+                        auto_start: auto_start != 0,
+                        playit_secret_key,
+                        ngrok_authtoken,
+                        target_port: target_port as i32,
+                        tunnel_url,
+                    }
+                },
+            )
             .ok_or_else(|| crate::error::AppError::Custom("No tunnel config found".to_string()))?;
 
-        (state.data_dir.clone(), state.running_tunnels.clone(), config)
+        (
+            state.data_dir.clone(),
+            state.running_tunnels.clone(),
+            config,
+        )
     };
 
     manager::start_tunnel(&data_dir, &config, &app, running_tunnels).await

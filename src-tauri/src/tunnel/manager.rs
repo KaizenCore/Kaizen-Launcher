@@ -1,6 +1,8 @@
 use crate::error::{AppError, AppResult};
 use crate::state::RunningTunnels;
-use crate::tunnel::{bore, cloudflare, ngrok, playit, TunnelConfig, TunnelProvider, TunnelStatus, TunnelStatusEvent};
+use crate::tunnel::{
+    bore, cloudflare, ngrok, playit, TunnelConfig, TunnelProvider, TunnelStatus, TunnelStatusEvent,
+};
 use std::path::Path;
 use tauri::{AppHandle, Emitter};
 
@@ -24,15 +26,9 @@ pub async fn start_tunnel(
         TunnelProvider::Cloudflare => {
             cloudflare::start_cloudflare_tunnel(data_dir, config, app).await?
         }
-        TunnelProvider::Playit => {
-            playit::start_playit_tunnel(data_dir, config, app).await?
-        }
-        TunnelProvider::Ngrok => {
-            ngrok::start_ngrok_tunnel(data_dir, config, app).await?
-        }
-        TunnelProvider::Bore => {
-            bore::start_bore_tunnel(data_dir, config, app).await?
-        }
+        TunnelProvider::Playit => playit::start_playit_tunnel(data_dir, config, app).await?,
+        TunnelProvider::Ngrok => ngrok::start_ngrok_tunnel(data_dir, config, app).await?,
+        TunnelProvider::Bore => bore::start_bore_tunnel(data_dir, config, app).await?,
     };
 
     // Store in running tunnels
@@ -90,15 +86,14 @@ pub async fn stop_tunnel(
 
         Ok(())
     } else {
-        Err(AppError::Custom("No tunnel running for this instance".to_string()))
+        Err(AppError::Custom(
+            "No tunnel running for this instance".to_string(),
+        ))
     }
 }
 
 /// Get tunnel status for an instance
-pub async fn get_tunnel_status(
-    instance_id: &str,
-    running_tunnels: RunningTunnels,
-) -> TunnelStatus {
+pub async fn get_tunnel_status(instance_id: &str, running_tunnels: RunningTunnels) -> TunnelStatus {
     let tunnels = running_tunnels.read().await;
 
     if let Some(tunnel) = tunnels.get(instance_id) {

@@ -80,7 +80,11 @@ impl From<Version> for ModVersionInfo {
             downloads: v.downloads,
             date_published: v.date_published,
             files: v.files.into_iter().map(ModFileInfo::from).collect(),
-            dependencies: v.dependencies.into_iter().map(ModDependency::from).collect(),
+            dependencies: v
+                .dependencies
+                .into_iter()
+                .map(ModDependency::from)
+                .collect(),
         }
     }
 }
@@ -153,9 +157,9 @@ pub async fn search_modrinth_mods(
     let loaders = loader.as_ref().map(|l| vec![l.as_str()]);
 
     // Convert categories to &str slice
-    let categories_strs: Option<Vec<&str>> = categories.as_ref().map(|cats| {
-        cats.iter().map(|s| s.as_str()).collect()
-    });
+    let categories_strs: Option<Vec<&str>> = categories
+        .as_ref()
+        .map(|cats| cats.iter().map(|s| s.as_str()).collect());
 
     // Default to "mod" if not specified, but allow "plugin" for servers
     let ptype = project_type.as_deref().unwrap_or("mod");
@@ -187,7 +191,11 @@ pub async fn search_modrinth_mods(
         .map_err(|e| AppError::Network(e.to_string()))?;
 
     Ok(ModSearchResponse {
-        results: response.hits.into_iter().map(ModSearchResult::from).collect(),
+        results: response
+            .hits
+            .into_iter()
+            .map(ModSearchResult::from)
+            .collect(),
         total_hits: response.total_hits,
         offset: response.offset,
         limit: response.limit,
@@ -314,7 +322,11 @@ pub async fn install_modrinth_mod(
 
     log::info!(
         "Installed {} {} (version {}) to instance {} (folder: {})",
-        if folder_name == "plugins" { "plugin" } else { "mod" },
+        if folder_name == "plugins" {
+            "plugin"
+        } else {
+            "mod"
+        },
         project_id,
         version_id,
         instance_id,
@@ -349,13 +361,15 @@ pub async fn get_installed_mod_ids(
     }
 
     let mut project_ids = Vec::new();
-    let mut entries = tokio::fs::read_dir(&mods_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to read mods directory: {}", e))
-    })?;
+    let mut entries = tokio::fs::read_dir(&mods_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read mods directory: {}", e)))?;
 
-    while let Some(entry) = entries.next_entry().await.map_err(|e| {
-        AppError::Io(format!("Failed to read directory entry: {}", e))
-    })? {
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
         let filename = entry.file_name().to_string_lossy().to_string();
 
         // Look for .meta.json files
@@ -509,7 +523,12 @@ pub async fn install_modrinth_mods_batch(
         };
 
         // Find the primary file
-        let file = match version.files.iter().find(|f| f.primary).or_else(|| version.files.first()) {
+        let file = match version
+            .files
+            .iter()
+            .find(|f| f.primary)
+            .or_else(|| version.files.first())
+        {
             Some(f) => f,
             None => {
                 log::warn!("No files found for version {}", version_id);
@@ -612,7 +631,7 @@ pub async fn install_modrinth_modpack(
     instance_name: Option<String>,
 ) -> AppResult<ModpackInstallResult> {
     use crate::db::instances::Instance;
-    use sha1::{Sha1, Digest};
+    use sha1::{Digest, Sha1};
     use tauri::Emitter;
 
     // Clone the http_client for use throughout the function
@@ -623,11 +642,14 @@ pub async fn install_modrinth_modpack(
     let client = ModrinthClient::new(&http_client);
 
     // Emit progress
-    let _ = app.emit("modpack-progress", serde_json::json!({
-        "stage": "fetching",
-        "message": "Recuperation des informations du modpack...",
-        "progress": 5
-    }));
+    let _ = app.emit(
+        "modpack-progress",
+        serde_json::json!({
+            "stage": "fetching",
+            "message": "Recuperation des informations du modpack...",
+            "progress": 5
+        }),
+    );
 
     // Get project info (for icon)
     let project = client
@@ -654,11 +676,14 @@ pub async fn install_modrinth_modpack(
     let expected_hash = mrpack_file.hashes.sha1.clone();
     let download_url = mrpack_file.url.clone();
 
-    let _ = app.emit("modpack-progress", serde_json::json!({
-        "stage": "downloading",
-        "message": "Telechargement du modpack...",
-        "progress": 10
-    }));
+    let _ = app.emit(
+        "modpack-progress",
+        serde_json::json!({
+            "stage": "downloading",
+            "message": "Telechargement du modpack...",
+            "progress": 10
+        }),
+    );
 
     // Download the modpack file
     let response = http_client
@@ -692,16 +717,19 @@ pub async fn install_modrinth_modpack(
         )));
     }
 
-    let _ = app.emit("modpack-progress", serde_json::json!({
-        "stage": "extracting",
-        "message": "Extraction du modpack...",
-        "progress": 20
-    }));
+    let _ = app.emit(
+        "modpack-progress",
+        serde_json::json!({
+            "stage": "extracting",
+            "message": "Extraction du modpack...",
+            "progress": 20
+        }),
+    );
 
     // Parse the modpack index in a blocking task
     let mrpack_bytes_clone = mrpack_bytes.clone();
     let index: ModpackIndex = tokio::task::spawn_blocking(move || {
-        use std::io::{Read, Cursor};
+        use std::io::{Cursor, Read};
         use zip::ZipArchive;
 
         let cursor = Cursor::new(mrpack_bytes_clone);
@@ -738,15 +766,17 @@ pub async fn install_modrinth_modpack(
     };
 
     // Create the instance name
-    let name = instance_name.unwrap_or_else(|| {
-        format!("{} ({})", index.name, version.version_number)
-    });
+    let name =
+        instance_name.unwrap_or_else(|| format!("{} ({})", index.name, version.version_number));
 
-    let _ = app.emit("modpack-progress", serde_json::json!({
-        "stage": "creating",
-        "message": "Creation de l'instance...",
-        "progress": 25
-    }));
+    let _ = app.emit(
+        "modpack-progress",
+        serde_json::json!({
+            "stage": "creating",
+            "message": "Creation de l'instance...",
+            "progress": 25
+        }),
+    );
 
     // Create the instance in database
     let state_guard = state.read().await;
@@ -782,11 +812,14 @@ pub async fn install_modrinth_modpack(
     // Download and save the icon
     let mut saved_icon_path: Option<String> = None;
     if let Some(url) = &icon_url {
-        let _ = app.emit("modpack-progress", serde_json::json!({
-            "stage": "downloading_icon",
-            "message": "Telechargement de l'icone...",
-            "progress": 28
-        }));
+        let _ = app.emit(
+            "modpack-progress",
+            serde_json::json!({
+                "stage": "downloading_icon",
+                "message": "Telechargement de l'icone...",
+                "progress": 28
+            }),
+        );
 
         println!("[MODPACK] Downloading icon from: {}", url);
 
@@ -816,7 +849,10 @@ pub async fn install_modrinth_modpack(
                             match tokio::fs::write(&icon_full_path, &bytes).await {
                                 Ok(_) => {
                                     saved_icon_path = Some(icon_filename.clone());
-                                    println!("[MODPACK] Saved modpack icon to {:?}", icon_full_path);
+                                    println!(
+                                        "[MODPACK] Saved modpack icon to {:?}",
+                                        icon_full_path
+                                    );
                                 }
                                 Err(e) => println!("[MODPACK] Failed to write icon: {}", e),
                             }
@@ -824,7 +860,10 @@ pub async fn install_modrinth_modpack(
                         Err(e) => println!("[MODPACK] Failed to read icon bytes: {}", e),
                     }
                 } else {
-                    println!("[MODPACK] Icon download failed with status: {}", response.status());
+                    println!(
+                        "[MODPACK] Icon download failed with status: {}",
+                        response.status()
+                    );
                 }
             }
             Err(e) => println!("[MODPACK] Failed to download icon: {}", e),
@@ -835,18 +874,24 @@ pub async fn install_modrinth_modpack(
 
     // Update instance with icon path
     if let Some(ref icon_path) = saved_icon_path {
-        println!("[MODPACK] Updating instance {} with icon_path: {}", instance.id, icon_path);
+        println!(
+            "[MODPACK] Updating instance {} with icon_path: {}",
+            instance.id, icon_path
+        );
         match Instance::update_icon(&state_guard.db, &instance.id, Some(icon_path)).await {
             Ok(_) => println!("[MODPACK] Icon path updated in database"),
             Err(e) => println!("[MODPACK] Failed to update icon in database: {}", e),
         }
     }
 
-    let _ = app.emit("modpack-progress", serde_json::json!({
-        "stage": "downloading_mods",
-        "message": "Telechargement des mods...",
-        "progress": 30
-    }));
+    let _ = app.emit(
+        "modpack-progress",
+        serde_json::json!({
+            "stage": "downloading_mods",
+            "message": "Telechargement des mods...",
+            "progress": 30
+        }),
+    );
 
     // Helper function to extract version hash from Modrinth CDN URL
     // URL format: https://cdn.modrinth.com/data/{project_id}/versions/{version_id}/{filename}
@@ -926,7 +971,12 @@ pub async fn install_modrinth_modpack(
             if file.path.starts_with("mods/") && file.path.ends_with(".jar") {
                 if let Some(url) = used_url {
                     if let Some((project_id, version_id)) = extract_modrinth_ids(&url) {
-                        let filename = file.path.rsplit('/').next().unwrap_or(&file.path).to_string();
+                        let filename = file
+                            .path
+                            .rsplit('/')
+                            .next()
+                            .unwrap_or(&file.path)
+                            .to_string();
                         mod_files_to_fetch.push((project_id, version_id, filename));
                     }
                 }
@@ -935,20 +985,26 @@ pub async fn install_modrinth_modpack(
 
         downloaded += 1;
         let progress = 30 + ((downloaded as f32 / total_files as f32) * 45.0) as u32;
-        let _ = app.emit("modpack-progress", serde_json::json!({
-            "stage": "downloading_mods",
-            "message": format!("Telechargement des mods ({}/{})", downloaded, total_files),
-            "progress": progress
-        }));
+        let _ = app.emit(
+            "modpack-progress",
+            serde_json::json!({
+                "stage": "downloading_mods",
+                "message": format!("Telechargement des mods ({}/{})", downloaded, total_files),
+                "progress": progress
+            }),
+        );
     }
 
     // Fetch metadata for mods (icons, names, etc.)
     if !mod_files_to_fetch.is_empty() {
-        let _ = app.emit("modpack-progress", serde_json::json!({
-            "stage": "fetching_metadata",
-            "message": "Recuperation des informations des mods...",
-            "progress": 78
-        }));
+        let _ = app.emit(
+            "modpack-progress",
+            serde_json::json!({
+                "stage": "fetching_metadata",
+                "message": "Recuperation des informations des mods...",
+                "progress": 78
+            }),
+        );
 
         let total_mods = mod_files_to_fetch.len();
         let mut fetched = 0;
@@ -988,16 +1044,19 @@ pub async fn install_modrinth_modpack(
         }
     }
 
-    let _ = app.emit("modpack-progress", serde_json::json!({
-        "stage": "extracting_overrides",
-        "message": "Extraction des fichiers de configuration...",
-        "progress": 85
-    }));
+    let _ = app.emit(
+        "modpack-progress",
+        serde_json::json!({
+            "stage": "extracting_overrides",
+            "message": "Extraction des fichiers de configuration...",
+            "progress": 85
+        }),
+    );
 
     // Extract overrides in a blocking task
     let instance_dir_clone = instance_dir.clone();
     tokio::task::spawn_blocking(move || {
-        use std::io::{Read, Cursor};
+        use std::io::{Cursor, Read};
         use zip::ZipArchive;
 
         let cursor = Cursor::new(mrpack_bytes);
@@ -1057,11 +1116,14 @@ pub async fn install_modrinth_modpack(
     .await
     .map_err(|e| AppError::Instance(format!("Failed to extract overrides: {}", e)))?;
 
-    let _ = app.emit("modpack-progress", serde_json::json!({
-        "stage": "complete",
-        "message": "Modpack installe avec succes!",
-        "progress": 100
-    }));
+    let _ = app.emit(
+        "modpack-progress",
+        serde_json::json!({
+            "stage": "complete",
+            "message": "Modpack installe avec succes!",
+            "progress": 100
+        }),
+    );
 
     // Drop the state guard to release the lock
     drop(state_guard);

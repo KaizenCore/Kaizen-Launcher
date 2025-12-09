@@ -20,27 +20,43 @@ pub fn get_agent_binary_path(data_dir: &Path, provider: TunnelProvider) -> PathB
     match provider {
         TunnelProvider::Cloudflare => {
             #[cfg(target_os = "windows")]
-            { provider_dir.join("cloudflared.exe") }
+            {
+                provider_dir.join("cloudflared.exe")
+            }
             #[cfg(not(target_os = "windows"))]
-            { provider_dir.join("cloudflared") }
+            {
+                provider_dir.join("cloudflared")
+            }
         }
         TunnelProvider::Playit => {
             #[cfg(target_os = "windows")]
-            { provider_dir.join("playit.exe") }
+            {
+                provider_dir.join("playit.exe")
+            }
             #[cfg(not(target_os = "windows"))]
-            { provider_dir.join("playit") }
+            {
+                provider_dir.join("playit")
+            }
         }
         TunnelProvider::Ngrok => {
             #[cfg(target_os = "windows")]
-            { provider_dir.join("ngrok.exe") }
+            {
+                provider_dir.join("ngrok.exe")
+            }
             #[cfg(not(target_os = "windows"))]
-            { provider_dir.join("ngrok") }
+            {
+                provider_dir.join("ngrok")
+            }
         }
         TunnelProvider::Bore => {
             #[cfg(target_os = "windows")]
-            { provider_dir.join("bore.exe") }
+            {
+                provider_dir.join("bore.exe")
+            }
             #[cfg(not(target_os = "windows"))]
-            { provider_dir.join("bore") }
+            {
+                provider_dir.join("bore")
+            }
         }
     }
 }
@@ -74,7 +90,12 @@ fn get_download_url(provider: TunnelProvider) -> AppResult<String> {
                 ("linux", "x64") => "cloudflared-linux-amd64",
                 ("linux", "aarch64") => "cloudflared-linux-arm64",
                 ("windows", "x64") => "cloudflared-windows-amd64.exe",
-                _ => return Err(AppError::Custom(format!("Unsupported platform: {} {}", os, arch))),
+                _ => {
+                    return Err(AppError::Custom(format!(
+                        "Unsupported platform: {} {}",
+                        os, arch
+                    )))
+                }
             };
             Ok(format!(
                 "https://github.com/cloudflare/cloudflared/releases/latest/download/{}",
@@ -109,12 +130,14 @@ fn get_download_url(provider: TunnelProvider) -> AppResult<String> {
                 ("linux", "x64") => "ngrok-v3-stable-linux-amd64.tgz",
                 ("linux", "aarch64") => "ngrok-v3-stable-linux-arm64.tgz",
                 ("windows", "x64") => "ngrok-v3-stable-windows-amd64.zip",
-                _ => return Err(AppError::Custom(format!("Unsupported platform: {} {}", os, arch))),
+                _ => {
+                    return Err(AppError::Custom(format!(
+                        "Unsupported platform: {} {}",
+                        os, arch
+                    )))
+                }
             };
-            Ok(format!(
-                "https://bin.equinox.io/c/bNyj1mQVY4c/{}",
-                filename
-            ))
+            Ok(format!("https://bin.equinox.io/c/bNyj1mQVY4c/{}", filename))
         }
         TunnelProvider::Bore => {
             // bore downloads from https://github.com/ekzhang/bore/releases
@@ -125,7 +148,12 @@ fn get_download_url(provider: TunnelProvider) -> AppResult<String> {
                 ("linux", "x64") => "bore-v0.5.2-x86_64-unknown-linux-musl.tar.gz",
                 ("linux", "aarch64") => "bore-v0.5.2-aarch64-unknown-linux-musl.tar.gz",
                 ("windows", "x64") => "bore-v0.5.2-x86_64-pc-windows-msvc.zip",
-                _ => return Err(AppError::Custom(format!("Unsupported platform: {} {}", os, arch))),
+                _ => {
+                    return Err(AppError::Custom(format!(
+                        "Unsupported platform: {} {}",
+                        os, arch
+                    )))
+                }
             };
             Ok(format!(
                 "https://github.com/ekzhang/bore/releases/download/v0.5.2/{}",
@@ -213,9 +241,9 @@ pub async fn install_agent(
     println!("[TUNNEL] Installing {} agent...", provider);
 
     let provider_dir = get_provider_dir(data_dir, provider);
-    fs::create_dir_all(&provider_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to create tunnel directory: {}", e))
-    })?;
+    fs::create_dir_all(&provider_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create tunnel directory: {}", e)))?;
 
     let download_url = get_download_url(provider)?;
     println!("[TUNNEL] Downloading from: {}", download_url);
@@ -234,18 +262,19 @@ pub async fn install_agent(
         )));
     }
 
-    let bytes = response.bytes().await.map_err(|e| {
-        AppError::Network(format!("Failed to read agent download: {}", e))
-    })?;
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to read agent download: {}", e)))?;
 
     let binary_path = get_agent_binary_path(data_dir, provider);
 
     if is_tarball(provider) {
         // Extract tarball (macOS cloudflared, Linux ngrok)
         let tarball_path = provider_dir.join("agent.tgz");
-        fs::write(&tarball_path, &bytes).await.map_err(|e| {
-            AppError::Io(format!("Failed to write tarball: {}", e))
-        })?;
+        fs::write(&tarball_path, &bytes)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to write tarball: {}", e)))?;
 
         // Extract using tar
         extract_tarball(&tarball_path, &provider_dir).await?;
@@ -255,9 +284,9 @@ pub async fn install_agent(
     } else if is_zip(provider) {
         // Extract zip (ngrok on macOS/Windows)
         let zip_path = provider_dir.join("agent.zip");
-        fs::write(&zip_path, &bytes).await.map_err(|e| {
-            AppError::Io(format!("Failed to write zip: {}", e))
-        })?;
+        fs::write(&zip_path, &bytes)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to write zip: {}", e)))?;
 
         // Extract using unzip
         extract_zip(&zip_path, &provider_dir).await?;
@@ -266,9 +295,9 @@ pub async fn install_agent(
         let _ = fs::remove_file(&zip_path).await;
     } else {
         // Direct binary download
-        fs::write(&binary_path, &bytes).await.map_err(|e| {
-            AppError::Io(format!("Failed to write agent binary: {}", e))
-        })?;
+        fs::write(&binary_path, &bytes)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to write agent binary: {}", e)))?;
     }
 
     // Make executable on Unix

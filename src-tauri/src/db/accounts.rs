@@ -23,7 +23,7 @@ impl Account {
                 expires_at, skin_url, is_active, created_at
             FROM accounts
             ORDER BY created_at DESC
-            "#
+            "#,
         )
         .fetch_all(db)
         .await
@@ -38,7 +38,7 @@ impl Account {
             FROM accounts
             WHERE id = ?
             LIMIT 1
-            "#
+            "#,
         )
         .bind(account_id)
         .fetch_optional(db)
@@ -54,7 +54,7 @@ impl Account {
             FROM accounts
             WHERE is_active = 1
             LIMIT 1
-            "#
+            "#,
         )
         .fetch_optional(db)
         .await

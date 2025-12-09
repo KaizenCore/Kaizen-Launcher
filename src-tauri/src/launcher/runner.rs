@@ -49,9 +49,9 @@ pub async fn launch_minecraft(
     println!("[RUNNER] Assets dir: {:?}", assets_dir);
 
     // Create natives directory
-    tokio::fs::create_dir_all(&natives_dir).await.map_err(|e| {
-        AppError::Io(format!("Failed to create natives directory: {}", e))
-    })?;
+    tokio::fs::create_dir_all(&natives_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create natives directory: {}", e)))?;
 
     // Get classpath from instance directory
     let classpath = get_instance_classpath(instance_dir, version, instance.loader.as_deref());
@@ -78,7 +78,8 @@ pub async fn launch_minecraft(
         .or_else(find_system_java)
         .ok_or_else(|| {
             AppError::Launcher(
-                "Java n'est pas installé. Cliquez sur 'Installer Java' dans les paramètres.".to_string()
+                "Java n'est pas installé. Cliquez sur 'Installer Java' dans les paramètres."
+                    .to_string(),
             )
         })?;
 
@@ -114,14 +115,16 @@ pub async fn launch_minecraft(
             game_args.push(format!("--fml.mcVersion={}", instance.mc_version));
 
             // Read neoform version from metadata file
-            let neoform_version = read_neoform_version(instance_dir).await
+            let neoform_version = read_neoform_version(instance_dir)
+                .await
                 .unwrap_or_else(|| instance.mc_version.clone());
             game_args.push(format!("--fml.neoFormVersion={}", neoform_version));
 
             if let Some(ref loader_ver) = instance.loader_version {
                 game_args.push(format!("--fml.neoForgeVersion={}", loader_ver));
                 // FML version is the fancymodloader version, not the NeoForge version
-                let fml_version = read_fml_version(instance_dir).await
+                let fml_version = read_fml_version(instance_dir)
+                    .await
                     .unwrap_or_else(|| loader_ver.clone());
                 game_args.push(format!("--fml.fmlVersion={}", fml_version));
             }
@@ -132,7 +135,8 @@ pub async fn launch_minecraft(
             game_args.push(format!("--fml.mcVersion={}", instance.mc_version));
 
             // Read neoform version from metadata file
-            let neoform_version = read_neoform_version(instance_dir).await
+            let neoform_version = read_neoform_version(instance_dir)
+                .await
                 .unwrap_or_else(|| instance.mc_version.clone());
             game_args.push(format!("--fml.neoFormVersion={}", neoform_version));
 
@@ -186,9 +190,9 @@ pub async fn launch_minecraft(
     cmd.stderr(Stdio::piped());
 
     // Spawn the process
-    let mut child = cmd.spawn().map_err(|e| {
-        AppError::Launcher(format!("Failed to launch Minecraft: {}", e))
-    })?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| AppError::Launcher(format!("Failed to launch Minecraft: {}", e)))?;
 
     // Get PID and register as running
     let pid = child.id().unwrap_or(0);
@@ -201,11 +205,14 @@ pub async fn launch_minecraft(
     }
 
     // Emit started event
-    let _ = app.emit("instance-status", InstanceStatusEvent {
-        instance_id: instance_id.clone(),
-        status: "running".to_string(),
-        exit_code: None,
-    });
+    let _ = app.emit(
+        "instance-status",
+        InstanceStatusEvent {
+            instance_id: instance_id.clone(),
+            status: "running".to_string(),
+            exit_code: None,
+        },
+    );
 
     println!("[RUNNER] Instance {} started with PID {}", instance_id, pid);
 
@@ -255,7 +262,10 @@ pub async fn launch_minecraft(
         if let Err(e) = Instance::add_playtime(&db, &instance_id, elapsed_seconds).await {
             eprintln!("[RUNNER] Failed to update playtime: {}", e);
         } else {
-            println!("[RUNNER] Added {} seconds of playtime to instance {}", elapsed_seconds, instance_id);
+            println!(
+                "[RUNNER] Added {} seconds of playtime to instance {}",
+                elapsed_seconds, instance_id
+            );
         }
 
         // Remove from running instances
@@ -265,11 +275,14 @@ pub async fn launch_minecraft(
         }
 
         // Emit stopped event
-        let _ = app_handle.emit("instance-status", InstanceStatusEvent {
-            instance_id: instance_id.clone(),
-            status: "stopped".to_string(),
-            exit_code,
-        });
+        let _ = app_handle.emit(
+            "instance-status",
+            InstanceStatusEvent {
+                instance_id: instance_id.clone(),
+                status: "stopped".to_string(),
+                exit_code,
+            },
+        );
 
         println!("[RUNNER] Instance {} stopped", instance_id);
     });
@@ -317,19 +330,32 @@ fn build_jvm_args(
         for arg in &arguments.jvm {
             match arg {
                 ArgumentValue::Simple(s) => {
-                    let resolved = resolve_argument(s, natives_dir, libraries_dir, classpath, &version.id);
+                    let resolved =
+                        resolve_argument(s, natives_dir, libraries_dir, classpath, &version.id);
                     args.push(resolved);
                 }
                 ArgumentValue::Conditional { rules, value } => {
                     if evaluate_rules(rules) {
                         match value {
                             StringOrArray::String(s) => {
-                                let resolved = resolve_argument(s, natives_dir, libraries_dir, classpath, &version.id);
+                                let resolved = resolve_argument(
+                                    s,
+                                    natives_dir,
+                                    libraries_dir,
+                                    classpath,
+                                    &version.id,
+                                );
                                 args.push(resolved);
                             }
                             StringOrArray::Array(arr) => {
                                 for s in arr {
-                                    let resolved = resolve_argument(s, natives_dir, libraries_dir, classpath, &version.id);
+                                    let resolved = resolve_argument(
+                                        s,
+                                        natives_dir,
+                                        libraries_dir,
+                                        classpath,
+                                        &version.id,
+                                    );
                                     args.push(resolved);
                                 }
                             }
@@ -367,7 +393,12 @@ fn build_game_args(
             match arg {
                 ArgumentValue::Simple(s) => {
                     let resolved = resolve_game_argument(
-                        s, account, game_dir, assets_dir, asset_index, &version.id,
+                        s,
+                        account,
+                        game_dir,
+                        assets_dir,
+                        asset_index,
+                        &version.id,
                     );
                     args.push(resolved);
                 }
@@ -376,14 +407,24 @@ fn build_game_args(
                         match value {
                             StringOrArray::String(s) => {
                                 let resolved = resolve_game_argument(
-                                    s, account, game_dir, assets_dir, asset_index, &version.id,
+                                    s,
+                                    account,
+                                    game_dir,
+                                    assets_dir,
+                                    asset_index,
+                                    &version.id,
                                 );
                                 args.push(resolved);
                             }
                             StringOrArray::Array(arr) => {
                                 for s in arr {
                                     let resolved = resolve_game_argument(
-                                        s, account, game_dir, assets_dir, asset_index, &version.id,
+                                        s,
+                                        account,
+                                        game_dir,
+                                        assets_dir,
+                                        asset_index,
+                                        &version.id,
                                     );
                                     args.push(resolved);
                                 }
@@ -396,9 +437,8 @@ fn build_game_args(
     } else if let Some(ref mc_args) = version.minecraft_arguments {
         // Legacy: parse minecraftArguments string
         for arg in mc_args.split_whitespace() {
-            let resolved = resolve_game_argument(
-                arg, account, game_dir, assets_dir, asset_index, &version.id,
-            );
+            let resolved =
+                resolve_game_argument(arg, account, game_dir, assets_dir, asset_index, &version.id);
             args.push(resolved);
         }
     }
@@ -407,7 +447,13 @@ fn build_game_args(
 }
 
 /// Resolve a JVM argument template
-fn resolve_argument(arg: &str, natives_dir: &str, libraries_dir: &str, classpath: &str, version_name: &str) -> String {
+fn resolve_argument(
+    arg: &str,
+    natives_dir: &str,
+    libraries_dir: &str,
+    classpath: &str,
+    version_name: &str,
+) -> String {
     // Determine classpath separator based on OS
     let classpath_separator = if cfg!(windows) { ";" } else { ":" };
 
@@ -438,7 +484,14 @@ fn resolve_game_argument(
         .replace("${auth_access_token}", &account.access_token)
         .replace("${clientid}", "0")
         .replace("${auth_xuid}", "0")
-        .replace("${user_type}", if account.access_token == "offline" { "legacy" } else { "msa" })
+        .replace(
+            "${user_type}",
+            if account.access_token == "offline" {
+                "legacy"
+            } else {
+                "msa"
+            },
+        )
         .replace("${version_type}", "release")
         .replace("${user_properties}", "{}")
 }
@@ -496,7 +549,8 @@ fn find_system_java() -> Option<String> {
         let library_java = PathBuf::from("/Library/Java/JavaVirtualMachines");
         if let Ok(entries) = std::fs::read_dir(&library_java) {
             for entry in entries.flatten() {
-                let java_path = entry.path()
+                let java_path = entry
+                    .path()
                     .join("Contents")
                     .join("Home")
                     .join("bin")
@@ -511,9 +565,7 @@ fn find_system_java() -> Option<String> {
     #[cfg(target_os = "windows")]
     {
         if let Ok(java_home) = std::env::var("JAVA_HOME") {
-            let java = PathBuf::from(&java_home)
-                .join("bin")
-                .join("java.exe");
+            let java = PathBuf::from(&java_home).join("bin").join("java.exe");
             if java.exists() {
                 return Some(java.to_string_lossy().to_string());
             }
@@ -537,9 +589,7 @@ fn find_system_java() -> Option<String> {
 
         // Check JAVA_HOME on Linux too
         if let Ok(java_home) = std::env::var("JAVA_HOME") {
-            let java = PathBuf::from(&java_home)
-                .join("bin")
-                .join("java");
+            let java = PathBuf::from(&java_home).join("bin").join("java");
             if java.exists() {
                 return Some(java.to_string_lossy().to_string());
             }
@@ -554,7 +604,8 @@ async fn read_neoform_version(instance_dir: &Path) -> Option<String> {
     let meta_path = instance_dir.join("neoforge_meta.json");
     if let Ok(contents) = tokio::fs::read_to_string(&meta_path).await {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
-            return json.get("neoform_version")
+            return json
+                .get("neoform_version")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
         }
@@ -567,7 +618,8 @@ async fn read_fml_version(instance_dir: &Path) -> Option<String> {
     let meta_path = instance_dir.join("neoforge_meta.json");
     if let Ok(contents) = tokio::fs::read_to_string(&meta_path).await {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
-            return json.get("fml_version")
+            return json
+                .get("fml_version")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string());
         }
@@ -615,16 +667,19 @@ pub async fn launch_server(
         };
 
         if run_script.exists() {
-            let script_content = std::fs::read_to_string(&run_script).map_err(|e| {
-                AppError::Io(format!("Failed to read run script: {}", e))
-            })?;
+            let script_content = std::fs::read_to_string(&run_script)
+                .map_err(|e| AppError::Io(format!("Failed to read run script: {}", e)))?;
 
             // Parse the script to extract @ arguments
             // Format: java @user_jvm_args.txt @libraries/.../unix_args.txt "$@"
             for line in script_content.lines() {
                 let line = line.trim();
                 // Skip comments and empty lines
-                if line.is_empty() || line.starts_with('#') || line.starts_with("rem") || line.starts_with("REM") {
+                if line.is_empty()
+                    || line.starts_with('#')
+                    || line.starts_with("rem")
+                    || line.starts_with("REM")
+                {
                     continue;
                 }
 
@@ -647,14 +702,22 @@ pub async fn launch_server(
 
             // Add nogui at the end (only for servers that support it, not proxies)
             let loader_lower = instance.loader.as_ref().map(|l| l.to_lowercase());
-            let is_proxy = matches!(loader_lower.as_deref(), Some("velocity") | Some("bungeecord") | Some("waterfall"));
+            let is_proxy = matches!(
+                loader_lower.as_deref(),
+                Some("velocity") | Some("bungeecord") | Some("waterfall")
+            );
             if !is_proxy {
                 args.push("--nogui".to_string());
             }
 
-            println!("[RUNNER] Modern Forge/NeoForge server detected, args: {:?}", args);
+            println!(
+                "[RUNNER] Modern Forge/NeoForge server detected, args: {:?}",
+                args
+            );
         } else {
-            return Err(AppError::Instance("Modern Forge/NeoForge server detected but run script not found".to_string()));
+            return Err(AppError::Instance(
+                "Modern Forge/NeoForge server detected but run script not found".to_string(),
+            ));
         }
     } else {
         // Standard server - use simple -jar approach
@@ -670,7 +733,10 @@ pub async fn launch_server(
 
         // Add nogui only for servers that support it (not proxies like Velocity, BungeeCord, Waterfall)
         let loader_lower = instance.loader.as_ref().map(|l| l.to_lowercase());
-        let is_proxy = matches!(loader_lower.as_deref(), Some("velocity") | Some("bungeecord") | Some("waterfall"));
+        let is_proxy = matches!(
+            loader_lower.as_deref(),
+            Some("velocity") | Some("bungeecord") | Some("waterfall")
+        );
         if !is_proxy {
             args.push("--nogui".to_string());
         }
@@ -686,9 +752,9 @@ pub async fn launch_server(
         .stderr(Stdio::piped())
         .stdin(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| {
-        AppError::Io(format!("Failed to start server: {}", e))
-    })?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| AppError::Io(format!("Failed to start server: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
     println!("[RUNNER] Server started with PID: {}", pid);
@@ -700,11 +766,14 @@ pub async fn launch_server(
     }
 
     // Emit status event
-    let _ = app.emit("instance-status", InstanceStatusEvent {
-        instance_id: instance.id.clone(),
-        status: "running".to_string(),
-        exit_code: None,
-    });
+    let _ = app.emit(
+        "instance-status",
+        InstanceStatusEvent {
+            instance_id: instance.id.clone(),
+            status: "running".to_string(),
+            exit_code: None,
+        },
+    );
 
     // Check for auto-start tunnel
     let tunnel_config = get_tunnel_config_if_autostart(&db, &instance.id).await;
@@ -750,11 +819,14 @@ pub async fn launch_server(
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                let _ = app_stdout.emit("server-log", ServerLogEvent {
-                    instance_id: instance_id_stdout.clone(),
-                    line,
-                    is_error: false,
-                });
+                let _ = app_stdout.emit(
+                    "server-log",
+                    ServerLogEvent {
+                        instance_id: instance_id_stdout.clone(),
+                        line,
+                        is_error: false,
+                    },
+                );
             }
         });
     }
@@ -768,11 +840,14 @@ pub async fn launch_server(
             let reader = BufReader::new(stderr);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                let _ = app_stderr.emit("server-log", ServerLogEvent {
-                    instance_id: instance_id_stderr.clone(),
-                    line,
-                    is_error: true,
-                });
+                let _ = app_stderr.emit(
+                    "server-log",
+                    ServerLogEvent {
+                        instance_id: instance_id_stderr.clone(),
+                        line,
+                        is_error: true,
+                    },
+                );
             }
         });
     }
@@ -795,7 +870,10 @@ pub async fn launch_server(
         if let Err(e) = Instance::add_playtime(&db, &instance_id, elapsed_seconds).await {
             eprintln!("[RUNNER] Failed to update server playtime: {}", e);
         } else {
-            println!("[RUNNER] Added {} seconds of playtime to server {}", elapsed_seconds, instance_id);
+            println!(
+                "[RUNNER] Added {} seconds of playtime to server {}",
+                elapsed_seconds, instance_id
+            );
         }
 
         // Remove from running instances
@@ -816,18 +894,24 @@ pub async fn launch_server(
         let exit_code = status.ok().and_then(|s| s.code());
 
         // Emit stopped status
-        let _ = app_handle.emit("instance-status", InstanceStatusEvent {
-            instance_id,
-            status: "stopped".to_string(),
-            exit_code,
-        });
+        let _ = app_handle.emit(
+            "instance-status",
+            InstanceStatusEvent {
+                instance_id,
+                status: "stopped".to_string(),
+                exit_code,
+            },
+        );
     });
 
     Ok(())
 }
 
 /// Helper function to get tunnel config if enabled and auto_start is true
-async fn get_tunnel_config_if_autostart(db: &SqlitePool, instance_id: &str) -> Option<TunnelConfig> {
+async fn get_tunnel_config_if_autostart(
+    db: &SqlitePool,
+    instance_id: &str,
+) -> Option<TunnelConfig> {
     let row = sqlx::query_as::<_, (String, String, String, i64, i64, Option<String>, Option<String>, i64, Option<String>)>(
         r#"
         SELECT id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url
@@ -840,17 +924,29 @@ async fn get_tunnel_config_if_autostart(db: &SqlitePool, instance_id: &str) -> O
     .await
     .ok()?;
 
-    row.map(|(id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url)| {
-        TunnelConfig {
+    row.map(
+        |(
             id,
             instance_id,
-            provider: provider.parse().unwrap_or(TunnelProvider::Cloudflare),
-            enabled: enabled != 0,
-            auto_start: auto_start != 0,
+            provider,
+            enabled,
+            auto_start,
             playit_secret_key,
             ngrok_authtoken,
-            target_port: target_port as i32,
+            target_port,
             tunnel_url,
-        }
-    })
+        )| {
+            TunnelConfig {
+                id,
+                instance_id,
+                provider: provider.parse().unwrap_or(TunnelProvider::Cloudflare),
+                enabled: enabled != 0,
+                auto_start: auto_start != 0,
+                playit_secret_key,
+                ngrok_authtoken,
+                target_port: target_port as i32,
+                tunnel_url,
+            }
+        },
+    )
 }

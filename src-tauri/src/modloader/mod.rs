@@ -3,14 +3,14 @@
 // Servers: Paper, Purpur, Folia, Pufferfish, Spigot, SpongeVanilla, SpongeForge
 // Proxies: Velocity, BungeeCord, Waterfall
 
+pub mod commands;
 pub mod fabric;
 pub mod forge;
+pub mod installer;
 pub mod neoforge;
 pub mod neoforge_processor;
-pub mod quilt;
 pub mod paper;
-pub mod commands;
-pub mod installer;
+pub mod quilt;
 
 use serde::{Deserialize, Serialize};
 
@@ -60,15 +60,26 @@ impl LoaderType {
     }
 
     pub fn is_client_loader(&self) -> bool {
-        matches!(self, Self::Vanilla | Self::Fabric | Self::Forge | Self::NeoForge | Self::Quilt)
+        matches!(
+            self,
+            Self::Vanilla | Self::Fabric | Self::Forge | Self::NeoForge | Self::Quilt
+        )
     }
 
     #[allow(dead_code)]
     pub fn is_server(&self) -> bool {
-        matches!(self,
-            Self::Paper | Self::Purpur | Self::Folia | Self::Pufferfish |
-            Self::Spigot | Self::SpongeVanilla | Self::SpongeForge |
-            Self::Velocity | Self::BungeeCord | Self::Waterfall
+        matches!(
+            self,
+            Self::Paper
+                | Self::Purpur
+                | Self::Folia
+                | Self::Pufferfish
+                | Self::Spigot
+                | Self::SpongeVanilla
+                | Self::SpongeForge
+                | Self::Velocity
+                | Self::BungeeCord
+                | Self::Waterfall
         )
     }
 
@@ -80,7 +91,10 @@ impl LoaderType {
     /// Check if this loader uses mods (vs plugins)
     #[allow(dead_code)]
     pub fn uses_mods(&self) -> bool {
-        matches!(self, Self::Fabric | Self::Forge | Self::NeoForge | Self::Quilt | Self::SpongeForge)
+        matches!(
+            self,
+            Self::Fabric | Self::Forge | Self::NeoForge | Self::Quilt | Self::SpongeForge
+        )
     }
 
     #[allow(dead_code)]

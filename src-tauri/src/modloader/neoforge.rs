@@ -6,7 +6,8 @@ use crate::modloader::LoaderVersion;
 use serde::Deserialize;
 
 const NEOFORGE_MAVEN: &str = "https://maven.neoforged.net";
-const NEOFORGE_API: &str = "https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge";
+const NEOFORGE_API: &str =
+    "https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge";
 
 #[derive(Debug, Deserialize)]
 pub struct NeoForgeVersionsResponse {
@@ -15,13 +16,16 @@ pub struct NeoForgeVersionsResponse {
 
 /// Fetch available NeoForge versions
 pub async fn fetch_versions(client: &reqwest::Client) -> AppResult<Vec<LoaderVersion>> {
-    let response = client.get(NEOFORGE_API).send().await.map_err(|e| {
-        AppError::Network(format!("Failed to fetch NeoForge versions: {}", e))
-    })?;
+    let response = client
+        .get(NEOFORGE_API)
+        .send()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to fetch NeoForge versions: {}", e)))?;
 
-    let data: NeoForgeVersionsResponse = response.json().await.map_err(|e| {
-        AppError::Network(format!("Failed to parse NeoForge versions: {}", e))
-    })?;
+    let data: NeoForgeVersionsResponse = response
+        .json()
+        .await
+        .map_err(|e| AppError::Network(format!("Failed to parse NeoForge versions: {}", e)))?;
 
     // NeoForge versions are like "20.4.123-beta" or "21.0.1"
     // The first two numbers correspond to MC version (20.4 = 1.20.4)
@@ -81,7 +85,7 @@ fn parse_mc_version(nf_version: &str) -> Option<String> {
     if parts.len() >= 2 {
         let major: u32 = parts[0].parse().ok()?;
         let minor: u32 = parts[1].parse().ok()?;
-        
+
         if minor == 0 {
             Some(format!("1.{}", major))
         } else {
@@ -95,16 +99,16 @@ fn parse_mc_version(nf_version: &str) -> Option<String> {
 /// Get supported Minecraft versions
 pub async fn fetch_supported_versions(client: &reqwest::Client) -> AppResult<Vec<String>> {
     let versions = fetch_versions(client).await?;
-    
+
     let mut mc_versions: Vec<String> = versions
         .into_iter()
         .filter_map(|v| v.minecraft_version)
         .collect();
-    
+
     mc_versions.sort();
     mc_versions.dedup();
     mc_versions.reverse();
-    
+
     Ok(mc_versions)
 }
 

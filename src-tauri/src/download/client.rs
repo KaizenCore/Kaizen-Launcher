@@ -6,7 +6,7 @@ use std::path::Path;
 use std::time::Duration;
 use tokio::fs::{self, File};
 use tokio::io::AsyncWriteExt;
-use tracing::{debug, warn, info};
+use tracing::{debug, info, warn};
 
 /// Hash algorithm to use for verification
 #[derive(Clone, Copy)]
@@ -66,7 +66,11 @@ pub async fn download_file_with_hash(
     // Create parent directories if needed
     if let Some(parent) = dest.parent() {
         fs::create_dir_all(parent).await.map_err(|e| {
-            AppError::Io(format!("Failed to create directory {}: {}", parent.display(), e))
+            AppError::Io(format!(
+                "Failed to create directory {}: {}",
+                parent.display(),
+                e
+            ))
         })?;
     }
 
@@ -101,9 +105,9 @@ pub async fn download_file_with_hash(
         )));
     }
 
-    let mut file = File::create(dest).await.map_err(|e| {
-        AppError::Io(format!("Failed to create file {}: {}", dest.display(), e))
-    })?;
+    let mut file = File::create(dest)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create file {}: {}", dest.display(), e)))?;
 
     let mut stream = response.bytes_stream();
 
@@ -112,22 +116,21 @@ pub async fn download_file_with_hash(
     let mut sha256_hasher = Sha256::new();
 
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(|e| {
-            AppError::Network(format!("Error downloading {}: {}", url, e))
-        })?;
+        let chunk =
+            chunk.map_err(|e| AppError::Network(format!("Error downloading {}: {}", url, e)))?;
 
         match algorithm {
             HashAlgorithm::Sha1 => sha1_hasher.update(&chunk),
             HashAlgorithm::Sha256 => sha256_hasher.update(&chunk),
         }
-        file.write_all(&chunk).await.map_err(|e| {
-            AppError::Io(format!("Failed to write to {}: {}", dest.display(), e))
-        })?;
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to write to {}: {}", dest.display(), e)))?;
     }
 
-    file.flush().await.map_err(|e| {
-        AppError::Io(format!("Failed to flush {}: {}", dest.display(), e))
-    })?;
+    file.flush()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to flush {}: {}", dest.display(), e)))?;
 
     // Verify hash if provided
     if let Some(expected) = expected_hash {
@@ -152,9 +155,9 @@ pub async fn download_file_with_hash(
 
 /// Verify SHA1 hash of a file
 pub async fn verify_sha1(path: &Path, expected: &str) -> AppResult<bool> {
-    let content = fs::read(path).await.map_err(|e| {
-        AppError::Io(format!("Failed to read {}: {}", path.display(), e))
-    })?;
+    let content = fs::read(path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read {}: {}", path.display(), e)))?;
 
     let mut hasher = Sha1::new();
     hasher.update(&content);
@@ -165,9 +168,9 @@ pub async fn verify_sha1(path: &Path, expected: &str) -> AppResult<bool> {
 
 /// Verify SHA256 hash of a file
 pub async fn verify_sha256(path: &Path, expected: &str) -> AppResult<bool> {
-    let content = fs::read(path).await.map_err(|e| {
-        AppError::Io(format!("Failed to read {}: {}", path.display(), e))
-    })?;
+    let content = fs::read(path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read {}: {}", path.display(), e)))?;
 
     let mut hasher = Sha256::new();
     hasher.update(&content);
@@ -214,7 +217,10 @@ pub async fn download_file_with_retry(
     }
 
     Err(last_error.unwrap_or_else(|| {
-        AppError::Download(format!("Failed to download {} after {} retries", url, config.max_retries))
+        AppError::Download(format!(
+            "Failed to download {} after {} retries",
+            url, config.max_retries
+        ))
     }))
 }
 
@@ -261,7 +267,14 @@ pub async fn download_files_parallel_with_progress<F>(
 where
     F: Fn(usize, usize) + Send + Sync,
 {
-    download_files_parallel_with_retry(client, downloads, max_concurrent, on_progress, RetryConfig::default()).await
+    download_files_parallel_with_retry(
+        client,
+        downloads,
+        max_concurrent,
+        on_progress,
+        RetryConfig::default(),
+    )
+    .await
 }
 
 /// Download multiple files in parallel with progress reporting and retry support
@@ -289,7 +302,10 @@ where
     // Report initial progress
     on_progress(0, total);
 
-    debug!("Starting parallel download of {} files with {} concurrent", total, max_concurrent);
+    debug!(
+        "Starting parallel download of {} files with {} concurrent",
+        total, max_concurrent
+    );
 
     while pending.peek().is_some() || !futures.is_empty() {
         // Add more tasks if we have capacity
@@ -306,7 +322,8 @@ where
                         sha1.as_deref(),
                         HashAlgorithm::Sha1,
                         retry_config,
-                    ).await;
+                    )
+                    .await;
 
                     match &result {
                         Ok(()) => {
@@ -337,9 +354,15 @@ where
     let final_failed = failed.load(Ordering::SeqCst);
 
     if final_failed > 0 {
-        warn!("Parallel download completed with {} failures out of {}", final_failed, total);
+        warn!(
+            "Parallel download completed with {} failures out of {}",
+            final_failed, total
+        );
     } else {
-        info!("Parallel download completed successfully: {}/{} files", final_completed, total);
+        info!(
+            "Parallel download completed successfully: {}/{} files",
+            final_completed, total
+        );
     }
 
     Ok(())

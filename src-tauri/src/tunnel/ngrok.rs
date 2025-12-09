@@ -19,7 +19,8 @@ static LOGFMT_URL_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r#"url=tcp://([a-zA-Z0-9.-]+:\d+)"#).expect("Invalid ngrok logfmt URL regex")
 });
 static URL_REGEX: Lazy<Regex> = Lazy::new(|| {
-    Regex::new(r"tcp://[a-zA-Z0-9.-]+\.ngrok[a-zA-Z0-9.-]*\.(io|app):\d+").expect("Invalid ngrok URL regex")
+    Regex::new(r"tcp://[a-zA-Z0-9.-]+\.ngrok[a-zA-Z0-9.-]*\.(io|app):\d+")
+        .expect("Invalid ngrok URL regex")
 });
 static FORWARDING_REGEX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"Forwarding\s+tcp://([^\s]+)").expect("Invalid ngrok forwarding regex")
@@ -133,7 +134,10 @@ pub async fn start_ngrok_tunnel(
         configure_authtoken(data_dir, token).await?;
     }
 
-    println!("[NGROK] Starting TCP tunnel for port {}...", config.target_port);
+    println!(
+        "[NGROK] Starting TCP tunnel for port {}...",
+        config.target_port
+    );
 
     // Start ngrok tcp tunnel with logging to stdout
     // ngrok tcp PORT --log=stdout --log-format=logfmt
@@ -147,9 +151,9 @@ pub async fn start_ngrok_tunnel(
     .stdout(Stdio::piped())
     .stderr(Stdio::piped());
 
-    let mut child = cmd.spawn().map_err(|e| {
-        AppError::Io(format!("Failed to start ngrok: {}", e))
-    })?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| AppError::Io(format!("Failed to start ngrok: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
     println!("[NGROK] Started with PID: {}", pid);
@@ -342,7 +346,6 @@ pub async fn start_ngrok_tunnel(
                 };
 
                 if let Some(minecraft_addr) = minecraft_addr {
-
                     let mut status = status_err.write().await;
                     if !matches!(*status, TunnelStatus::Connected { .. }) {
                         *status = TunnelStatus::Connected {

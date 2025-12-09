@@ -16,12 +16,11 @@ pub async fn get_or_create_key(data_dir: &Path) -> AppResult<[u8; 32]> {
     let key_path = data_dir.join(KEY_FILE);
 
     if key_path.exists() {
-        let key_hex = fs::read_to_string(&key_path).await.map_err(|e| {
-            AppError::Io(format!("Failed to read encryption key: {}", e))
-        })?;
-        let key_bytes = hex::decode(key_hex.trim()).map_err(|e| {
-            AppError::Io(format!("Failed to decode encryption key: {}", e))
-        })?;
+        let key_hex = fs::read_to_string(&key_path)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to read encryption key: {}", e)))?;
+        let key_bytes = hex::decode(key_hex.trim())
+            .map_err(|e| AppError::Io(format!("Failed to decode encryption key: {}", e)))?;
         let mut key = [0u8; 32];
         if key_bytes.len() != 32 {
             return Err(AppError::Io("Invalid encryption key length".to_string()));
@@ -35,9 +34,9 @@ pub async fn get_or_create_key(data_dir: &Path) -> AppResult<[u8; 32]> {
 
         // Save the key
         let key_hex = hex::encode(key);
-        fs::write(&key_path, &key_hex).await.map_err(|e| {
-            AppError::Io(format!("Failed to save encryption key: {}", e))
-        })?;
+        fs::write(&key_path, &key_hex)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to save encryption key: {}", e)))?;
 
         // Set restrictive permissions on Unix
         #[cfg(unix)]
@@ -53,9 +52,8 @@ pub async fn get_or_create_key(data_dir: &Path) -> AppResult<[u8; 32]> {
 
 /// Encrypt a string value
 pub fn encrypt(key: &[u8; 32], plaintext: &str) -> AppResult<String> {
-    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| {
-        AppError::Io(format!("Failed to create cipher: {}", e))
-    })?;
+    let cipher = Aes256Gcm::new_from_slice(key)
+        .map_err(|e| AppError::Io(format!("Failed to create cipher: {}", e)))?;
 
     // Generate random nonce
     let mut nonce_bytes = [0u8; NONCE_SIZE];
@@ -63,9 +61,9 @@ pub fn encrypt(key: &[u8; 32], plaintext: &str) -> AppResult<String> {
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     // Encrypt
-    let ciphertext = cipher.encrypt(nonce, plaintext.as_bytes()).map_err(|e| {
-        AppError::Io(format!("Failed to encrypt: {}", e))
-    })?;
+    let ciphertext = cipher
+        .encrypt(nonce, plaintext.as_bytes())
+        .map_err(|e| AppError::Io(format!("Failed to encrypt: {}", e)))?;
 
     // Combine nonce + ciphertext and encode as hex
     let mut combined = nonce_bytes.to_vec();
@@ -75,9 +73,8 @@ pub fn encrypt(key: &[u8; 32], plaintext: &str) -> AppResult<String> {
 
 /// Decrypt a string value
 pub fn decrypt(key: &[u8; 32], encrypted: &str) -> AppResult<String> {
-    let combined = hex::decode(encrypted).map_err(|e| {
-        AppError::Io(format!("Failed to decode encrypted data: {}", e))
-    })?;
+    let combined = hex::decode(encrypted)
+        .map_err(|e| AppError::Io(format!("Failed to decode encrypted data: {}", e)))?;
 
     if combined.len() < NONCE_SIZE {
         return Err(AppError::Io("Invalid encrypted data".to_string()));
@@ -86,17 +83,15 @@ pub fn decrypt(key: &[u8; 32], encrypted: &str) -> AppResult<String> {
     let (nonce_bytes, ciphertext) = combined.split_at(NONCE_SIZE);
     let nonce = Nonce::from_slice(nonce_bytes);
 
-    let cipher = Aes256Gcm::new_from_slice(key).map_err(|e| {
-        AppError::Io(format!("Failed to create cipher: {}", e))
-    })?;
+    let cipher = Aes256Gcm::new_from_slice(key)
+        .map_err(|e| AppError::Io(format!("Failed to create cipher: {}", e)))?;
 
-    let plaintext = cipher.decrypt(nonce, ciphertext).map_err(|e| {
-        AppError::Io(format!("Failed to decrypt: {}", e))
-    })?;
+    let plaintext = cipher
+        .decrypt(nonce, ciphertext)
+        .map_err(|e| AppError::Io(format!("Failed to decrypt: {}", e)))?;
 
-    String::from_utf8(plaintext).map_err(|e| {
-        AppError::Io(format!("Failed to decode decrypted data: {}", e))
-    })
+    String::from_utf8(plaintext)
+        .map_err(|e| AppError::Io(format!("Failed to decode decrypted data: {}", e)))
 }
 
 /// Check if a value is encrypted (hex encoded with proper length)
