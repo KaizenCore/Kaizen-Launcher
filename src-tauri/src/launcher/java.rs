@@ -106,24 +106,28 @@ fn get_java_extract_dir(data_dir: &Path) -> PathBuf {
 pub fn find_system_java() -> Option<String> {
     #[cfg(target_os = "macos")]
     {
-        // Check for Homebrew Java
+        // Check for Homebrew Java (Apple Silicon and Intel)
         let homebrew_paths = [
-            "/opt/homebrew/opt/openjdk/bin/java",
-            "/opt/homebrew/opt/openjdk@21/bin/java",
-            "/opt/homebrew/opt/openjdk@17/bin/java",
-            "/usr/local/opt/openjdk/bin/java",
+            PathBuf::from("/opt/homebrew/opt/openjdk/bin/java"),
+            PathBuf::from("/opt/homebrew/opt/openjdk@21/bin/java"),
+            PathBuf::from("/opt/homebrew/opt/openjdk@17/bin/java"),
+            PathBuf::from("/usr/local/opt/openjdk/bin/java"),
         ];
         for path in homebrew_paths {
-            if std::path::Path::new(path).exists() {
-                return Some(path.to_string());
+            if path.exists() {
+                return Some(path.to_string_lossy().to_string());
             }
         }
 
-        // Check for Temurin in /Library/Java
-        let library_java = "/Library/Java/JavaVirtualMachines";
-        if let Ok(entries) = std::fs::read_dir(library_java) {
+        // Check for Temurin/other JDKs in /Library/Java
+        let library_java = PathBuf::from("/Library/Java/JavaVirtualMachines");
+        if let Ok(entries) = std::fs::read_dir(&library_java) {
             for entry in entries.flatten() {
-                let java_path = entry.path().join("Contents/Home/bin/java");
+                let java_path = entry.path()
+                    .join("Contents")
+                    .join("Home")
+                    .join("bin")
+                    .join("java");
                 if java_path.exists() {
                     return Some(java_path.to_string_lossy().to_string());
                 }
@@ -134,17 +138,36 @@ pub fn find_system_java() -> Option<String> {
     #[cfg(target_os = "windows")]
     {
         if let Ok(java_home) = std::env::var("JAVA_HOME") {
-            let java = format!("{}\\bin\\java.exe", java_home);
-            if std::path::Path::new(&java).exists() {
-                return Some(java);
+            let java = PathBuf::from(&java_home)
+                .join("bin")
+                .join("java.exe");
+            if java.exists() {
+                return Some(java.to_string_lossy().to_string());
             }
         }
     }
 
     #[cfg(target_os = "linux")]
     {
-        if std::path::Path::new("/usr/bin/java").exists() {
-            return Some("/usr/bin/java".to_string());
+        // Check common Linux Java locations
+        let linux_paths = [
+            PathBuf::from("/usr/bin/java"),
+            PathBuf::from("/usr/lib/jvm/default/bin/java"),
+        ];
+        for path in linux_paths {
+            if path.exists() {
+                return Some(path.to_string_lossy().to_string());
+            }
+        }
+
+        // Check JAVA_HOME on Linux too
+        if let Ok(java_home) = std::env::var("JAVA_HOME") {
+            let java = PathBuf::from(&java_home)
+                .join("bin")
+                .join("java");
+            if java.exists() {
+                return Some(java.to_string_lossy().to_string());
+            }
         }
     }
 
@@ -362,28 +385,28 @@ pub fn detect_all_java_installations(data_dir: &Path) -> Vec<JavaInstallation> {
     // Check system Java installations
     #[cfg(target_os = "macos")]
     {
-        // Homebrew paths
+        // Homebrew paths (Apple Silicon and Intel)
         let homebrew_paths = [
-            "/opt/homebrew/opt/openjdk/bin/java",
-            "/opt/homebrew/opt/openjdk@21/bin/java",
-            "/opt/homebrew/opt/openjdk@17/bin/java",
-            "/opt/homebrew/opt/openjdk@11/bin/java",
-            "/opt/homebrew/opt/openjdk@8/bin/java",
-            "/usr/local/opt/openjdk/bin/java",
-            "/usr/local/opt/openjdk@21/bin/java",
-            "/usr/local/opt/openjdk@17/bin/java",
+            PathBuf::from("/opt/homebrew/opt/openjdk/bin/java"),
+            PathBuf::from("/opt/homebrew/opt/openjdk@21/bin/java"),
+            PathBuf::from("/opt/homebrew/opt/openjdk@17/bin/java"),
+            PathBuf::from("/opt/homebrew/opt/openjdk@11/bin/java"),
+            PathBuf::from("/opt/homebrew/opt/openjdk@8/bin/java"),
+            PathBuf::from("/usr/local/opt/openjdk/bin/java"),
+            PathBuf::from("/usr/local/opt/openjdk@21/bin/java"),
+            PathBuf::from("/usr/local/opt/openjdk@17/bin/java"),
         ];
 
-        for path_str in &homebrew_paths {
-            let path = std::path::Path::new(path_str);
+        for path in &homebrew_paths {
             if path.exists() {
                 if let Some(version) = get_java_version(path) {
                     let major = extract_major_version(&version);
-                    if !installations.iter().any(|i| i.path == *path_str) {
+                    let path_str = path.to_string_lossy().to_string();
+                    if !installations.iter().any(|i| i.path == path_str) {
                         installations.push(JavaInstallation {
                             version: version.clone(),
                             major_version: major,
-                            path: path_str.to_string(),
+                            path: path_str,
                             vendor: "Homebrew OpenJDK".to_string(),
                             is_bundled: false,
                         });
@@ -393,10 +416,14 @@ pub fn detect_all_java_installations(data_dir: &Path) -> Vec<JavaInstallation> {
         }
 
         // /Library/Java/JavaVirtualMachines
-        let library_java = "/Library/Java/JavaVirtualMachines";
-        if let Ok(entries) = std::fs::read_dir(library_java) {
+        let library_java = PathBuf::from("/Library/Java/JavaVirtualMachines");
+        if let Ok(entries) = std::fs::read_dir(&library_java) {
             for entry in entries.flatten() {
-                let java_path = entry.path().join("Contents/Home/bin/java");
+                let java_path = entry.path()
+                    .join("Contents")
+                    .join("Home")
+                    .join("bin")
+                    .join("java");
                 if java_path.exists() {
                     if let Some(version) = get_java_version(&java_path) {
                         let major = extract_major_version(&version);
@@ -421,16 +448,18 @@ pub fn detect_all_java_installations(data_dir: &Path) -> Vec<JavaInstallation> {
     {
         // Check JAVA_HOME
         if let Ok(java_home) = std::env::var("JAVA_HOME") {
-            let java_path = format!("{}\\bin\\java.exe", java_home);
-            let path = std::path::Path::new(&java_path);
-            if path.exists() {
-                if let Some(version) = get_java_version(path) {
+            let java_path = PathBuf::from(&java_home)
+                .join("bin")
+                .join("java.exe");
+            if java_path.exists() {
+                if let Some(version) = get_java_version(&java_path) {
                     let major = extract_major_version(&version);
-                    if !installations.iter().any(|i| i.path == java_path) {
+                    let path_str = java_path.to_string_lossy().to_string();
+                    if !installations.iter().any(|i| i.path == path_str) {
                         installations.push(JavaInstallation {
                             version: version.clone(),
                             major_version: major,
-                            path: java_path,
+                            path: path_str,
                             vendor: "JAVA_HOME".to_string(),
                             is_bundled: false,
                         });
@@ -439,17 +468,19 @@ pub fn detect_all_java_installations(data_dir: &Path) -> Vec<JavaInstallation> {
             }
         }
 
-        // Check common installation directories
-        let program_files = std::env::var("ProgramFiles").unwrap_or_else(|_| "C:\\Program Files".to_string());
-        let program_files_x86 = std::env::var("ProgramFiles(x86)").unwrap_or_else(|_| "C:\\Program Files (x86)".to_string());
+        // Check common installation directories using Path::join for cross-platform safety
+        let program_files = std::env::var("ProgramFiles")
+            .unwrap_or_else(|_| "C:\\Program Files".to_string());
+        let program_files_x86 = std::env::var("ProgramFiles(x86)")
+            .unwrap_or_else(|_| "C:\\Program Files (x86)".to_string());
 
         let search_dirs = [
-            format!("{}\\Java", program_files),
-            format!("{}\\Java", program_files_x86),
-            format!("{}\\Eclipse Adoptium", program_files),
-            format!("{}\\Zulu", program_files),
-            format!("{}\\Microsoft\\jdk-", program_files),
-            format!("{}\\Amazon Corretto", program_files),
+            PathBuf::from(&program_files).join("Java"),
+            PathBuf::from(&program_files_x86).join("Java"),
+            PathBuf::from(&program_files).join("Eclipse Adoptium"),
+            PathBuf::from(&program_files).join("Zulu"),
+            PathBuf::from(&program_files).join("Microsoft"),
+            PathBuf::from(&program_files).join("Amazon Corretto"),
         ];
 
         for search_dir in &search_dirs {
@@ -481,20 +512,16 @@ pub fn detect_all_java_installations(data_dir: &Path) -> Vec<JavaInstallation> {
 
     #[cfg(target_os = "linux")]
     {
-        // Check common Linux paths
-        let linux_paths = [
-            "/usr/bin/java",
-            "/usr/lib/jvm",
-        ];
-
         // Direct java binary
-        if std::path::Path::new("/usr/bin/java").exists() {
-            if let Some(version) = get_java_version(std::path::Path::new("/usr/bin/java")) {
+        let system_java = PathBuf::from("/usr/bin/java");
+        if system_java.exists() {
+            if let Some(version) = get_java_version(&system_java) {
                 let major = extract_major_version(&version);
+                let path_str = system_java.to_string_lossy().to_string();
                 installations.push(JavaInstallation {
                     version: version.clone(),
                     major_version: major,
-                    path: "/usr/bin/java".to_string(),
+                    path: path_str,
                     vendor: "System Java".to_string(),
                     is_bundled: false,
                 });
@@ -502,7 +529,8 @@ pub fn detect_all_java_installations(data_dir: &Path) -> Vec<JavaInstallation> {
         }
 
         // /usr/lib/jvm directory
-        if let Ok(entries) = std::fs::read_dir("/usr/lib/jvm") {
+        let jvm_dir = PathBuf::from("/usr/lib/jvm");
+        if let Ok(entries) = std::fs::read_dir(&jvm_dir) {
             for entry in entries.flatten() {
                 if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
                     let java_path = entry.path().join("bin").join("java");
@@ -526,9 +554,12 @@ pub fn detect_all_java_installations(data_dir: &Path) -> Vec<JavaInstallation> {
             }
         }
 
-        // SDKMAN installations
+        // SDKMAN installations - use HOME env var (Linux-specific)
         if let Ok(home) = std::env::var("HOME") {
-            let sdkman_java = format!("{}/.sdkman/candidates/java", home);
+            let sdkman_java = PathBuf::from(&home)
+                .join(".sdkman")
+                .join("candidates")
+                .join("java");
             if let Ok(entries) = std::fs::read_dir(&sdkman_java) {
                 for entry in entries.flatten() {
                     if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
@@ -549,6 +580,26 @@ pub fn detect_all_java_installations(data_dir: &Path) -> Vec<JavaInstallation> {
                                 }
                             }
                         }
+                    }
+                }
+            }
+        }
+
+        // Also check JAVA_HOME on Linux
+        if let Ok(java_home) = std::env::var("JAVA_HOME") {
+            let java_path = PathBuf::from(&java_home).join("bin").join("java");
+            if java_path.exists() {
+                if let Some(version) = get_java_version(&java_path) {
+                    let major = extract_major_version(&version);
+                    let path_str = java_path.to_string_lossy().to_string();
+                    if !installations.iter().any(|i| i.path == path_str) {
+                        installations.push(JavaInstallation {
+                            version: version.clone(),
+                            major_version: major,
+                            path: path_str,
+                            vendor: "JAVA_HOME".to_string(),
+                            is_bundled: false,
+                        });
                     }
                 }
             }

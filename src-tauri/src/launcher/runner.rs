@@ -163,8 +163,25 @@ pub async fn launch_minecraft(
     cmd.arg(&version.main_class);
     cmd.args(&game_args);
 
-    // Set environment - use instance_dir as APPDATA so Minecraft looks there for data
-    cmd.env("APPDATA", instance_dir);
+    // Set environment for Minecraft data isolation
+    // On Windows: APPDATA controls where Minecraft stores data
+    // On macOS/Linux: Use environment variables to hint the game directory
+    #[cfg(target_os = "windows")]
+    {
+        cmd.env("APPDATA", instance_dir);
+    }
+    #[cfg(target_os = "macos")]
+    {
+        // macOS uses ~/Library/Application Support/minecraft by default
+        // Setting HOME can help redirect but --gameDir is the primary mechanism
+        cmd.env("MINECRAFT_GAME_DIR", instance_dir);
+    }
+    #[cfg(target_os = "linux")]
+    {
+        // Linux uses ~/.minecraft by default
+        // Setting HOME can help redirect but --gameDir is the primary mechanism
+        cmd.env("MINECRAFT_GAME_DIR", instance_dir);
+    }
     cmd.stdout(Stdio::piped());
     cmd.stderr(Stdio::piped());
 
@@ -458,26 +475,32 @@ fn evaluate_rules(rules: &[crate::minecraft::versions::Rule]) -> bool {
 
 /// Find system Java installation
 fn find_system_java() -> Option<String> {
+    use std::path::PathBuf;
+
     #[cfg(target_os = "macos")]
     {
-        // Check for Homebrew Java
+        // Check for Homebrew Java (Apple Silicon and Intel)
         let homebrew_paths = [
-            "/opt/homebrew/opt/openjdk/bin/java",
-            "/opt/homebrew/opt/openjdk@21/bin/java",
-            "/opt/homebrew/opt/openjdk@17/bin/java",
-            "/usr/local/opt/openjdk/bin/java",
+            PathBuf::from("/opt/homebrew/opt/openjdk/bin/java"),
+            PathBuf::from("/opt/homebrew/opt/openjdk@21/bin/java"),
+            PathBuf::from("/opt/homebrew/opt/openjdk@17/bin/java"),
+            PathBuf::from("/usr/local/opt/openjdk/bin/java"),
         ];
         for path in homebrew_paths {
-            if std::path::Path::new(path).exists() {
-                return Some(path.to_string());
+            if path.exists() {
+                return Some(path.to_string_lossy().to_string());
             }
         }
 
-        // Check for Temurin in /Library/Java
-        let library_java = "/Library/Java/JavaVirtualMachines";
-        if let Ok(entries) = std::fs::read_dir(library_java) {
+        // Check for Temurin/other JDKs in /Library/Java
+        let library_java = PathBuf::from("/Library/Java/JavaVirtualMachines");
+        if let Ok(entries) = std::fs::read_dir(&library_java) {
             for entry in entries.flatten() {
-                let java_path = entry.path().join("Contents/Home/bin/java");
+                let java_path = entry.path()
+                    .join("Contents")
+                    .join("Home")
+                    .join("bin")
+                    .join("java");
                 if java_path.exists() {
                     return Some(java_path.to_string_lossy().to_string());
                 }
@@ -488,17 +511,38 @@ fn find_system_java() -> Option<String> {
     #[cfg(target_os = "windows")]
     {
         if let Ok(java_home) = std::env::var("JAVA_HOME") {
-            let java = format!("{}\\bin\\java.exe", java_home);
-            if std::path::Path::new(&java).exists() {
-                return Some(java);
+            let java = PathBuf::from(&java_home)
+                .join("bin")
+                .join("java.exe");
+            if java.exists() {
+                return Some(java.to_string_lossy().to_string());
             }
         }
     }
 
     #[cfg(target_os = "linux")]
     {
-        if std::path::Path::new("/usr/bin/java").exists() {
-            return Some("/usr/bin/java".to_string());
+        // Check common Linux Java locations
+        let linux_paths = [
+            PathBuf::from("/usr/bin/java"),
+            PathBuf::from("/usr/lib/jvm/default/bin/java"),
+            PathBuf::from("/usr/lib/jvm/java-21-openjdk/bin/java"),
+            PathBuf::from("/usr/lib/jvm/java-17-openjdk/bin/java"),
+        ];
+        for path in linux_paths {
+            if path.exists() {
+                return Some(path.to_string_lossy().to_string());
+            }
+        }
+
+        // Check JAVA_HOME on Linux too
+        if let Ok(java_home) = std::env::var("JAVA_HOME") {
+            let java = PathBuf::from(&java_home)
+                .join("bin")
+                .join("java");
+            if java.exists() {
+                return Some(java.to_string_lossy().to_string());
+            }
         }
     }
 

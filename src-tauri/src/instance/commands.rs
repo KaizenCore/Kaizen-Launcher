@@ -3,9 +3,62 @@ use crate::error::{AppError, AppResult};
 use crate::minecraft::versions;
 use crate::state::SharedState;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use sysinfo::System;
 use tauri::State;
 use tokio::fs;
+
+/// Open a folder in the system file manager (cross-platform)
+fn open_folder_in_file_manager(path: &Path) -> AppResult<()> {
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        std::process::Command::new("explorer")
+            .arg(path)
+            .spawn()
+            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Try xdg-open first, fall back to other common file managers
+        let result = std::process::Command::new("xdg-open")
+            .arg(path)
+            .spawn();
+
+        if result.is_err() {
+            // Fallback to common file managers
+            let fallbacks = ["nautilus", "dolphin", "thunar", "pcmanfm", "nemo"];
+            let mut opened = false;
+
+            for fm in fallbacks {
+                if std::process::Command::new(fm)
+                    .arg(path)
+                    .spawn()
+                    .is_ok()
+                {
+                    opened = true;
+                    break;
+                }
+            }
+
+            if !opened {
+                return Err(AppError::Io(
+                    "No file manager found. Please install xdg-open or a graphical file manager.".to_string()
+                ));
+            }
+        }
+    }
+
+    Ok(())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SystemMemoryInfo {
@@ -467,29 +520,7 @@ pub async fn open_mods_folder(
     }
 
     // Open the folder in the system file manager
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&mods_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(&mods_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&mods_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
+    open_folder_in_file_manager(&mods_dir)?;
 
     Ok(())
 }
@@ -673,29 +704,7 @@ pub async fn open_logs_folder(
     }
 
     // Open the folder in the system file manager
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&logs_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(&logs_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&logs_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
+    open_folder_in_file_manager(&logs_dir)?;
 
     Ok(())
 }
@@ -906,29 +915,7 @@ pub async fn open_config_folder(
         })?;
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(&config_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(&config_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(&config_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
+    open_folder_in_file_manager(&config_dir)?;
 
     Ok(())
 }
@@ -1309,29 +1296,7 @@ pub async fn open_data_folder(state: State<'_, SharedState>) -> AppResult<()> {
     let state_guard = state.read().await;
     let data_dir = &state_guard.data_dir;
 
-    #[cfg(target_os = "macos")]
-    {
-        std::process::Command::new("open")
-            .arg(data_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        std::process::Command::new("explorer")
-            .arg(data_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
-
-    #[cfg(target_os = "linux")]
-    {
-        std::process::Command::new("xdg-open")
-            .arg(data_dir)
-            .spawn()
-            .map_err(|e| AppError::Io(format!("Failed to open folder: {}", e)))?;
-    }
+    open_folder_in_file_manager(data_dir)?;
 
     Ok(())
 }
