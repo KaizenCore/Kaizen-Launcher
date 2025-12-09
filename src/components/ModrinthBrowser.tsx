@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef, memo } from "react"
+import { useState, useCallback, useEffect, useRef, memo, useMemo } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { toast } from "sonner"
 import { Search, Download, Loader2, ChevronDown, AlertTriangle, Check, SlidersHorizontal, X, ChevronLeft, ChevronRight, Package, Palette, Sparkles, Database } from "lucide-react"
@@ -83,6 +83,9 @@ interface DependencyInfo {
 
 // Content types supported by Modrinth
 export type ContentType = "mod" | "resourcepack" | "shader" | "datapack"
+
+// Constants - defined outside component to avoid recreation on each render
+const ITEMS_PER_PAGE = 20
 
 interface ModrinthBrowserProps {
   instanceId: string
@@ -384,9 +387,11 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
   // Use activeContentType when tabs are shown, otherwise use prop
   const effectiveContentType = showContentTabs ? activeContentType : initialContentType
 
-  // Determine project type based on contentType first, then loader
-  // Note: _isServer is kept for potential future use but loader/contentType are now the source of truth
-  const { projectType, itemLabel, itemLabelSingular, categories } = getContentConfig(effectiveContentType, loader)
+  // Memoize content config to prevent unnecessary recalculations and re-renders
+  const { projectType, itemLabel, itemLabelSingular, categories } = useMemo(
+    () => getContentConfig(effectiveContentType, loader),
+    [effectiveContentType, loader]
+  )
   const [searchQuery, setSearchQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ModSearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
@@ -398,9 +403,8 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
   const [sortBy, setSortBy] = useState<string>("downloads")
 
   // Pagination
-  const ITEMS_PER_PAGE = 20
   const [currentPage, setCurrentPage] = useState(1)
-  const totalPages = Math.ceil(totalHits / ITEMS_PER_PAGE)
+  const totalPages = useMemo(() => Math.ceil(totalHits / ITEMS_PER_PAGE), [totalHits])
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   // Version selection dialog
@@ -476,10 +480,18 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
     }
   }, [mcVersion, loader, projectType, itemLabel, ITEMS_PER_PAGE])
 
-  // Load popular mods on mount
+  // Track if initial search has been done for current content type
+  const initialSearchDoneRef = useRef<string | null>(null)
+
+  // Load popular mods on mount or when content type changes
   useEffect(() => {
-    performSearch("", [], "downloads", 1)
-  }, [performSearch])
+    // Only perform initial search if content type changed or first mount
+    const searchKey = `${projectType}-${mcVersion}-${loader}`
+    if (initialSearchDoneRef.current !== searchKey) {
+      initialSearchDoneRef.current = searchKey
+      performSearch("", [], "downloads", 1)
+    }
+  }, [projectType, mcVersion, loader, performSearch])
 
   const handleSearch = useCallback(async () => {
     await performSearch(searchQuery, selectedCategories, sortBy, 1)
@@ -850,7 +862,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
             </div>
             <ScrollArea className="h-[240px]">
               <div className="p-2 space-y-1">
-                {categories.map((cat) => {
+                {categories.map((cat: { value: string; labelKey: TranslationKey }) => {
                   const isSelected = selectedCategories.includes(cat.value)
                   return (
                     <div
@@ -899,7 +911,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
       {selectedCategories.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {selectedCategories.map((cat) => {
-            const catInfo = categories.find(c => c.value === cat)
+            const catInfo = categories.find((c: { value: string; labelKey: TranslationKey }) => c.value === cat)
             return (
               <Badge
                 key={cat}

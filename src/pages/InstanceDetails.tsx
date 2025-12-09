@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react"
+import { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
 import { open } from "@tauri-apps/plugin-dialog"
@@ -94,6 +94,9 @@ interface ModUpdateInfo {
 // Determine what type of content this server/instance supports
 type ContentType = "mods" | "plugins" | "none"
 
+// Constants - defined outside component to avoid recreation on each render
+const MODS_PER_PAGE = 10
+
 function getContentType(loader: string | null, _isServer: boolean): ContentType {
   if (!loader) {
     // Vanilla - no mods or plugins
@@ -171,7 +174,6 @@ export function InstanceDetails() {
   const [isCheckingUpdates, setIsCheckingUpdates] = useState(false)
   const [updatingMods, setUpdatingMods] = useState<Set<string>>(new Set())
   const [modsPage, setModsPage] = useState(1)
-  const MODS_PER_PAGE = 10
 
   // Settings form state
   const [name, setName] = useState("")
@@ -213,8 +215,8 @@ export function InstanceDetails() {
     }
   }
 
-  // Load mods for this instance
-  const loadMods = async () => {
+  // Load mods for this instance - memoized to prevent unnecessary re-renders
+  const loadMods = useCallback(async () => {
     if (!instanceId) return
     setIsLoadingMods(true)
     try {
@@ -225,9 +227,9 @@ export function InstanceDetails() {
     } finally {
       setIsLoadingMods(false)
     }
-  }
+  }, [instanceId])
 
-  const handleToggleMod = async (filename: string, enabled: boolean) => {
+  const handleToggleMod = useCallback(async (filename: string, enabled: boolean) => {
     if (!instanceId) return
     try {
       await invoke("toggle_mod", { instanceId, filename, enabled })
@@ -237,9 +239,9 @@ export function InstanceDetails() {
       toast.error(t("instanceDetails.modToggleError"))
       console.error("Failed to toggle mod:", err)
     }
-  }
+  }, [instanceId, loadMods, t])
 
-  const handleDeleteMod = async (filename: string) => {
+  const handleDeleteMod = useCallback(async (filename: string) => {
     if (!instanceId) return
     try {
       await invoke("delete_mod", { instanceId, filename })
@@ -249,9 +251,9 @@ export function InstanceDetails() {
       toast.error(t("instanceDetails.modDeleteError"))
       console.error("Failed to delete mod:", err)
     }
-  }
+  }, [instanceId, loadMods, t])
 
-  const handleOpenModsFolder = async () => {
+  const handleOpenModsFolder = useCallback(async () => {
     if (!instanceId) return
     try {
       const isPlugin = instance?.is_server || instance?.is_proxy
@@ -262,10 +264,10 @@ export function InstanceDetails() {
     } catch (err) {
       console.error("Failed to open folder:", err)
     }
-  }
+  }, [instanceId, instance?.is_server, instance?.is_proxy])
 
-  // Check for mod updates
-  const checkModUpdates = async () => {
+  // Check for mod updates - memoized
+  const checkModUpdates = useCallback(async () => {
     if (!instanceId) return
     setIsCheckingUpdates(true)
     try {
@@ -285,10 +287,10 @@ export function InstanceDetails() {
     } finally {
       setIsCheckingUpdates(false)
     }
-  }
+  }, [instanceId, contentType, t])
 
-  // Update a single mod
-  const handleUpdateMod = async (update: ModUpdateInfo) => {
+  // Update a single mod - memoized
+  const handleUpdateMod = useCallback(async (update: ModUpdateInfo) => {
     if (!instanceId) return
     setUpdatingMods(prev => new Set(prev).add(update.project_id))
     try {
@@ -314,32 +316,35 @@ export function InstanceDetails() {
         return newSet
       })
     }
-  }
+  }, [instanceId, contentType, loadMods, t])
 
-  // Update all mods
-  const handleUpdateAllMods = async () => {
-    for (const update of modUpdates) {
+  // Update all mods - uses ref to avoid stale closure
+  const modUpdatesRef = useRef(modUpdates)
+  modUpdatesRef.current = modUpdates
+
+  const handleUpdateAllMods = useCallback(async () => {
+    for (const update of modUpdatesRef.current) {
       await handleUpdateMod(update)
     }
-  }
+  }, [handleUpdateMod])
 
-  // Check if a mod has an update available
-  const getModUpdate = (mod: ModInfo): ModUpdateInfo | undefined => {
+  // Check if a mod has an update available - memoized
+  const getModUpdate = useCallback((mod: ModInfo): ModUpdateInfo | undefined => {
     if (!mod.project_id) return undefined
     return modUpdates.find(u => u.project_id === mod.project_id)
-  }
+  }, [modUpdates])
 
-  // Pagination for mods
-  const totalModsPages = Math.ceil(mods.length / MODS_PER_PAGE)
+  // Pagination for mods - memoized
+  const totalModsPages = useMemo(() => Math.ceil(mods.length / MODS_PER_PAGE), [mods.length])
   const paginatedMods = useMemo(() => {
     const start = (modsPage - 1) * MODS_PER_PAGE
     return mods.slice(start, start + MODS_PER_PAGE)
   }, [mods, modsPage])
 
-  // Callback when content is changed
-  const handleContentChanged = () => {
+  // Callback when content is changed - memoized
+  const handleContentChanged = useCallback(() => {
     loadMods()
-  }
+  }, [loadMods])
 
   const checkInstallation = async () => {
     if (!instanceId) return
