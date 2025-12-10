@@ -118,6 +118,7 @@ pub fn run() {
             instance::commands::toggle_mod,
             instance::commands::delete_mod,
             instance::commands::open_mods_folder,
+            instance::commands::open_instance_folder,
             instance::commands::get_system_memory,
             instance::commands::get_instance_logs,
             instance::commands::read_instance_log,

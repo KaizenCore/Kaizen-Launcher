@@ -826,6 +826,42 @@ pub async fn open_mods_folder(state: State<'_, SharedState>, instance_id: String
     Ok(())
 }
 
+/// Open the instance folder (or a subfolder) in the system file manager
+#[tauri::command]
+pub async fn open_instance_folder(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    subfolder: Option<String>,
+) -> AppResult<()> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let mut target_dir = state_guard
+        .get_instances_dir()
+        .await
+        .join(&instance.game_dir);
+
+    // If subfolder is specified, append it to the path
+    if let Some(ref sub) = subfolder {
+        target_dir = target_dir.join(sub);
+    }
+
+    // Create the directory if it doesn't exist
+    if !target_dir.exists() {
+        fs::create_dir_all(&target_dir)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to create directory: {}", e)))?;
+    }
+
+    open_folder_in_file_manager(&target_dir)?;
+
+    Ok(())
+}
+
 #[tauri::command]
 pub fn get_system_memory() -> SystemMemoryInfo {
     let mut sys = System::new_all();

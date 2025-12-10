@@ -281,6 +281,15 @@ export function InstanceDetails() {
     }
   }, [instanceId, instance?.is_server, instance?.is_proxy])
 
+  const handleOpenInstanceFolder = useCallback(async () => {
+    if (!instanceId) return
+    try {
+      await invoke("open_instance_folder", { instanceId })
+    } catch (err) {
+      console.error("Failed to open instance folder:", err)
+    }
+  }, [instanceId])
+
   // Check for mod updates - memoized
   const checkModUpdates = useCallback(async () => {
     if (!instanceId) return
@@ -825,6 +834,16 @@ export function InstanceDetails() {
 
         {/* Launch Controls */}
         <div className="flex items-center gap-3">
+          {/* Open folder button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={handleOpenInstanceFolder}
+            title={t("common.openFolder")}
+          >
+            <FolderOpen className="h-5 w-5" />
+          </Button>
+
           {launchError && (
             <div className="flex items-center gap-2 text-destructive text-sm">
               <AlertCircle className="h-4 w-4" />
