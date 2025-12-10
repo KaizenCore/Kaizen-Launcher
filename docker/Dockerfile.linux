@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     libgtk-3-dev \
     squashfs-tools \
     file \
+    xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20
@@ -42,17 +43,19 @@ RUN cargo install tauri-cli --version "^2"
 # Set working directory
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Copy only package.json (NOT package-lock.json to avoid platform-specific deps)
+COPY package.json ./
 
-# Install npm dependencies (fresh install for Linux x86_64)
-RUN npm ci
+# Install npm dependencies fresh for Linux x86_64
+# Using npm install (not ci) to generate fresh lock file for this platform
+RUN npm install --legacy-peer-deps
 
 # Copy the rest of the project (node_modules excluded via .dockerignore)
 COPY . .
 
-# Ensure we have the correct native modules for this platform
-RUN rm -rf node_modules/.cache && npm rebuild
+# Don't let the host's package-lock.json override our modules
+# Reinstall to ensure platform-specific binaries are correct
+RUN rm -rf node_modules && npm install --legacy-peer-deps
 
 # Build arguments for signing keys
 ARG TAURI_SIGNING_PRIVATE_KEY=""
@@ -64,15 +67,17 @@ ENV TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${TAURI_SIGNING_PRIVATE_KEY_PASSWORD}
 
 # Build the application with full Tauri bundling
 # Using cargo tauri directly for proper signing and bundling
+# Note: AppImage requires FUSE which isn't available in Docker, so we only build deb/rpm
 RUN npm run build && \
-    cargo tauri build --target x86_64-unknown-linux-gnu
+    cargo tauri build --target x86_64-unknown-linux-gnu --bundles deb,rpm
 
 # Copy all bundle artifacts including signatures
 CMD ["sh", "-c", "\
-    mkdir -p /output/deb /output/appimage /output/rpm && \
+    mkdir -p /output/deb /output/rpm && \
     cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb /output/deb/ 2>/dev/null || true && \
-    cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage /output/appimage/ 2>/dev/null || true && \
-    cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig /output/appimage/ 2>/dev/null || true && \
+    cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.sig /output/deb/ 2>/dev/null || true && \
     cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm /output/rpm/ 2>/dev/null || true && \
+    cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.sig /output/rpm/ 2>/dev/null || true && \
+    ls -la /output/*/ && \
     echo 'Linux build artifacts copied to /output' \
 "]

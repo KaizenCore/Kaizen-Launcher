@@ -45,17 +45,19 @@ RUN cargo install tauri-cli --version "^2"
 # Set working directory
 WORKDIR /app
 
-# Copy package files first for better caching
-COPY package*.json ./
+# Copy only package.json (NOT package-lock.json to avoid platform-specific deps)
+COPY package.json ./
 
-# Install npm dependencies (fresh install for Linux x86_64)
-RUN npm ci
+# Install npm dependencies fresh for Linux x86_64
+# Using npm install (not ci) to generate fresh lock file for this platform
+RUN npm install --legacy-peer-deps
 
 # Copy the rest of the project (node_modules excluded via .dockerignore)
 COPY . .
 
-# Ensure we have the correct native modules for this platform
-RUN rm -rf node_modules/.cache && npm rebuild
+# Don't let the host's package-lock.json override our modules
+# Reinstall to ensure platform-specific binaries are correct
+RUN rm -rf node_modules && npm install --legacy-peer-deps
 
 # Build arguments for signing keys
 ARG TAURI_SIGNING_PRIVATE_KEY=""

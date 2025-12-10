@@ -661,13 +661,14 @@ build_linux() {
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
 
-    # Copy artifacts
+    # Copy artifacts (deb and rpm from Docker, AppImage built via GitHub Actions)
     cp "$PROJECT_DIR/dist-docker/linux/deb/"*.deb "$OUTPUT_DIR/" 2>/dev/null || true
-    cp "$PROJECT_DIR/dist-docker/linux/appimage/"*.AppImage "$OUTPUT_DIR/" 2>/dev/null || true
-    cp "$PROJECT_DIR/dist-docker/linux/"*.json "$OUTPUT_DIR/" 2>/dev/null || true
-    cp "$PROJECT_DIR/dist-docker/linux/"*.sig "$OUTPUT_DIR/" 2>/dev/null || true
+    cp "$PROJECT_DIR/dist-docker/linux/deb/"*.sig "$OUTPUT_DIR/" 2>/dev/null || true
+    cp "$PROJECT_DIR/dist-docker/linux/rpm/"*.rpm "$OUTPUT_DIR/" 2>/dev/null || true
+    cp "$PROJECT_DIR/dist-docker/linux/rpm/"*.sig "$OUTPUT_DIR/" 2>/dev/null || true
 
     log_success "Linux build completed in ${duration}s"
+    log_info "Note: AppImage will be built via GitHub Actions"
 }
 
 build_windows() {
@@ -748,6 +749,36 @@ build_macos() {
     cp "$PROJECT_DIR/src-tauri/target/x86_64-apple-darwin/release/bundle/macos/"*.app.tar.gz.sig "$OUTPUT_DIR/" 2>/dev/null || true
 
     log_success "macOS builds completed"
+}
+
+trigger_appimage_workflow() {
+    local version=$1
+
+    print_section "Triggering GitHub Actions for AppImage"
+
+    if [ "$DRY_RUN" = true ]; then
+        log_info "[DRY-RUN] Would trigger build-appimage workflow for v$version"
+        return
+    fi
+
+    log_step "Triggering AppImage build workflow..."
+
+    # Trigger the workflow
+    gh workflow run build-appimage.yml \
+        --field tag="v$version" \
+        --field upload_to_release="true" \
+        2>/dev/null || {
+            log_warning "Could not trigger AppImage workflow automatically"
+            echo ""
+            echo -e "${YELLOW}To build AppImage manually, run:${NC}"
+            echo "  gh workflow run build-appimage.yml -f tag=v$version -f upload_to_release=true"
+            return
+        }
+
+    log_success "AppImage workflow triggered!"
+    echo ""
+    log_info "The AppImage will be built on GitHub and uploaded to the release."
+    log_info "Monitor progress: gh run list --workflow=build-appimage.yml"
 }
 
 run_builds() {
@@ -1245,6 +1276,11 @@ main() {
         [ "$SKIP_BUILD" = false ] && generate_latest_json "$new_version"
 
         create_github_release "$new_version"
+
+        # Trigger GitHub Actions for AppImage (can't build in Docker)
+        if [ "$BUILD_LINUX" = true ]; then
+            trigger_appimage_workflow "$new_version"
+        fi
     else
         log_info "Skipping release (--only-build)"
     fi

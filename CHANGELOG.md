@@ -2,6 +2,10 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.1.22] - 2025-12-10
+
+### Technical
+- pre-release changes
 ## [0.1.21] - 2025-12-10
 
 ### Added
