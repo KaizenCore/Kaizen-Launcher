@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # Linux build
+  build-linux:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.linux
+      args:
+        TAURI_SIGNING_PRIVATE_KEY: ${TAURI_SIGNING_PRIVATE_KEY:-}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}
+    volumes:
+      - ../dist-docker/linux:/output
+      - cargo-cache-linux:/root/.cargo/registry
+      - target-cache-linux:/app/src-tauri/target
+    environment:
+      - CARGO_INCREMENTAL=1
+
+  # Windows build (cross-compilation)
+  build-windows:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.windows
+      args:
+        TAURI_SIGNING_PRIVATE_KEY: ${TAURI_SIGNING_PRIVATE_KEY:-}
+        TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${TAURI_SIGNING_PRIVATE_KEY_PASSWORD:-}
+    volumes:
+      - ../dist-docker/windows:/output
+      - cargo-cache-windows:/root/.cargo/registry
+      - target-cache-windows:/app/src-tauri/target
+      - xwin-cache:/root/.xwin-cache
+    environment:
+      - CARGO_INCREMENTAL=1
+
+volumes:
+  cargo-cache-linux:
+  cargo-cache-windows:
+  target-cache-linux:
+  target-cache-windows:
+  xwin-cache:

@@ -26,7 +26,11 @@
     "build:macos-x86": "./scripts/build-local.sh macos-x86",
     "build:linux": "./scripts/build-local.sh linux",
     "build:windows": "./scripts/build-local.sh windows",
-    "build:release": "npm run tauri build"
+    "build:release": "npm run tauri build",
+    "docker:build": "./scripts/release-docker.sh all",
+    "docker:linux": "./scripts/release-docker.sh linux",
+    "docker:windows": "./scripts/release-docker.sh windows",
+    "docker:release": "./scripts/release-docker.sh all --push"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",
