@@ -144,8 +144,8 @@ jobs:
           cache-on-failure: true
           shared-key: release-${{ matrix.target }}
 
-      - name: Install dependencies (Linux)
-        if: contains(matrix.platform, 'ubuntu') || contains(matrix.self_hosted_label, 'linux')
+      - name: Install dependencies (Linux - GitHub hosted only)
+        if: runner.os == 'Linux' && github.event.inputs.use_self_hosted != 'true'
         run: |
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
