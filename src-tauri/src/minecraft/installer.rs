@@ -2,9 +2,11 @@ use crate::download::client::{download_file, download_files_parallel_with_progre
 use crate::error::{AppError, AppResult};
 use crate::minecraft::versions::{Library, VersionDetails};
 use serde::{Deserialize, Serialize};
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter};
 use tokio::fs;
+use zip::ZipArchive;
 
 const RESOURCES_URL: &str = "https://resources.download.minecraft.net";
 const LIBRARIES_URL: &str = "https://libraries.minecraft.net";
@@ -99,7 +101,7 @@ pub async fn install_instance(
     emit_progress(app, "installing", 5, 100, "Client telecharge!");
     println!("[INSTALLER] Step 1/3: Client JAR downloaded!");
 
-    // 2. Download libraries (5% - 35% of total)
+    // 2. Download libraries (5% - 30% of total)
     emit_progress(
         app,
         "installing",
@@ -107,12 +109,26 @@ pub async fn install_instance(
         100,
         "Telechargement des bibliotheques...",
     );
-    println!("[INSTALLER] Step 2/3: Downloading libraries...");
+    println!("[INSTALLER] Step 2/4: Downloading libraries...");
     download_libraries_to_instance_with_progress(client, &libraries_dir, version, app).await?;
-    emit_progress(app, "installing", 35, 100, "Bibliotheques telechargees!");
-    println!("[INSTALLER] Step 2/3: Libraries downloaded!");
+    emit_progress(app, "installing", 30, 100, "Bibliotheques telechargees!");
+    println!("[INSTALLER] Step 2/4: Libraries downloaded!");
 
-    // 3. Download assets (35% - 100% of total)
+    // 3. Extract natives (30% - 35% of total)
+    let natives_dir = instance_dir.join("natives");
+    emit_progress(
+        app,
+        "installing",
+        30,
+        100,
+        "Extraction des natives...",
+    );
+    println!("[INSTALLER] Step 3/4: Extracting natives...");
+    extract_natives(&libraries_dir, &natives_dir, version).await?;
+    emit_progress(app, "installing", 35, 100, "Natives extraites!");
+    println!("[INSTALLER] Step 3/4: Natives extracted!");
+
+    // 4. Download assets (35% - 100% of total)
     emit_progress(app, "installing", 35, 100, "Telechargement des assets...");
     println!("[INSTALLER] Step 3/3: Downloading assets...");
     download_assets_to_instance_with_progress(client, &assets_dir, version, app).await?;
@@ -392,6 +408,131 @@ fn get_native_key() -> Option<String> {
     {
         None
     }
+}
+
+/// Extract native libraries from JARs to the natives directory
+/// This extracts .dll (Windows), .so (Linux), and .dylib (macOS) files
+async fn extract_natives(
+    libraries_dir: &Path,
+    natives_dir: &Path,
+    version: &VersionDetails,
+) -> AppResult<()> {
+    // Create natives directory
+    fs::create_dir_all(natives_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create natives directory: {}", e)))?;
+
+    let native_key = match get_native_key() {
+        Some(key) => key,
+        None => return Ok(()), // No natives for this OS
+    };
+
+    println!("[INSTALLER] Extracting natives with key: {}", native_key);
+
+    for lib in &version.libraries {
+        // Check if library should be included
+        if !should_include_library(lib) {
+            continue;
+        }
+
+        // Check if this library has natives for our OS
+        if let Some(ref lib_downloads) = lib.downloads {
+            if let Some(ref classifiers) = lib_downloads.classifiers {
+                if let Some(native) = classifiers.get(&native_key) {
+                    if let Some(native_obj) = native.as_object() {
+                        if let Some(path) = native_obj.get("path").and_then(|v| v.as_str()) {
+                            let native_jar = libraries_dir.join(path);
+                            if native_jar.exists() {
+                                if let Err(e) = extract_native_jar(&native_jar, natives_dir).await {
+                                    println!(
+                                        "[INSTALLER] Warning: Failed to extract natives from {}: {}",
+                                        path, e
+                                    );
+                                } else {
+                                    println!("[INSTALLER] Extracted natives from: {}", path);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Also check for natives specified in the library name (e.g., lwjgl:lwjgl:3.3.3:natives-windows)
+        if lib.name.contains(&native_key) || lib.name.contains("natives") {
+            let path = library_name_to_path(&lib.name);
+            let native_jar = libraries_dir.join(&path);
+            if native_jar.exists() {
+                if let Err(e) = extract_native_jar(&native_jar, natives_dir).await {
+                    println!(
+                        "[INSTALLER] Warning: Failed to extract natives from {}: {}",
+                        path, e
+                    );
+                } else {
+                    println!("[INSTALLER] Extracted natives from: {}", path);
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Extract native files (.dll, .so, .dylib) from a JAR file
+async fn extract_native_jar(jar_path: &Path, natives_dir: &Path) -> AppResult<()> {
+    let jar_data = fs::read(jar_path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read native JAR: {}", e)))?;
+
+    let cursor = Cursor::new(jar_data);
+    let mut archive = ZipArchive::new(cursor)
+        .map_err(|e| AppError::Io(format!("Failed to open native JAR as zip: {}", e)))?;
+
+    let natives_dir = natives_dir.to_path_buf();
+
+    // Extract in blocking context since zip crate is sync
+    tokio::task::spawn_blocking(move || {
+        for i in 0..archive.len() {
+            let mut file = archive.by_index(i).map_err(|e| {
+                AppError::Io(format!("Failed to read zip entry: {}", e))
+            })?;
+
+            let name = file.name().to_string();
+
+            // Only extract native library files, skip META-INF and other files
+            let is_native = name.ends_with(".dll")
+                || name.ends_with(".so")
+                || name.ends_with(".dylib")
+                || name.ends_with(".jnilib");
+
+            if !is_native || name.contains("META-INF") {
+                continue;
+            }
+
+            // Get just the filename (strip any directory prefix)
+            let filename = Path::new(&name)
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .unwrap_or(name.clone());
+
+            let dest_path = natives_dir.join(&filename);
+
+            // Create file and copy contents
+            let mut dest_file = std::fs::File::create(&dest_path).map_err(|e| {
+                AppError::Io(format!("Failed to create native file {}: {}", filename, e))
+            })?;
+
+            std::io::copy(&mut file, &mut dest_file).map_err(|e| {
+                AppError::Io(format!("Failed to extract native file {}: {}", filename, e))
+            })?;
+        }
+
+        Ok::<(), AppError>(())
+    })
+    .await
+    .map_err(|e| AppError::Io(format!("Native extraction task failed: {}", e)))??;
+
+    Ok(())
 }
 
 /// Convert library name to path (e.g., "com.mojang:text:1.0" -> "com/mojang/text/1.0/text-1.0.jar")
