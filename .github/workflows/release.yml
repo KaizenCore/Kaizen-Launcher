@@ -81,10 +81,50 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
+      # Install Rust - manual installation to avoid bash dependency on Windows
+      - name: Install Rust (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          if command -v rustup &> /dev/null; then
+            echo "Rust already installed, updating..."
+            rustup update stable
+            rustup default stable
+          else
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          fi
+          rustup target add ${{ matrix.target }}
+        shell: bash
+
+      - name: Install Rust (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          # Check if rustup is already installed
+          $rustupPath = "$env:USERPROFILE\.cargo\bin\rustup.exe"
+          if (Test-Path $rustupPath) {
+            Write-Host "Rust already installed, updating..."
+            & $rustupPath update stable
+            & $rustupPath default stable
+          } else {
+            # Download and install rustup
+            Write-Host "Installing Rust..."
+            $rustupInit = "$env:TEMP\rustup-init.exe"
+            Invoke-WebRequest -Uri "https://win.rustup.rs/x86_64" -OutFile $rustupInit
+            & $rustupInit -y --default-toolchain stable
+            # Add to PATH for this session
+            $env:PATH = "$env:USERPROFILE\.cargo\bin;$env:PATH"
+          }
+          # Add target
+          & "$env:USERPROFILE\.cargo\bin\rustup.exe" target add ${{ matrix.target }}
+          # Output cargo/rustc versions
+          & "$env:USERPROFILE\.cargo\bin\cargo.exe" --version
+          & "$env:USERPROFILE\.cargo\bin\rustc.exe" --version
+        shell: pwsh
+
+      - name: Add Rust to PATH (Windows)
+        if: runner.os == 'Windows'
+        run: echo "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
