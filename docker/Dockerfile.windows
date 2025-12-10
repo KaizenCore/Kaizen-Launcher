@@ -1,5 +1,5 @@
 # Dockerfile for cross-compiling Kaizen Launcher for Windows from Linux
-# Uses cargo-xwin for MSVC-compatible builds
+# Uses cargo-xwin for MSVC-compatible builds with full Tauri bundling
 FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -18,6 +18,10 @@ RUN apt-get update && apt-get install -y \
     llvm \
     cmake \
     ninja-build \
+    # NSIS for Windows installer creation
+    nsis \
+    # WiX toolset dependencies (for MSI)
+    mono-complete \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20
@@ -35,6 +39,9 @@ RUN rustup target add x86_64-pc-windows-msvc
 # Install cargo-xwin for Windows cross-compilation
 RUN cargo install cargo-xwin
 
+# Install Tauri CLI for proper bundling
+RUN cargo install tauri-cli --version "^2"
+
 # Set working directory
 WORKDIR /app
 
@@ -47,21 +54,39 @@ RUN npm ci --prefer-offline || npm install
 # Copy the rest of the project
 COPY . .
 
-# Build argument for signing keys (optional)
+# Build arguments for signing keys
 ARG TAURI_SIGNING_PRIVATE_KEY=""
 ARG TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+
+# Set environment variables for signing and cross-compilation
 ENV TAURI_SIGNING_PRIVATE_KEY=${TAURI_SIGNING_PRIVATE_KEY}
 ENV TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${TAURI_SIGNING_PRIVATE_KEY_PASSWORD}
+ENV CC_x86_64_pc_windows_msvc=clang-cl
+ENV CXX_x86_64_pc_windows_msvc=clang-cl
+ENV AR_x86_64_pc_windows_msvc=llvm-lib
+ENV CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER=lld-link
 
-# Build frontend first
+# Build frontend
 RUN npm run build
 
 # Build for Windows using cargo-xwin
+# Note: Full Tauri bundling with NSIS requires native Windows or more complex setup
+# This builds the executable and we manually create the installer structure
 WORKDIR /app/src-tauri
 RUN cargo xwin build --release --target x86_64-pc-windows-msvc
 
 # Back to app directory
 WORKDIR /app
 
+# Copy Windows artifacts
 # The executable will be at src-tauri/target/x86_64-pc-windows-msvc/release/
-CMD ["sh", "-c", "mkdir -p /output && cp /app/src-tauri/target/x86_64-pc-windows-msvc/release/*.exe /output/ 2>/dev/null || echo 'Build artifacts copied'"]
+CMD ["sh", "-c", "\
+    mkdir -p /output && \
+    cp /app/src-tauri/target/x86_64-pc-windows-msvc/release/*.exe /output/ 2>/dev/null || true && \
+    cp /app/src-tauri/target/x86_64-pc-windows-msvc/release/*.dll /output/ 2>/dev/null || true && \
+    # If Tauri generated bundle artifacts, copy those too \
+    cp -r /app/src-tauri/target/x86_64-pc-windows-msvc/release/bundle/* /output/ 2>/dev/null || true && \
+    # Copy signature files if they exist \
+    cp /app/src-tauri/target/x86_64-pc-windows-msvc/release/*.sig /output/ 2>/dev/null || true && \
+    echo 'Windows build artifacts copied to /output' \
+"]

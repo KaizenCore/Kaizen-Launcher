@@ -1,11 +1,12 @@
 # Dockerfile for building Kaizen Launcher for Linux
+# Includes full Tauri bundling with signing support
 FROM ubuntu:22.04
 
 # Avoid timezone prompts
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
 
-# Install system dependencies
+# Install system dependencies for Tauri
 RUN apt-get update && apt-get install -y \
     build-essential \
     curl \
@@ -19,6 +20,8 @@ RUN apt-get update && apt-get install -y \
     patchelf \
     libgtk-3-dev \
     libayatana-appindicator3-dev \
+    squashfs-tools \
+    file \
     && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js 20
@@ -33,6 +36,9 @@ ENV PATH="/root/.cargo/bin:${PATH}"
 # Add Linux target
 RUN rustup target add x86_64-unknown-linux-gnu
 
+# Install Tauri CLI for proper bundling
+RUN cargo install tauri-cli --version "^2"
+
 # Set working directory
 WORKDIR /app
 
@@ -45,14 +51,25 @@ RUN npm ci --prefer-offline || npm install
 # Copy the rest of the project
 COPY . .
 
-# Build argument for signing keys (optional)
+# Build arguments for signing keys
 ARG TAURI_SIGNING_PRIVATE_KEY=""
 ARG TAURI_SIGNING_PRIVATE_KEY_PASSWORD=""
+
+# Set environment variables for signing
 ENV TAURI_SIGNING_PRIVATE_KEY=${TAURI_SIGNING_PRIVATE_KEY}
 ENV TAURI_SIGNING_PRIVATE_KEY_PASSWORD=${TAURI_SIGNING_PRIVATE_KEY_PASSWORD}
 
-# Build the application
-RUN npm run tauri build -- --target x86_64-unknown-linux-gnu
+# Build the application with full Tauri bundling
+# Using cargo tauri directly for proper signing and bundling
+RUN npm run build && \
+    cargo tauri build --target x86_64-unknown-linux-gnu
 
-# Output directory
-CMD ["sh", "-c", "cp -r /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/* /output/ 2>/dev/null || echo 'Build artifacts copied'"]
+# Copy all bundle artifacts including signatures
+CMD ["sh", "-c", "\
+    mkdir -p /output/deb /output/appimage /output/rpm && \
+    cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/deb/*.deb /output/deb/ 2>/dev/null || true && \
+    cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage /output/appimage/ 2>/dev/null || true && \
+    cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/appimage/*.AppImage.sig /output/appimage/ 2>/dev/null || true && \
+    cp /app/src-tauri/target/x86_64-unknown-linux-gnu/release/bundle/rpm/*.rpm /output/rpm/ 2>/dev/null || true && \
+    echo 'Linux build artifacts copied to /output' \
+"]

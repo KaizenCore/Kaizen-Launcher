@@ -30,7 +30,14 @@
     "docker:build": "./scripts/release-docker.sh all",
     "docker:linux": "./scripts/release-docker.sh linux",
     "docker:windows": "./scripts/release-docker.sh windows",
-    "docker:release": "./scripts/release-docker.sh all --push"
+    "docker:release": "./scripts/release-docker.sh all --push",
+    "release": "./scripts/release.sh",
+    "release:patch": "./scripts/release.sh patch",
+    "release:minor": "./scripts/release.sh minor",
+    "release:major": "./scripts/release.sh major",
+    "release:dry-run": "./scripts/release.sh --dry-run",
+    "release:build-only": "./scripts/release.sh --only-build",
+    "release:generate-keys": "./scripts/release.sh --generate-keys"
   },
   "dependencies": {
     "@radix-ui/react-avatar": "^1.1.11",
