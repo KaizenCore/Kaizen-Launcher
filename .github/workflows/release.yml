@@ -6,6 +6,10 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
+      version:
+        description: 'Release version (e.g., v0.2.2)'
+        required: true
+        type: string
       use_self_hosted:
         description: 'Use self-hosted runners (faster)'
         required: false
@@ -34,13 +38,18 @@ jobs:
       - name: Create Release
         id: create-release
         uses: actions/github-script@v7
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
         with:
           script: |
+            // Use input version for workflow_dispatch, or extract from tag for push events
+            const version = process.env.INPUT_VERSION || context.ref.replace('refs/tags/', '');
+            console.log(`Creating release for version: ${version}`);
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              tag_name: `${context.ref.replace('refs/tags/', '')}`,
-              name: `Kaizen Launcher ${context.ref.replace('refs/tags/', '')}`,
+              tag_name: version,
+              name: `Kaizen Launcher ${version}`,
               body: 'See the assets for download links and CHANGELOG.md for details.',
               draft: true,
               prerelease: false
