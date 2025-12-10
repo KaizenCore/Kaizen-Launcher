@@ -473,11 +473,20 @@ export function Settings() {
                   </p>
                 )}
 
+                {/* Memory explanation tip */}
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm">
+                  <p className="font-medium text-blue-500 mb-1">{t("ram.tipTitle")}</p>
+                  <p className="text-muted-foreground text-xs">{t("ram.tipContent")}</p>
+                </div>
+
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <label className="text-sm text-muted-foreground">{t("settings.minMemory")}</label>
-                      <span className="text-sm font-medium">{minMemory} MB</span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <label className="text-sm font-medium">{t("ram.minMemoryTitle")}</label>
+                        <span className="text-sm font-medium">{minMemory} MB</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{t("ram.minMemoryDesc")}</p>
                     </div>
                     <Slider
                       value={[minMemory]}
@@ -490,9 +499,12 @@ export function Settings() {
                   </div>
 
                   <div className="space-y-3">
-                    <div className="flex justify-between">
-                      <label className="text-sm text-muted-foreground">{t("settings.maxMemory")}</label>
-                      <span className="text-sm font-medium">{maxMemory} MB</span>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <label className="text-sm font-medium">{t("ram.maxMemoryTitle")}</label>
+                        <span className="text-sm font-medium">{maxMemory} MB</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{t("ram.maxMemoryDesc")}</p>
                     </div>
                     <Slider
                       value={[maxMemory]}

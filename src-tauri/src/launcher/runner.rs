@@ -319,6 +319,9 @@ fn build_jvm_args(
     args.push(format!("-Xms{}M", min_memory));
     args.push(format!("-Xmx{}M", max_memory));
 
+    // OpenGL compatibility - allows software fallback for AMD driver issues
+    args.push("-Dorg.lwjgl.opengl.Display.allowSoftwareOpenGL=true".to_string());
+
     // Add --add-opens for NeoForge/Forge (required for Java 16+ module system)
     if let Some(l) = loader {
         if l == "neoforge" || l == "forge" {

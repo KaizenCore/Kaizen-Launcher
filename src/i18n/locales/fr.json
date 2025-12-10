@@ -461,7 +461,13 @@
     "zoneGood": "Parfait pour les modpacks",
     "zoneWarning": "Le GC peut causer des lags",
     "zoneDanger": "Trop de RAM - risque de freezes GC",
-    "recommended": "Recommande:"
+    "recommended": "Recommande:",
+    "minMemoryTitle": "Memoire minimum (Xms)",
+    "minMemoryDesc": "Quantite de RAM reservee au demarrage. Java alloue cette memoire immediatement, ce qui accelere le lancement et evite les ralentissements lors de l'expansion de la memoire.",
+    "maxMemoryTitle": "Memoire maximum (Xmx)",
+    "maxMemoryDesc": "Limite maximale de RAM que Minecraft peut utiliser. Le jeu ne depassera jamais cette valeur. Une valeur trop elevee peut causer des freezes dus au Garbage Collector.",
+    "tipTitle": "Conseil",
+    "tipContent": "Pour de meilleures performances, gardez min et max proches. Laissez toujours au moins 4 Go pour votre systeme d'exploitation."
   },
   "dialogs": {
     "deleteInstance": {

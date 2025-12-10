@@ -1132,24 +1132,43 @@ export function InstanceDetails() {
               </div>
 
               {/* Memory Settings - Side by side on larger screens */}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Label className="text-sm font-medium">{t("instances.memory")}</Label>
+
+                {/* Memory explanation tip */}
+                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm">
+                  <p className="font-medium text-blue-500 mb-1">{t("ram.tipTitle")}</p>
+                  <p className="text-muted-foreground text-xs">{t("ram.tipContent")}</p>
+                </div>
+
                 <Suspense fallback={<ComponentLoader />}>
                   <div className="grid gap-4 md:grid-cols-2 p-4 rounded-lg border bg-muted/30">
-                    <RamSlider
-                      label="Minimum"
-                      value={memoryMin}
-                      onChange={setMemoryMin}
-                      minValue={512}
-                      recommendedValue="min"
-                    />
-                    <RamSlider
-                      label="Maximum"
-                      value={memoryMax}
-                      onChange={setMemoryMax}
-                      minValue={memoryMin}
-                      recommendedValue="max"
-                    />
+                    <div className="space-y-2">
+                      <div className="text-xs text-muted-foreground mb-2">
+                        <span className="font-medium text-foreground">{t("ram.minMemoryTitle")}</span>
+                        <p className="mt-0.5">{t("ram.minMemoryDesc")}</p>
+                      </div>
+                      <RamSlider
+                        label="Minimum (Xms)"
+                        value={memoryMin}
+                        onChange={setMemoryMin}
+                        minValue={512}
+                        recommendedValue="min"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <div className="text-xs text-muted-foreground mb-2">
+                        <span className="font-medium text-foreground">{t("ram.maxMemoryTitle")}</span>
+                        <p className="mt-0.5">{t("ram.maxMemoryDesc")}</p>
+                      </div>
+                      <RamSlider
+                        label="Maximum (Xmx)"
+                        value={memoryMax}
+                        onChange={setMemoryMax}
+                        minValue={memoryMin}
+                        recommendedValue="max"
+                      />
+                    </div>
                   </div>
                 </Suspense>
               </div>
