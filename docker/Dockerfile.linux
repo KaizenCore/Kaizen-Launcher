@@ -45,11 +45,14 @@ WORKDIR /app
 # Copy package files first for better caching
 COPY package*.json ./
 
-# Install npm dependencies
-RUN npm ci --prefer-offline || npm install
+# Install npm dependencies (fresh install for Linux x86_64)
+RUN npm ci
 
-# Copy the rest of the project
+# Copy the rest of the project (node_modules excluded via .dockerignore)
 COPY . .
+
+# Ensure we have the correct native modules for this platform
+RUN rm -rf node_modules/.cache && npm rebuild
 
 # Build arguments for signing keys
 ARG TAURI_SIGNING_PRIVATE_KEY=""
