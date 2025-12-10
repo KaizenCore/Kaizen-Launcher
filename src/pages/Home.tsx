@@ -638,8 +638,7 @@ export function Home() {
                   className={`cursor-pointer transition-all hover:bg-accent/50 ${
                     isSelected ? 'ring-2 ring-primary' : ''
                   }`}
-                  onClick={() => setSelectedInstance(instance)}
-                  onDoubleClick={() => navigate(`/instances/${instance.id}`)}
+                  onClick={() => navigate(`/instances/${instance.id}`)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">

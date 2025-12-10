@@ -153,19 +153,28 @@ export function AddAccountDialog({
         <div className="py-6">
           {mode === "select" && status === "idle" && (
             <div className="space-y-3">
-              <Button
-                variant="outline"
-                className="w-full justify-start gap-3 h-16"
-                onClick={() => setMode("microsoft")}
-              >
-                <div className="bg-blue-500 p-2 rounded">
-                  <ExternalLink className="h-4 w-4 text-white" />
+              {/* Microsoft auth temporarily disabled - waiting for API approval */}
+              <div className="relative">
+                <Button
+                  variant="outline"
+                  className="w-full justify-start gap-3 h-16 opacity-50 cursor-not-allowed"
+                  disabled
+                >
+                  <div className="bg-blue-500 p-2 rounded">
+                    <ExternalLink className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="text-left">
+                    <div className="font-medium">{t("accounts.microsoft")}</div>
+                    <div className="text-xs text-muted-foreground">{t("dialogs.addAccount.officialLogin")}</div>
+                  </div>
+                </Button>
+                <div className="absolute -top-2 -right-2 bg-amber-500 text-amber-950 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {t("common.comingSoon")}
                 </div>
-                <div className="text-left">
-                  <div className="font-medium">{t("accounts.microsoft")}</div>
-                  <div className="text-xs text-muted-foreground">{t("dialogs.addAccount.officialLogin")}</div>
-                </div>
-              </Button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center px-2">
+                {t("dialogs.addAccount.microsoftPending")}
+              </p>
               <Button
                 variant="outline"
                 className="w-full justify-start gap-3 h-16"
