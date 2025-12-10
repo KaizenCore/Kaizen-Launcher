@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, memo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
+import { useInstallationStore } from "@/stores/installationStore"
 import { Plus, Play, Trash2, Download, Loader2, Coffee, Monitor, Server, Network, Square, Circle, Search, Star, LayoutGrid, LayoutList, Columns, ArrowUpDown } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslation, TranslationKey } from "@/i18n"
@@ -457,9 +458,10 @@ export function Instances() {
   const [isLoading, setIsLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [installedVersions, setInstalledVersions] = useState<Set<string>>(new Set())
-  const [installingInstance, setInstallingInstance] = useState<string | null>(null)
   const [launchingInstance, setLaunchingInstance] = useState<string | null>(null)
-  const [installProgress, setInstallProgress] = useState<InstallProgress | null>(null)
+
+  // Use global installation store
+  const { installations, startInstallation, isInstalling, getInstallation } = useInstallationStore()
   const [error, setError] = useState<string | null>(null)
   const [javaInfo, setJavaInfo] = useState<JavaInfo | null>(null)
   const [javaChecked, setJavaChecked] = useState(false)
@@ -663,18 +665,6 @@ export function Instances() {
     loadInstances()
     checkJava()
 
-    // Listen for install progress events
-    const unlistenInstall = listen<InstallProgress>("install-progress", (event) => {
-      setInstallProgress(event.payload)
-      if (event.payload.stage === "complete") {
-        setTimeout(() => {
-          setInstallingInstance(null)
-          setInstallProgress(null)
-          loadInstances()
-        }, 1000)
-      }
-    })
-
     // Listen for instance status changes
     const unlistenStatus = listen<{ instance_id: string; status: string }>("instance-status", (event) => {
       const { instance_id, status } = event.payload
@@ -689,9 +679,16 @@ export function Instances() {
       })
     })
 
+    // Listen for install completion to reload instances
+    const unlistenInstall = listen<{ stage: string; instance_id?: string }>("install-progress", (event) => {
+      if (event.payload.stage === "complete") {
+        setTimeout(() => loadInstances(), 1000)
+      }
+    })
+
     return () => {
-      unlistenInstall.then(fn => fn()).catch(() => {})
       unlistenStatus.then(fn => fn()).catch(() => {})
+      unlistenInstall.then(fn => fn()).catch(() => {})
     }
   }, [])
 
@@ -705,7 +702,8 @@ export function Instances() {
 
   const handleInstall = async (instance: Instance) => {
     setError(null)
-    setInstallingInstance(instance.id)
+    // Start installation in global store (shows notification)
+    startInstallation(instance.id, instance.name)
     try {
       await invoke("install_instance", { instanceId: instance.id })
       setInstalledVersions(prev => new Set([...prev, instance.id]))
@@ -714,9 +712,6 @@ export function Instances() {
       console.error("Failed to install instance:", err)
       toast.error(t("instances.unableToInstall"))
       setError(String(err))
-    } finally {
-      setInstallingInstance(null)
-      setInstallProgress(null)
     }
   }
 
@@ -835,13 +830,13 @@ export function Instances() {
         instance={instance}
         viewMode={viewMode}
         isInstalled={installedVersions.has(instance.id)}
-        isInstalling={installingInstance === instance.id}
+        isInstalling={isInstalling(instance.id)}
         isLaunching={launchingInstance === instance.id}
         isRunning={runningInstances.has(instance.id)}
         isStopping={stoppingInstance === instance.id}
         iconUrl={getIconUrl(instance.id)}
         isFavorite={favorites.has(instance.id)}
-        installProgress={installingInstance === instance.id ? installProgress : null}
+        installProgress={getInstallation(instance.id)?.progress || null}
         onNavigate={handleNavigate}
         onToggleFavorite={toggleFavorite}
         onLaunch={handleLaunch}
@@ -852,7 +847,7 @@ export function Instances() {
         t={t}
       />
     )
-  }, [viewMode, installedVersions, installingInstance, launchingInstance, runningInstances, stoppingInstance, getIconUrl, favorites, installProgress, handleNavigate, toggleFavorite, handleLaunch, handleInstall, handleStop, openDeleteDialog, formatPlaytime, t])
+  }, [viewMode, installedVersions, installations, isInstalling, getInstallation, launchingInstance, runningInstances, stoppingInstance, getIconUrl, favorites, handleNavigate, toggleFavorite, handleLaunch, handleInstall, handleStop, openDeleteDialog, formatPlaytime, t])
 
   const sortLabels: Record<SortBy, string> = {
     name: t("common.name"),

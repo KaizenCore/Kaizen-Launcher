@@ -727,13 +727,14 @@ pub async fn install_modrinth_modpack(
     };
     let client = ModrinthClient::new(&http_client);
 
-    // Emit progress
+    // Emit progress (use project_id as identifier until instance is created)
     let _ = app.emit(
         "modpack-progress",
         serde_json::json!({
             "stage": "fetching",
             "message": "Recuperation des informations du modpack...",
-            "progress": 5
+            "progress": 5,
+            "project_id": &project_id
         }),
     );
 
@@ -767,7 +768,8 @@ pub async fn install_modrinth_modpack(
         serde_json::json!({
             "stage": "downloading",
             "message": "Telechargement du modpack...",
-            "progress": 10
+            "progress": 10,
+            "project_id": &project_id
         }),
     );
 
@@ -808,7 +810,8 @@ pub async fn install_modrinth_modpack(
         serde_json::json!({
             "stage": "extracting",
             "message": "Extraction du modpack...",
-            "progress": 20
+            "progress": 20,
+            "project_id": &project_id
         }),
     );
 
@@ -860,7 +863,8 @@ pub async fn install_modrinth_modpack(
         serde_json::json!({
             "stage": "creating",
             "message": "Creation de l'instance...",
-            "progress": 25
+            "progress": 25,
+            "project_id": &project_id
         }),
     );
 
@@ -903,7 +907,9 @@ pub async fn install_modrinth_modpack(
             serde_json::json!({
                 "stage": "downloading_icon",
                 "message": "Telechargement de l'icone...",
-                "progress": 28
+                "progress": 28,
+                "project_id": &project_id,
+                "instance_id": &instance.id
             }),
         );
 
@@ -975,7 +981,9 @@ pub async fn install_modrinth_modpack(
         serde_json::json!({
             "stage": "downloading_mods",
             "message": "Telechargement des mods...",
-            "progress": 30
+            "progress": 30,
+            "project_id": &project_id,
+            "instance_id": &instance.id
         }),
     );
 
@@ -1076,10 +1084,15 @@ pub async fn install_modrinth_modpack(
             serde_json::json!({
                 "stage": "downloading_mods",
                 "message": format!("Telechargement des mods ({}/{})", downloaded, total_files),
-                "progress": progress
+                "progress": progress,
+                "project_id": &project_id,
+                "instance_id": &instance.id
             }),
         );
     }
+
+    // Save modpack project_id before it gets shadowed in the loop
+    let modpack_project_id = project_id.clone();
 
     // Fetch metadata for mods (icons, names, etc.)
     if !mod_files_to_fetch.is_empty() {
@@ -1088,7 +1101,9 @@ pub async fn install_modrinth_modpack(
             serde_json::json!({
                 "stage": "fetching_metadata",
                 "message": "Recuperation des informations des mods...",
-                "progress": 78
+                "progress": 78,
+                "project_id": &modpack_project_id,
+                "instance_id": &instance.id
             }),
         );
 
@@ -1125,7 +1140,9 @@ pub async fn install_modrinth_modpack(
                 let _ = app.emit("modpack-progress", serde_json::json!({
                     "stage": "fetching_metadata",
                     "message": format!("Recuperation des metadonnees ({}/{})", fetched, total_mods),
-                    "progress": progress
+                    "progress": progress,
+                    "project_id": &modpack_project_id,
+                    "instance_id": &instance.id
                 }));
             }
         }
@@ -1136,7 +1153,9 @@ pub async fn install_modrinth_modpack(
         serde_json::json!({
             "stage": "extracting_overrides",
             "message": "Extraction des fichiers de configuration...",
-            "progress": 85
+            "progress": 85,
+            "project_id": &modpack_project_id,
+            "instance_id": &instance.id
         }),
     );
 
@@ -1208,7 +1227,9 @@ pub async fn install_modrinth_modpack(
         serde_json::json!({
             "stage": "complete",
             "message": "Modpack installe avec succes!",
-            "progress": 100
+            "progress": 100,
+            "project_id": &modpack_project_id,
+            "instance_id": &instance.id
         }),
     );
 

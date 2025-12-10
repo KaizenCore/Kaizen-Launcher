@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { open } from "@tauri-apps/plugin-dialog"
 import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { toast } from "sonner"
+import { useInstallationStore } from "@/stores/installationStore"
 import { ArrowLeft, Settings, Package, Save, Loader2, FolderOpen, FileText, RefreshCw, ChevronDown, Search, ArrowUpDown, Filter, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, ArrowUp, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -150,8 +151,11 @@ export function InstanceDetails() {
 
   // Launch state
   const [isInstalled, setIsInstalled] = useState(false)
-  const [isInstalling, setIsInstalling] = useState(false)
   const [isLaunching, setIsLaunching] = useState(false)
+
+  // Use global installation store
+  const { startInstallation, isInstalling: checkIsInstalling } = useInstallationStore()
+  const isInstalling = instanceId ? checkIsInstalling(instanceId) : false
   const [isRunning, setIsRunning] = useState(false)
   const [launchError, setLaunchError] = useState<string | null>(null)
   const [activeAccountId, setActiveAccountId] = useState<string | null>(null)
@@ -412,22 +416,20 @@ export function InstanceDetails() {
   }
 
   const handlePlayClick = async () => {
-    if (!activeAccountId) {
+    if (!activeAccountId && !(instance?.is_server || instance?.is_proxy)) {
       setLaunchError(t("instanceDetails.noActiveAccount"))
       toast.error(t("instanceDetails.noActiveAccount"))
       return
     }
     if (!isInstalled) {
       // Install first, then launch
-      setIsInstalling(true)
+      // Start installation in global store (shows notification)
+      startInstallation(instanceId!, instance?.name || "Instance")
       setLaunchError(null)
-      toast.loading(t("instances.installing"), { id: "install-launch" })
       try {
         await invoke("install_instance", { instanceId })
         setIsInstalled(true)
-        toast.success(t("home.installComplete"), { id: "install-launch" })
         // Now launch
-        setIsInstalling(false)
         setIsLaunching(true)
         toast.loading(t("instanceDetails.starting"), { id: "launch-after-install" })
         await invoke("launch_instance", { instanceId, accountId: activeAccountId })
@@ -437,7 +439,6 @@ export function InstanceDetails() {
         setLaunchError(`${t("common.error")}: ${err}`)
         toast.error(`${t("common.error")}: ${err}`, { id: "install-launch" })
       } finally {
-        setIsInstalling(false)
         setIsLaunching(false)
       }
     } else {

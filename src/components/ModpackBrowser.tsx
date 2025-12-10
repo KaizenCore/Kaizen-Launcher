@@ -1,7 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
 import { toast } from "sonner"
 import { Search, Download, Loader2, Package, ChevronLeft, ChevronRight, X, SlidersHorizontal, Check, RefreshCw, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,7 +8,6 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { Progress } from "@/components/ui/progress"
 import {
   Select,
   SelectContent,
@@ -32,6 +30,7 @@ import {
 } from "@/components/ui/popover"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useTranslation, type TranslationKey } from "@/i18n"
+import { useInstallationStore } from "@/stores/installationStore"
 
 interface ModpackSearchResult {
   project_id: string
@@ -69,12 +68,6 @@ interface ModpackInstallResult {
   loader: string | null
   loader_version: string | null
   files_count: number
-}
-
-interface ModpackProgress {
-  stage: string
-  message: string
-  progress: number
 }
 
 interface ModpackBrowserProps {
@@ -134,15 +127,14 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
   const [currentPage, setCurrentPage] = useState(1)
   const totalPages = Math.ceil(totalHits / ITEMS_PER_PAGE)
 
+  // Global installation store
+  const { startInstallation } = useInstallationStore()
+
   // Version selection dialog
   const [selectedModpack, setSelectedModpack] = useState<ModpackSearchResult | null>(null)
   const [modpackVersions, setModpackVersions] = useState<ModpackVersion[]>([])
   const [isLoadingVersions, setIsLoadingVersions] = useState(false)
   const [selectedVersion, setSelectedVersion] = useState<string>("")
-
-  // Installation
-  const [isInstalling, setIsInstalling] = useState(false)
-  const [installProgress, setInstallProgress] = useState<ModpackProgress | null>(null)
 
   // Search function
   const performSearch = useCallback(async (query: string, cats: string[], sort: string, loader: string, page: number = 1) => {
@@ -210,48 +202,6 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
     loadInstalledModpacks()
     performSearch("", [], "downloads", "", 1)
   }, [performSearch, loadInstalledModpacks])
-
-  // State for Minecraft installation
-  const [installingMinecraft, setInstallingMinecraft] = useState(false)
-  const [minecraftProgress, setMinecraftProgress] = useState<{ current: number; message: string } | null>(null)
-
-  // Listen for modpack install progress
-  useEffect(() => {
-    const unlisten = listen<ModpackProgress>("modpack-progress", (event) => {
-      setInstallProgress(event.payload)
-    })
-
-    return () => {
-      unlisten.then(fn => fn()).catch(() => {})
-    }
-  }, [])
-
-  // Listen for Minecraft install progress
-  useEffect(() => {
-    const unlisten = listen<{ stage: string; current: number; total: number; message: string }>("install-progress", (event) => {
-      setMinecraftProgress({
-        current: event.payload.current,
-        message: event.payload.message,
-      })
-      if (event.payload.stage === "complete") {
-        setTimeout(() => {
-          setInstallingMinecraft(false)
-          setMinecraftProgress(null)
-          setIsInstalling(false)
-          setInstallProgress(null)
-          setSelectedModpack(null)
-          toast.success("Modpack installe avec succes!")
-          // Refresh the installed modpacks list
-          loadInstalledModpacks()
-          onInstalled?.()
-        }, 1500)
-      }
-    })
-
-    return () => {
-      unlisten.then(fn => fn()).catch(() => {})
-    }
-  }, [onInstalled, loadInstalledModpacks])
 
   const handleSearch = useCallback(async () => {
     await performSearch(searchQuery, selectedCategories, sortBy, selectedLoader, 1)
@@ -344,8 +294,12 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
   const handleInstall = async () => {
     if (!selectedModpack || !selectedVersion) return
 
-    setIsInstalling(true)
-    setInstallProgress({ stage: "starting", message: "Demarrage...", progress: 0 })
+    // Start tracking in global store with modpack prefix
+    const trackingId = `modpack_${selectedModpack.project_id}`
+    startInstallation(trackingId, selectedModpack.title, "modpack")
+
+    // Close the version selection dialog
+    setSelectedModpack(null)
 
     try {
       // Step 1: Install modpack files
@@ -355,21 +309,24 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
         instanceName: null,
       })
 
-      // Step 2: Install Minecraft with the loader
-      setInstallingMinecraft(true)
-      setInstallProgress(null)
-      setMinecraftProgress({ current: 0, message: t("modpack.installingMinecraft") })
+      // Migrate tracking from temporary ID to real instance ID
+      const store = useInstallationStore.getState()
+      store.migrateInstallation(trackingId, result.instance_id)
+      store.setStep(result.instance_id, "minecraft")
 
+      // Step 2: Install Minecraft with the loader
       await invoke("install_instance", {
         instanceId: result.instance_id,
       })
+
+      // Refresh the installed modpacks list
+      loadInstalledModpacks()
+      onInstalled?.()
     } catch (err) {
       console.error("Failed to install modpack:", err)
       toast.error(`${t("common.error")}: ${err}`)
-      setIsInstalling(false)
-      setInstallingMinecraft(false)
-      setInstallProgress(null)
-      setMinecraftProgress(null)
+      // Cancel the installation tracking on error
+      useInstallationStore.getState().cancelInstallation(trackingId)
     }
   }
 
@@ -692,7 +649,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
       )}
 
       {/* Version selection dialog */}
-      <Dialog open={!!selectedModpack && !isInstalling} onOpenChange={(open) => !open && setSelectedModpack(null)}>
+      <Dialog open={!!selectedModpack} onOpenChange={(open) => !open && setSelectedModpack(null)}>
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
@@ -764,67 +721,6 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Installation progress dialog */}
-      <Dialog open={isInstalling} onOpenChange={() => {}}>
-        <DialogContent className="sm:max-w-[450px]" onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>{t("modpack.installing")}</DialogTitle>
-            <DialogDescription>
-              {selectedModpack?.title}
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="py-6 space-y-6">
-            {/* Step 1: Modpack files */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                {installProgress ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                ) : installingMinecraft ? (
-                  <div className="h-4 w-4 rounded-full bg-green-500 flex items-center justify-center">
-                    <span className="text-white text-xs">✓</span>
-                  </div>
-                ) : (
-                  <div className="h-4 w-4 rounded-full border-2 border-muted" />
-                )}
-                <span className={`text-sm ${installProgress ? "font-medium" : installingMinecraft ? "text-muted-foreground" : ""}`}>
-                  1. {t("modpack.downloadingMods")}
-                </span>
-              </div>
-              {installProgress && (
-                <>
-                  <Progress value={installProgress.progress} className="h-2" />
-                  <p className="text-xs text-muted-foreground pl-6">
-                    {installProgress.message} ({installProgress.progress}%)
-                  </p>
-                </>
-              )}
-            </div>
-
-            {/* Step 2: Minecraft installation */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                {installingMinecraft ? (
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                ) : (
-                  <div className="h-4 w-4 rounded-full border-2 border-muted" />
-                )}
-                <span className={`text-sm ${installingMinecraft ? "font-medium" : "text-muted-foreground"}`}>
-                  2. {t("modpack.installingMinecraft")}
-                </span>
-              </div>
-              {installingMinecraft && minecraftProgress && (
-                <>
-                  <Progress value={minecraftProgress.current} className="h-2" />
-                  <p className="text-xs text-muted-foreground pl-6">
-                    {minecraftProgress.message} ({minecraftProgress.current}%)
-                  </p>
-                </>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

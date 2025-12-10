@@ -1,6 +1,7 @@
 import { Outlet } from "react-router-dom"
 import { TitleBar } from "./TitleBar"
 import { Sidebar } from "./Sidebar"
+import { InstallationNotification } from "@/components/InstallationNotification"
 
 export function MainLayout() {
   return (
@@ -18,6 +19,9 @@ export function MainLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Global installation progress notification */}
+      <InstallationNotification />
     </div>
   )
 }

@@ -26,9 +26,11 @@ pub struct InstallProgress {
     pub current: u32,
     pub total: u32,
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub instance_id: Option<String>,
 }
 
-/// Emit progress event
+/// Emit progress event (legacy - without instance_id)
 fn emit_progress(app: &AppHandle, stage: &str, current: u32, total: u32, message: &str) {
     let _ = app.emit(
         "install-progress",
@@ -37,6 +39,28 @@ fn emit_progress(app: &AppHandle, stage: &str, current: u32, total: u32, message
             current,
             total,
             message: message.to_string(),
+            instance_id: None,
+        },
+    );
+}
+
+/// Emit progress event with instance_id
+pub fn emit_progress_for_instance(
+    app: &AppHandle,
+    instance_id: &str,
+    stage: &str,
+    current: u32,
+    total: u32,
+    message: &str,
+) {
+    let _ = app.emit(
+        "install-progress",
+        InstallProgress {
+            stage: stage.to_string(),
+            current,
+            total,
+            message: message.to_string(),
+            instance_id: Some(instance_id.to_string()),
         },
     );
 }

@@ -28,9 +28,6 @@ function PageLoader() {
   )
 }
 
-// Only show DevMonitor in development mode
-const isDev = import.meta.env.DEV
-
 function App() {
   const { completed, setCompleted } = useOnboardingStore()
   const { resolvedTheme } = useTheme()
@@ -56,8 +53,6 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (!isDev) return
-
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleKeyDown])
@@ -96,12 +91,10 @@ function App() {
         onDownload={downloadAndInstall}
         onDismiss={dismissUpdate}
       />
-      {isDev && (
-        <DevMonitor
-          visible={devMonitorVisible}
-          onClose={() => setDevMonitorVisible(false)}
-        />
-      )}
+      <DevMonitor
+        visible={devMonitorVisible}
+        onClose={() => setDevMonitorVisible(false)}
+      />
     </>
   )
 }
