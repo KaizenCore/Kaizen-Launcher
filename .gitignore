@@ -22,3 +22,18 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build outputs
+dist-release/
+dist-docker/
+dist-builds/
+
+# Signing keys - NEVER commit these!
+*.key
+*.key.pub
+.tauri-signing-keys
+.env
+.env.local
+
+# Tauri build cache
+src-tauri/target/
