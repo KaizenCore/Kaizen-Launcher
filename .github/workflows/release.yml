@@ -85,27 +85,34 @@ jobs:
       - name: Install Rust (Unix)
         if: runner.os != 'Windows'
         run: |
-          # Check if rustup exists
-          if [ -f "$HOME/.cargo/bin/rustup" ]; then
-            echo "Rust already installed, updating..."
+          # Check multiple locations where Rust might be installed
+          # Docker containers use /usr/local/cargo, regular installs use $HOME/.cargo
+          if [ -f "/usr/local/cargo/bin/rustup" ]; then
+            echo "Rust found in /usr/local/cargo (Docker), updating..."
+            /usr/local/cargo/bin/rustup update stable
+            /usr/local/cargo/bin/rustup default stable
+            echo "/usr/local/cargo/bin" >> $GITHUB_PATH
+            /usr/local/cargo/bin/rustup target add ${{ matrix.target }}
+          elif [ -f "$HOME/.cargo/bin/rustup" ]; then
+            echo "Rust found in $HOME/.cargo, updating..."
             "$HOME/.cargo/bin/rustup" update stable
             "$HOME/.cargo/bin/rustup" default stable
+            echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+            "$HOME/.cargo/bin/rustup" target add ${{ matrix.target }}
           elif command -v rustup >/dev/null 2>&1; then
             echo "Rust already in PATH, updating..."
             rustup update stable
             rustup default stable
+            rustup target add ${{ matrix.target }}
           else
             echo "Installing Rust..."
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
-            export PATH="$HOME/.cargo/bin:$PATH"
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-          fi
-          # Add target - use full path if needed
-          if [ -f "$HOME/.cargo/bin/rustup" ]; then
             "$HOME/.cargo/bin/rustup" target add ${{ matrix.target }}
-          else
-            rustup target add ${{ matrix.target }}
           fi
+          # Verify installation
+          echo "Rust version:"
+          rustup --version || /usr/local/cargo/bin/rustup --version || $HOME/.cargo/bin/rustup --version
 
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'
