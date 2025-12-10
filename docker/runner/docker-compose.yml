@@ -1,0 +1,62 @@
+version: '3.8'
+
+# GitHub Actions Self-Hosted Runners
+#
+# Usage:
+#   1. Create a .env file with:
+#      GITHUB_REPOSITORY=KaizenCore/Kaizen-Launcher
+#      GITHUB_TOKEN=ghp_your_personal_access_token
+#
+#   2. Build the images:
+#      docker-compose build
+#
+#   3. Start runners:
+#      docker-compose up -d
+#
+#   4. Scale runners:
+#      docker-compose up -d --scale linux-runner=3
+
+services:
+  linux-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.linux
+    environment:
+      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - RUNNER_NAME=docker-linux-${HOSTNAME:-runner}
+      - RUNNER_LABELS=self-hosted,Linux,X64,docker,tauri-ready
+    volumes:
+      # Persist cargo cache between runs
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+
+  # You can add more runners by scaling or defining additional services
+  linux-runner-2:
+    build:
+      context: .
+      dockerfile: Dockerfile.linux
+    environment:
+      - GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - RUNNER_NAME=docker-linux-2
+      - RUNNER_LABELS=self-hosted,Linux,X64,docker,tauri-ready
+    volumes:
+      - cargo-cache:/usr/local/cargo/registry
+      - cargo-git:/usr/local/cargo/git
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+
+volumes:
+  cargo-cache:
+  cargo-git:

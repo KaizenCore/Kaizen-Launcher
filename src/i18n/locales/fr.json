@@ -851,6 +851,7 @@
     "lastChecked": "Derniere verification",
     "autoCheckUpdates": "Verifier automatiquement les mises a jour",
     "checkOnStartup": "Verifier au demarrage de l'application",
-    "updateError": "Erreur lors de la mise a jour"
+    "updateError": "Erreur lors de la mise a jour",
+    "installUpdate": "Installer la mise a jour"
   }
 }

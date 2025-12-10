@@ -68,7 +68,7 @@ export function Settings() {
   const { t, locale, setLocale, availableLocales } = useTranslation()
 
   // Update checker
-  const { checking, checkForUpdates, updateInfo, updateAvailable } = useUpdateChecker(false)
+  const { checking, checkForUpdates, updateInfo, updateAvailable, downloadAndInstall, installing, downloadProgress } = useUpdateChecker(false)
 
   // App version
   const [appVersion, setAppVersion] = useState<string>("...")
@@ -711,7 +711,7 @@ export function Settings() {
                   variant="outline"
                   size="sm"
                   onClick={() => checkForUpdates()}
-                  disabled={checking}
+                  disabled={checking || installing}
                 >
                   {checking ? (
                     <>
@@ -726,9 +726,28 @@ export function Settings() {
                   )}
                 </Button>
                 {updateAvailable && updateInfo ? (
-                  <span className="text-sm text-primary font-medium">
-                    {t("updater.newVersionAvailable", { version: updateInfo.version })}
-                  </span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm text-primary font-medium">
+                      {t("updater.newVersionAvailable", { version: updateInfo.version })}
+                    </span>
+                    <Button
+                      size="sm"
+                      onClick={() => downloadAndInstall()}
+                      disabled={installing}
+                    >
+                      {installing ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {downloadProgress > 0 ? `${downloadProgress}%` : t("updater.installing")}
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4 mr-2" />
+                          {t("updater.installUpdate")}
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 ) : !checking && (
                   <span className="text-sm text-muted-foreground">
                     {t("updater.upToDate")}

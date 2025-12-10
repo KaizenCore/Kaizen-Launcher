@@ -1,0 +1,59 @@
+# GitHub Actions Self-Hosted Runner for Linux with Tauri deps
+FROM ubuntu:22.04
+
+ARG RUNNER_VERSION=2.311.0
+ARG TARGETARCH=x64
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# System dependencies for Tauri
+RUN apt-get update && apt-get install -y \
+    curl wget git build-essential pkg-config \
+    libssl-dev libgtk-3-dev libsoup2.4-dev \
+    libwebkit2gtk-4.1-dev libappindicator3-dev \
+    librsvg2-dev patchelf \
+    libayatana-appindicator3-dev \
+    file \
+    && rm -rf /var/lib/apt/lists/*
+
+# Node.js 20
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Rust
+ENV RUSTUP_HOME=/usr/local/rustup \
+    CARGO_HOME=/usr/local/cargo \
+    PATH=/usr/local/cargo/bin:$PATH
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable \
+    && rustup target add x86_64-unknown-linux-gnu \
+    && cargo --version && rustc --version
+
+# Pre-warm cargo cache with common crates (optional but speeds up builds)
+RUN cargo install tauri-cli --version "^2" || true
+
+# Create runner user
+RUN useradd -m runner && \
+    mkdir -p /home/runner/actions-runner && \
+    chown -R runner:runner /home/runner
+
+WORKDIR /home/runner/actions-runner
+
+# Download GitHub Actions Runner
+RUN curl -o actions-runner-linux-${TARGETARCH}-${RUNNER_VERSION}.tar.gz -L \
+    https://github.com/actions/runner/releases/download/v${RUNNER_VERSION}/actions-runner-linux-${TARGETARCH}-${RUNNER_VERSION}.tar.gz \
+    && tar xzf actions-runner-linux-${TARGETARCH}-${RUNNER_VERSION}.tar.gz \
+    && rm actions-runner-linux-${TARGETARCH}-${RUNNER_VERSION}.tar.gz \
+    && chown -R runner:runner /home/runner/actions-runner
+
+# Install runner dependencies
+RUN ./bin/installdependencies.sh
+
+# Copy startup script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+USER runner
+
+ENTRYPOINT ["/entrypoint.sh"]

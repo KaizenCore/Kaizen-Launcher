@@ -851,6 +851,7 @@
     "lastChecked": "Last checked",
     "autoCheckUpdates": "Automatically check for updates",
     "checkOnStartup": "Check on application startup",
-    "updateError": "Update error"
+    "updateError": "Update error",
+    "installUpdate": "Install Update"
   }
 }
