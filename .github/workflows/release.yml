@@ -85,16 +85,27 @@ jobs:
       - name: Install Rust (Unix)
         if: runner.os != 'Windows'
         run: |
-          if command -v rustup &> /dev/null; then
+          # Check if rustup exists
+          if [ -f "$HOME/.cargo/bin/rustup" ]; then
             echo "Rust already installed, updating..."
+            "$HOME/.cargo/bin/rustup" update stable
+            "$HOME/.cargo/bin/rustup" default stable
+          elif command -v rustup >/dev/null 2>&1; then
+            echo "Rust already in PATH, updating..."
             rustup update stable
             rustup default stable
           else
+            echo "Installing Rust..."
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable
+            export PATH="$HOME/.cargo/bin:$PATH"
             echo "$HOME/.cargo/bin" >> $GITHUB_PATH
           fi
-          rustup target add ${{ matrix.target }}
-        shell: bash
+          # Add target - use full path if needed
+          if [ -f "$HOME/.cargo/bin/rustup" ]; then
+            "$HOME/.cargo/bin/rustup" target add ${{ matrix.target }}
+          else
+            rustup target add ${{ matrix.target }}
+          fi
 
       - name: Install Rust (Windows)
         if: runner.os == 'Windows'
@@ -119,12 +130,12 @@ jobs:
           # Output cargo/rustc versions
           & "$env:USERPROFILE\.cargo\bin\cargo.exe" --version
           & "$env:USERPROFILE\.cargo\bin\rustc.exe" --version
-        shell: pwsh
+        shell: powershell
 
       - name: Add Rust to PATH (Windows)
         if: runner.os == 'Windows'
         run: echo "$env:USERPROFILE\.cargo\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        shell: pwsh
+        shell: powershell
 
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
@@ -148,7 +159,7 @@ jobs:
         run: |
           if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
           if (Test-Path package-lock.json) { Remove-Item -Force package-lock.json }
-        shell: pwsh
+        shell: powershell
 
       - name: Install npm dependencies
         run: npm install
