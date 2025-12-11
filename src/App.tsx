@@ -21,6 +21,7 @@ const Backups = lazy(() => import("@/pages/Backups").then(m => ({ default: m.Bac
 const Accounts = lazy(() => import("@/pages/Accounts").then(m => ({ default: m.Accounts })))
 const Settings = lazy(() => import("@/pages/Settings").then(m => ({ default: m.Settings })))
 const Changelog = lazy(() => import("@/pages/Changelog"))
+const Sharing = lazy(() => import("@/pages/Sharing").then(m => ({ default: m.Sharing })))
 
 // Loading fallback for lazy components
 function PageLoader() {
@@ -71,6 +72,7 @@ function App() {
             <Route path="browse" element={<Suspense fallback={<PageLoader />}><Browse /></Suspense>} />
             <Route path="browse/modpack/:projectId" element={<Suspense fallback={<PageLoader />}><ModpackDetails /></Suspense>} />
             <Route path="backups" element={<Suspense fallback={<PageLoader />}><Backups /></Suspense>} />
+            <Route path="sharing" element={<Suspense fallback={<PageLoader />}><Sharing /></Suspense>} />
             <Route path="accounts" element={<Suspense fallback={<PageLoader />}><Accounts /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
             <Route path="changelog" element={<Suspense fallback={<PageLoader />}><Changelog /></Suspense>} />

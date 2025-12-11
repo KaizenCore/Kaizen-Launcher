@@ -158,10 +158,12 @@ export function ExportInstanceDialog({
       setSeedInfo(info)
       addSeed({
         exportId: result.export_id,
+        instanceName,
         packagePath: result.package_path,
         magnetUri: info.magnetURI,
         peerCount: info.numPeers,
         uploadedBytes: info.uploaded,
+        startedAt: Date.now(),
       })
 
       setStep("ready")

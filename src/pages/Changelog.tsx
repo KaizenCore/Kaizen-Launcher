@@ -20,7 +20,10 @@ import {
   Gauge,
   Database,
   RefreshCw,
-  Cpu
+  Cpu,
+  Share2,
+  Download,
+  Package
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -37,6 +40,41 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.4.1",
+    date: "2024-12-11",
+    highlights: [
+      "P2P Instance Sharing",
+      "Share instances with friends via magnet links",
+      "No server required",
+    ],
+    features: [
+      {
+        icon: <Share2 className="h-5 w-5" />,
+        title: "P2P Instance Sharing",
+        description: "Share your Minecraft instances directly with friends using WebTorrent P2P technology. No upload to external servers required - share directly from your computer.",
+        tag: "new",
+      },
+      {
+        icon: <Package className="h-5 w-5" />,
+        title: "Selective Content Export",
+        description: "Choose exactly what to share: mods, configs, saves, resourcepacks, shaderpacks. Each component can be included or excluded before sharing.",
+        tag: "new",
+      },
+      {
+        icon: <Download className="h-5 w-5" />,
+        title: "Easy Import via Magnet Links",
+        description: "Import shared instances by pasting a magnet link or scanning a QR code. Preview the contents before importing to your launcher.",
+        tag: "new",
+      },
+      {
+        icon: <Users className="h-5 w-5" />,
+        title: "Sharing Management Page",
+        description: "New Sharing page in sidebar to manage active shares. See peer count, upload stats, and stop sharing at any time. Badge shows number of active shares.",
+        tag: "new",
+      },
+    ],
+  },
   {
     version: "0.4.0",
     date: "2024-12-11",

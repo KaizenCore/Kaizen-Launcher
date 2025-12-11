@@ -9,6 +9,7 @@ import {
   User,
   Settings,
   Sparkles,
+  Share2,
   type LucideIcon
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
@@ -20,6 +21,7 @@ import {
   TooltipTrigger,
   TooltipProvider
 } from "@/components/ui/tooltip"
+import { useSharingStore } from "@/stores/sharingStore"
 
 interface Account {
   id: string
@@ -76,10 +78,47 @@ function NavItem({ to, icon: Icon, label, exact = false }: NavItemProps) {
   )
 }
 
+function NavItemWithBadge({ to, icon: Icon, label, badge, exact = false }: NavItemProps & { badge?: number }) {
+  const location = useLocation()
+  const isActive = exact
+    ? location.pathname === to
+    : location.pathname.startsWith(to)
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <NavLink
+          to={to}
+          className={cn(
+            "relative flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-200",
+            isActive
+              ? "text-primary-foreground bg-primary shadow-md"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+          )}
+        >
+          {isActive && (
+            <span className="absolute -left-3 top-1/2 -translate-y-1/2 w-1 h-5 bg-primary rounded-full" />
+          )}
+          <Icon size={20} strokeWidth={isActive ? 2 : 1.5} />
+          {badge !== undefined && badge > 0 && (
+            <span className="absolute -top-1 -right-1 flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-green-500 rounded-full">
+              {badge}
+            </span>
+          )}
+        </NavLink>
+      </TooltipTrigger>
+      <TooltipContent side="right">
+        {label}
+      </TooltipContent>
+    </Tooltip>
+  )
+}
+
 export function Sidebar() {
   const { t } = useTranslation()
   const location = useLocation()
   const [activeAccount, setActiveAccount] = useState<Account | null>(null)
+  const activeSeedsCount = useSharingStore((state) => state.activeSeeds.size)
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null
@@ -143,6 +182,7 @@ export function Sidebar() {
           <NavItem to="/instances" icon={Layers} label={t("nav.instances")} />
           <NavItem to="/browse" icon={Search} label={t("nav.browse")} />
           <NavItem to="/backups" icon={Archive} label={t("nav.backups")} />
+          <NavItemWithBadge to="/sharing" icon={Share2} label={t("nav.sharing")} badge={activeSeedsCount} exact />
         </nav>
 
         {/* Spacer */}

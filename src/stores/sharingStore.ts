@@ -60,10 +60,12 @@ export interface PreparedExport {
 
 export interface SeedSession {
   exportId: string
+  instanceName: string
   packagePath: string
   magnetUri: string | null
   peerCount: number
   uploadedBytes: number
+  startedAt: number
 }
 
 export interface DownloadSession {
