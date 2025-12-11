@@ -1,7 +1,8 @@
 import { Clock, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface InstanceCardProps {
+export interface MockInstance {
+    id: string;
     name: string;
     version: string;
     loader?: string | null;
@@ -10,6 +11,9 @@ interface InstanceCardProps {
     playTime: string;
     status: 'ready' | 'running' | 'not_installed';
     iconUrl?: string;
+}
+
+interface InstanceCardProps extends Omit<MockInstance, 'id'> {
     isSelected?: boolean;
     onClick?: () => void;
 }

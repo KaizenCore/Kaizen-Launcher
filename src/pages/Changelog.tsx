@@ -34,6 +34,21 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.3.9",
+    date: "2024-12-11",
+    highlights: [
+      "Linux build fix",
+    ],
+    features: [
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Linux Build Fix",
+        description: "Fixed Linux build by disabling AppImage (Tauri infrastructure issue). Linux users can now install via .deb or .rpm packages.",
+        tag: "fix",
+      },
+    ],
+  },
+  {
     version: "0.3.8",
     date: "2024-12-11",
     highlights: [
