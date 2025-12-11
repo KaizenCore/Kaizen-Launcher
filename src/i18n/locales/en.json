@@ -19,6 +19,7 @@
     "previous": "Previous",
     "yes": "Yes",
     "no": "No",
+    "skip": "Skip",
     "or": "or",
     "and": "and",
     "none": "None",
@@ -416,7 +417,10 @@
     "unableToLoadStorage": "Unable to load storage data",
     "about": "About",
     "aboutLauncher": "Information about the launcher",
-    "launcherDescription": "Kaizen Launcher is a modern, open-source Minecraft launcher built with Tauri, React, and Rust. It supports Fabric, Forge, NeoForge, and Quilt modloaders, as well as Paper, Velocity servers, and more."
+    "launcherDescription": "Kaizen Launcher is a modern, open-source Minecraft launcher built with Tauri, React, and Rust. It supports Fabric, Forge, NeoForge, and Quilt modloaders, as well as Paper, Velocity servers, and more.",
+    "restartOnboarding": "Setup Wizard",
+    "restartOnboardingDesc": "Restart the initial setup wizard",
+    "restartOnboardingButton": "Restart"
   },
   "content": {
     "browseMods": "Browse Mods",
@@ -523,7 +527,64 @@
     "welcome": "Welcome to Kaizen!",
     "subtitle": "Make this launcher your own",
     "selectTheme": "Choose a theme that suits you",
-    "complete": "Get Started"
+    "complete": "Get Started",
+    "languageTitle": "Choose your language",
+    "languageSubtitle": "You can change this later in settings",
+    "accountTitle": "Add an account",
+    "accountSubtitle": "Connect with Microsoft or create an offline account",
+    "accountAdded": "Account added successfully!",
+    "themeTitle": "Personalize your launcher",
+    "themeSubtitle": "Choose a color theme that suits you",
+    "instanceTitle": "Create your first instance",
+    "instanceSubtitle": "Set up Minecraft the way you want it",
+    "letsGo": "Let's Go!"
+  },
+  "tour": {
+    "finish": "Got it!",
+    "installButton": {
+      "title": "Install Button",
+      "description": "Click here to install your instance. This will download Minecraft and all required files."
+    },
+    "playButton": {
+      "title": "Ready to Play!",
+      "description": "Installation complete! Click Play to launch your instance and start playing."
+    },
+    "settingsTab": {
+      "title": "Settings",
+      "description": "Configure RAM, Java version, and JVM arguments for this instance."
+    },
+    "modsTab": {
+      "title": "Installed Mods",
+      "description": "View and manage your installed mods. Enable, disable, or delete them here."
+    },
+    "browseTab": {
+      "title": "Browse Mods",
+      "description": "Search and install mods directly from Modrinth with one click."
+    },
+    "worldsTab": {
+      "title": "Worlds",
+      "description": "Manage your worlds: create backups, restore, duplicate, or delete them."
+    },
+    "logsTab": {
+      "title": "Logs",
+      "description": "View game logs to debug issues. Useful for troubleshooting crashes."
+    },
+    "configTab": {
+      "title": "Config Files",
+      "description": "Edit configuration files directly. Modify mod settings, server properties, and more."
+    },
+    "consoleTab": {
+      "title": "Console",
+      "description": "Server console to view output and send commands in real-time."
+    },
+    "installing": {
+      "title": "Installing...",
+      "description": "Please wait while Minecraft is being installed. This may take a few minutes."
+    },
+    "playNow": {
+      "title": "Ready to Play!",
+      "description": "Installation complete! Click the Play button to launch Minecraft."
+    }
   },
   "java": {
     "required": "Java required",

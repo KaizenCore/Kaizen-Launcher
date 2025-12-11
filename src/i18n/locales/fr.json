@@ -19,6 +19,7 @@
     "previous": "Precedent",
     "yes": "Oui",
     "no": "Non",
+    "skip": "Passer",
     "or": "ou",
     "and": "et",
     "none": "Aucun",
@@ -416,7 +417,10 @@
     "unableToLoadStorage": "Impossible de charger les donnees de stockage",
     "about": "A propos",
     "aboutLauncher": "Informations sur le launcher",
-    "launcherDescription": "Kaizen Launcher est un launcher Minecraft moderne et open-source construit avec Tauri, React et Rust. Il supporte les modloaders Fabric, Forge, NeoForge et Quilt, ainsi que les serveurs Paper, Velocity et plus encore."
+    "launcherDescription": "Kaizen Launcher est un launcher Minecraft moderne et open-source construit avec Tauri, React et Rust. Il supporte les modloaders Fabric, Forge, NeoForge et Quilt, ainsi que les serveurs Paper, Velocity et plus encore.",
+    "restartOnboarding": "Assistant de configuration",
+    "restartOnboardingDesc": "Relancer l'assistant de configuration initial",
+    "restartOnboardingButton": "Relancer"
   },
   "content": {
     "browseMods": "Parcourir les mods",
@@ -523,7 +527,64 @@
     "welcome": "Bienvenue sur Kaizen !",
     "subtitle": "Faites de ce launcher le votre",
     "selectTheme": "Choisissez un theme qui vous ressemble",
-    "complete": "Commencer"
+    "complete": "Commencer",
+    "languageTitle": "Choisissez votre langue",
+    "languageSubtitle": "Vous pourrez la modifier plus tard dans les parametres",
+    "accountTitle": "Ajoutez un compte",
+    "accountSubtitle": "Connectez-vous avec Microsoft ou creez un compte hors ligne",
+    "accountAdded": "Compte ajoute avec succes !",
+    "themeTitle": "Personnalisez votre launcher",
+    "themeSubtitle": "Choisissez un theme de couleur qui vous plait",
+    "instanceTitle": "Creez votre premiere instance",
+    "instanceSubtitle": "Configurez Minecraft comme vous le souhaitez",
+    "letsGo": "C'est parti !"
+  },
+  "tour": {
+    "finish": "Compris !",
+    "installButton": {
+      "title": "Bouton Installer",
+      "description": "Cliquez ici pour installer votre instance. Cela telecharge Minecraft et tous les fichiers necessaires."
+    },
+    "playButton": {
+      "title": "Pret a jouer !",
+      "description": "Installation terminee ! Cliquez sur Jouer pour lancer votre instance et commencer a jouer."
+    },
+    "settingsTab": {
+      "title": "Parametres",
+      "description": "Configurez la RAM, la version Java et les arguments JVM pour cette instance."
+    },
+    "modsTab": {
+      "title": "Mods installes",
+      "description": "Consultez et gerez vos mods installes. Activez, desactivez ou supprimez-les ici."
+    },
+    "browseTab": {
+      "title": "Parcourir les mods",
+      "description": "Recherchez et installez des mods directement depuis Modrinth en un clic."
+    },
+    "worldsTab": {
+      "title": "Mondes",
+      "description": "Gerez vos mondes : creez des sauvegardes, restaurez, dupliquez ou supprimez-les."
+    },
+    "logsTab": {
+      "title": "Logs",
+      "description": "Consultez les logs du jeu pour debuguer les problemes. Utile pour resoudre les crashs."
+    },
+    "configTab": {
+      "title": "Fichiers Config",
+      "description": "Modifiez les fichiers de configuration directement. Parametres des mods, proprietes du serveur, etc."
+    },
+    "consoleTab": {
+      "title": "Console",
+      "description": "Console serveur pour voir la sortie et envoyer des commandes en temps reel."
+    },
+    "installing": {
+      "title": "Installation...",
+      "description": "Veuillez patienter pendant l'installation de Minecraft. Cela peut prendre quelques minutes."
+    },
+    "playNow": {
+      "title": "Pret a jouer !",
+      "description": "Installation terminee ! Cliquez sur le bouton Jouer pour lancer Minecraft."
+    }
   },
   "java": {
     "required": "Java requis",

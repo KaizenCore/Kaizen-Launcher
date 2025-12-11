@@ -4,7 +4,8 @@ import { Toaster } from "sonner"
 import { Loader2 } from "lucide-react"
 import { MainLayout } from "@/components/layout/MainLayout"
 import { Home } from "@/pages/Home"
-import { OnboardingSidebar } from "@/components/onboarding/OnboardingSidebar"
+import { Onboarding } from "@/components/onboarding/Onboarding"
+import { TourOverlay } from "@/components/TourOverlay"
 import { UpdateNotification } from "@/components/UpdateNotification"
 import { DevMonitor } from "@/components/DevMonitor"
 import { useOnboardingStore } from "@/stores/onboardingStore"
@@ -80,10 +81,21 @@ function App() {
         closeButton
         theme={resolvedTheme}
       />
-      <OnboardingSidebar
+      <Onboarding
         open={!completed}
-        onComplete={() => setCompleted(true)}
+        onComplete={(instanceId) => {
+          setCompleted(true)
+          // Navigate to the created instance if provided
+          if (instanceId) {
+            // Use history.pushState to navigate without full reload
+            setTimeout(() => {
+              window.history.pushState({}, "", `/instances/${instanceId}`)
+              window.dispatchEvent(new PopStateEvent("popstate"))
+            }, 100)
+          }
+        }}
       />
+      <TourOverlay />
       <UpdateNotification
         open={updateAvailable}
         updateInfo={updateInfo}

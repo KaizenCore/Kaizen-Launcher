@@ -5,6 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog"
 import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { toast } from "sonner"
 import { useInstallationStore } from "@/stores/installationStore"
+import { useTourStore, TourStep } from "@/stores/tourStore"
 import { ArrowLeft, Settings, Package, Save, Loader2, FolderOpen, FileText, RefreshCw, ChevronDown, Search, ArrowUpDown, Filter, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, ArrowUp, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -844,6 +845,109 @@ export function InstanceDetails() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLog])
 
+  // Tour system
+  const { pendingTourInstanceId, startTour, clearPendingTour } = useTourStore()
+
+  // Build tour steps (memoized to avoid recreation)
+  const buildTourSteps = useCallback((isServer: boolean, hasModLoader: boolean): TourStep[] => {
+    const steps: TourStep[] = [
+      {
+        id: "install-button",
+        targetSelector: "[data-tour='play-button']",
+        title: t("tour.installButton.title"),
+        description: t("tour.installButton.description"),
+        position: "bottom",
+      },
+      {
+        id: "settings-tab",
+        targetSelector: "[data-tour='settings-tab']",
+        title: t("tour.settingsTab.title"),
+        description: t("tour.settingsTab.description"),
+        position: "bottom",
+      },
+    ]
+
+    if (hasModLoader) {
+      steps.push({
+        id: "mods-tab",
+        targetSelector: "[data-tour='mods-tab']",
+        title: t("tour.modsTab.title"),
+        description: t("tour.modsTab.description"),
+        position: "bottom",
+      })
+      steps.push({
+        id: "browse-tab",
+        targetSelector: "[data-tour='browse-tab']",
+        title: t("tour.browseTab.title"),
+        description: t("tour.browseTab.description"),
+        position: "bottom",
+      })
+    }
+
+    steps.push({
+      id: "worlds-tab",
+      targetSelector: "[data-tour='worlds-tab']",
+      title: t("tour.worldsTab.title"),
+      description: t("tour.worldsTab.description"),
+      position: "bottom",
+    })
+
+    steps.push({
+      id: "logs-tab",
+      targetSelector: "[data-tour='logs-tab']",
+      title: t("tour.logsTab.title"),
+      description: t("tour.logsTab.description"),
+      position: "bottom",
+    })
+
+    steps.push({
+      id: "config-tab",
+      targetSelector: "[data-tour='config-tab']",
+      title: t("tour.configTab.title"),
+      description: t("tour.configTab.description"),
+      position: "bottom",
+    })
+
+    // Final step: Click Play to launch
+    steps.push({
+      id: "play-button-final",
+      targetSelector: "[data-tour='play-button']",
+      title: t("tour.playButton.title"),
+      description: t("tour.playButton.description"),
+      position: "bottom",
+    })
+
+    if (isServer) {
+      steps.unshift({
+        id: "console-tab",
+        targetSelector: "[data-tour='console-tab']",
+        title: t("tour.consoleTab.title"),
+        description: t("tour.consoleTab.description"),
+        position: "bottom",
+      })
+    }
+
+    return steps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    // Start tour if this is the instance created during onboarding
+    if (pendingTourInstanceId && instanceId && pendingTourInstanceId === instanceId && instance) {
+      // Wait for the page to fully render
+      const timeout = setTimeout(() => {
+        const isServer = instance.is_server || instance.is_proxy
+        const hasModLoader = Boolean(instance.loader && ["fabric", "forge", "neoforge", "quilt"].includes(instance.loader.toLowerCase()))
+        const tourSteps = buildTourSteps(isServer, hasModLoader)
+        // Clear pending AFTER building steps, before starting
+        clearPendingTour()
+        startTour(instanceId, tourSteps)
+      }, 1000)
+
+      return () => clearTimeout(timeout)
+    }
+  }, [pendingTourInstanceId, instanceId, instance, startTour, clearPendingTour, buildTourSteps])
+
   const handleSaveSettings = async () => {
     if (!instanceId) return
     setIsSaving(true)
@@ -1037,6 +1141,7 @@ export function InstanceDetails() {
               onClick={handlePlayClick}
               disabled={isInstalling || isLaunching || (!(instance?.is_server || instance?.is_proxy) && !activeAccountId)}
               className="gap-2 px-6"
+              data-tour="play-button"
             >
               {isInstalling ? (
                 <>
@@ -1082,42 +1187,42 @@ export function InstanceDetails() {
         <TabsList>
           {/* Console tab - only for servers */}
           {(instance?.is_server || instance?.is_proxy) && (
-            <TabsTrigger value="console" className="gap-2">
+            <TabsTrigger value="console" className="gap-2" data-tour="console-tab">
               <Terminal className="h-4 w-4" />
               Console
             </TabsTrigger>
           )}
-          <TabsTrigger value="settings" className="gap-2">
+          <TabsTrigger value="settings" className="gap-2" data-tour="settings-tab">
             <Settings className="h-4 w-4" />
             {t("common.settings")}
           </TabsTrigger>
           {contentType !== "none" && (
-            <TabsTrigger value="mods" className="gap-2">
+            <TabsTrigger value="mods" className="gap-2" data-tour="mods-tab">
               <Package className="h-4 w-4" />
               {contentLabel.plural}
             </TabsTrigger>
           )}
           {contentType !== "none" && (
-            <TabsTrigger value="content" className="gap-2">
+            <TabsTrigger value="content" className="gap-2" data-tour="browse-tab">
               <Search className="h-4 w-4" />
               {t("content.manageContent")}
             </TabsTrigger>
           )}
-          <TabsTrigger value="worlds" className="gap-2">
+          <TabsTrigger value="worlds" className="gap-2" data-tour="worlds-tab">
             <Globe className="h-4 w-4" />
             {t("instanceDetails.worlds")}
           </TabsTrigger>
-          <TabsTrigger value="logs" className="gap-2" onClick={() => loadLogs()}>
+          <TabsTrigger value="logs" className="gap-2" data-tour="logs-tab" onClick={() => loadLogs()}>
             <FileText className="h-4 w-4" />
             {t("instances.logs")}
           </TabsTrigger>
-          <TabsTrigger value="config" className="gap-2">
+          <TabsTrigger value="config" className="gap-2" data-tour="config-tab">
             <Wrench className="h-4 w-4" />
             Config
           </TabsTrigger>
           {/* Tunnel tab - only for servers */}
           {(instance?.is_server || instance?.is_proxy) && (
-            <TabsTrigger value="tunnel" className="gap-2">
+            <TabsTrigger value="tunnel" className="gap-2" data-tour="tunnel-tab">
               <Globe className="h-4 w-4" />
               Tunnel
             </TabsTrigger>
