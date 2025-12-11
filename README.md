@@ -1,30 +1,72 @@
-# Kaizen Launcher
+<p align="center">
+  <img src="src-tauri/icons/icon.png" alt="Kaizen Launcher" width="128" height="128">
+</p>
+
+<h1 align="center">Kaizen Launcher</h1>
+
+<p align="center">
+  <strong>A modern, feature-rich Minecraft launcher</strong>
+</p>
+
+<p align="center">
+  <a href="https://github.com/KaizenCore/Kaizen-Launcher/releases/latest">
+    <img src="https://img.shields.io/github/v/release/KaizenCore/Kaizen-Launcher?style=flat-square&color=blue" alt="Latest Release">
+  </a>
+  <a href="https://github.com/KaizenCore/Kaizen-Launcher/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/KaizenCore/Kaizen-Launcher?style=flat-square" alt="License">
+  </a>
+  <a href="https://github.com/KaizenCore/Kaizen-Launcher/releases">
+    <img src="https://img.shields.io/github/downloads/KaizenCore/Kaizen-Launcher/total?style=flat-square&color=green" alt="Downloads">
+  </a>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Windows-0078D6?style=flat-square&logo=windows&logoColor=white" alt="Windows">
+  <img src="https://img.shields.io/badge/macOS-000000?style=flat-square&logo=apple&logoColor=white" alt="macOS">
+  <img src="https://img.shields.io/badge/Linux-FCC624?style=flat-square&logo=linux&logoColor=black" alt="Linux">
+</p>
+
+---
 
 > **Early Access Preview**
 >
-> This project is currently in **early beta** and under active development. Features may be incomplete, unstable, or subject to change. Use at your own risk and expect bugs!
+> This project is currently in **early beta** and under active development. Features may be incomplete or subject to change.
 >
 > We welcome feedback and bug reports via [GitHub Issues](https://github.com/KaizenCore/Kaizen-Launcher/issues).
 
-A modern, feature-rich Minecraft launcher built with Tauri 2, React 19, and TypeScript.
+---
+
+## Downloads
+
+Download the latest release for your platform:
+
+| Platform | Download |
+|----------|----------|
+| Windows | [Kaizen-Launcher_x.x.x_x64-setup.exe](https://github.com/KaizenCore/Kaizen-Launcher/releases/latest) |
+| macOS (Apple Silicon) | [Kaizen-Launcher_x.x.x_aarch64.dmg](https://github.com/KaizenCore/Kaizen-Launcher/releases/latest) |
+| macOS (Intel) | [Kaizen-Launcher_x.x.x_x64.dmg](https://github.com/KaizenCore/Kaizen-Launcher/releases/latest) |
+| Linux (Debian/Ubuntu) | [Kaizen-Launcher_x.x.x_amd64.deb](https://github.com/KaizenCore/Kaizen-Launcher/releases/latest) |
+| Linux (Fedora/RHEL) | [Kaizen-Launcher_x.x.x.rpm](https://github.com/KaizenCore/Kaizen-Launcher/releases/latest) |
+| Linux (AppImage) | [Kaizen-Launcher_x.x.x_amd64.AppImage](https://github.com/KaizenCore/Kaizen-Launcher/releases/latest) |
+
+---
 
 ## Features
 
-### Client Support
+### Modloaders & Clients
 - **Vanilla** - Pure Minecraft experience
 - **Fabric** - Lightweight modding platform
 - **Forge** - Classic modding framework
 - **NeoForge** - Modern Forge successor
 - **Quilt** - Fabric-compatible alternative
 
-### Server Support
+### Server Software
 - **Vanilla** - Official Minecraft server
 - **Paper** - High-performance Spigot fork
 - **Purpur** - Paper fork with extra features
 - **Folia** - Multi-threaded Paper fork
 - **Pufferfish** - Optimized Paper fork
-- **Fabric** - Fabric server
-- **Forge/NeoForge** - Modded servers
+- **Fabric/Forge/NeoForge** - Modded servers
 - **SpongeVanilla/SpongeForge** - Plugin API platform
 
 ### Proxy Support
@@ -32,17 +74,63 @@ A modern, feature-rich Minecraft launcher built with Tauri 2, React 19, and Type
 - **BungeeCord** - Original proxy solution
 - **Waterfall** - BungeeCord fork
 
+### Instance Management
+- Multiple isolated instances with custom settings
+- Per-instance JVM arguments and memory allocation
+- Mod management with enable/disable support
+- Batch actions for mods (select, enable, disable, delete)
+- World management with backup/restore functionality
+
+### Modrinth Integration
+- Browse and search mods, modpacks, resourcepacks, shaders
+- One-click installation with dependency resolution
+- Version compatibility checking
+- Modpack installation with automatic mod downloads
+
+### Authentication
+- **Microsoft Authentication** - Secure OAuth Device Code flow
+- **Offline Mode** - Play without an account
+- Multiple account support with easy switching
+
+### Discord Integration
+- **Rich Presence** - Show your activity on Discord
+  - Idle status when browsing the launcher
+  - Playing status with instance name, version, and modloader
+  - Hosting status for servers with player count
+- **Webhooks** - Get notified on Discord
+  - Server start/stop notifications
+  - Player join/leave notifications
+  - Configurable per event type
+
+### Cloud Backup Storage
+- Sync world backups to cloud providers:
+  - Google Drive
+  - Dropbox
+  - Nextcloud (WebDAV)
+  - S3-compatible storage (AWS, MinIO)
+- Automatic upload option
+- Sync status tracking
+
+### Server Features
+- Real-time console output with command input
+- Tunnel support for easy server sharing:
+  - Cloudflare Tunnel
+  - Playit.gg
+  - Ngrok
+  - Bore
+- Automatic port configuration
+- Player join/leave detection
+
 ### Additional Features
-- **Microsoft Authentication** - Secure OAuth login
-- **Modrinth Integration** - Browse and install mods/modpacks
-- **Instance Management** - Multiple isolated instances
 - **Java Management** - Automatic Java 21 installation
-- **Server Console** - Real-time server output and commands
-- **Tunnel Support** - Expose servers via Cloudflare, Playit, Ngrok, or Bore
-- **Custom JVM Arguments** - Per-instance memory and JVM settings
+- **Onboarding Wizard** - Guided setup for new users
+- **Interactive Tour** - Learn the launcher features
+- **Custom Themes** - Personalize your experience
 - **Internationalization** - French and English support
 
-## Installation
+---
+
+## Development
 
 ### Prerequisites
 
@@ -51,14 +139,14 @@ A modern, feature-rich Minecraft launcher built with Tauri 2, React 19, and Type
 - Platform-specific dependencies:
   - **Linux**: `libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf`
   - **macOS**: Xcode Command Line Tools
-  - **Windows**: Visual Studio Build Tools
+  - **Windows**: Visual Studio Build Tools with C++ workload
 
-### Development Setup
+### Quick Start
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/kaizen-launcher.git
-cd kaizen-launcher
+git clone https://github.com/KaizenCore/Kaizen-Launcher.git
+cd Kaizen-Launcher
 
 # Install dependencies
 npm install
@@ -67,67 +155,63 @@ npm install
 npm start
 ```
 
-### Build for Production
-
-```bash
-npm run tauri build
-```
-
-## Development Commands
+### Commands
 
 | Command | Description |
 |---------|-------------|
 | `npm start` | Start Tauri development server |
-| `npm run dev` | Start Vite frontend only |
-| `npm run build` | Build frontend for production |
-| `npm run tauri build` | Build complete application |
+| `npm run restart` | Restart development server |
+| `npm run stop` | Stop all dev processes |
+| `npm run tauri build` | Build for production |
 | `npm run type-check` | Check TypeScript types |
 | `npm run lint` | Run ESLint |
-| `npm run lint:fix` | Fix ESLint issues |
+| `npm run lint:fix` | Auto-fix ESLint issues |
 | `npm run test` | Run tests |
-| `npm run test:watch` | Run tests in watch mode |
-| `npm run restart` | Kill and restart dev server |
-| `npm run stop` | Stop all dev processes |
+
+---
+
+## Tech Stack
+
+- **Frontend**: React 19, TypeScript, Tailwind CSS, Radix UI
+- **Backend**: Rust, Tauri 2, SQLite (sqlx)
+- **Build**: Vite, ESBuild
+
+---
 
 ## Project Structure
 
 ```
-kaizen-launcher/
+Kaizen-Launcher/
 ├── src/                    # React frontend
 │   ├── components/         # UI components
-│   │   ├── ui/            # Radix UI components
-│   │   ├── layout/        # Layout components
-│   │   └── dialogs/       # Modal dialogs
+│   │   ├── ui/            # Radix UI primitives
+│   │   ├── layout/        # Layout (Sidebar, TitleBar)
+│   │   ├── dialogs/       # Modal dialogs
+│   │   └── onboarding/    # Onboarding wizard
 │   ├── pages/             # Route pages
-│   ├── i18n/              # Internationalization
+│   ├── i18n/              # Translations (en, fr)
 │   ├── hooks/             # Custom React hooks
+│   ├── stores/            # Zustand stores
 │   └── lib/               # Utilities
 ├── src-tauri/             # Rust backend
 │   └── src/
 │       ├── auth/          # Microsoft OAuth
 │       ├── db/            # SQLite operations
+│       ├── discord/       # Discord RPC & Webhooks
 │       ├── download/      # Download management
 │       ├── instance/      # Instance management
 │       ├── launcher/      # Game launching
 │       ├── minecraft/     # Version management
 │       ├── modloader/     # Loader support
 │       ├── modrinth/      # Modrinth API
+│       ├── cloud_storage/ # Cloud backup providers
 │       └── tunnel/        # Server tunneling
 └── .github/workflows/     # CI/CD pipelines
 ```
 
-## Security
+---
 
-- **Token Encryption**: Access and refresh tokens are encrypted at rest using AES-256-GCM
-- **Content Security Policy**: Strict CSP to prevent XSS attacks
-- **Secure Downloads**: SHA1/SHA256 verification for all downloaded files
-- **No Secrets in Code**: OAuth uses device code flow (public client)
-
-## Configuration
-
-### Data Directory
-
-The launcher stores data in platform-specific locations:
+## Data Storage
 
 | Platform | Location |
 |----------|----------|
@@ -135,14 +219,16 @@ The launcher stores data in platform-specific locations:
 | macOS | `~/Library/Application Support/com.kaizen.launcher` |
 | Linux | `~/.local/share/com.kaizen.launcher` |
 
-### Database
+---
 
-SQLite database (`kaizen.db`) contains:
-- `accounts` - Microsoft and offline accounts
-- `instances` - Game instances with settings
-- `instance_mods` - Installed mods per instance
-- `settings` - Application settings
-- `tunnel_configs` - Server tunnel configurations
+## Security
+
+- **Token Encryption**: AES-256-GCM encryption for access/refresh tokens
+- **Content Security Policy**: Strict CSP to prevent XSS attacks
+- **Secure Downloads**: SHA1/SHA256 verification for all files
+- **No Secrets in Code**: OAuth uses public client (Device Code flow)
+
+---
 
 ## Contributing
 
@@ -157,9 +243,13 @@ SQLite database (`kaizen.db`) contains:
 - **TypeScript**: ESLint + Prettier
 - **Rust**: `cargo fmt` + Clippy
 
+---
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
 
 ## Acknowledgments
 
@@ -167,3 +257,9 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Modrinth](https://modrinth.com/) - Mod hosting platform
 - [PaperMC](https://papermc.io/) - Server software
 - [Radix UI](https://www.radix-ui.com/) - UI primitives
+
+---
+
+<p align="center">
+  Made with <a href="https://tauri.app">Tauri</a> + <a href="https://react.dev">React</a>
+</p>
