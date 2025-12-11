@@ -1,6 +1,6 @@
 [package]
 name = "kaizen-launcher"
-version = "0.3.5"
+version = "0.3.6"
 description = "A modern Minecraft launcher"
 authors = ["Kaizen"]
 edition = "2021"

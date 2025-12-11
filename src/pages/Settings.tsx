@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { Moon, Sun, Monitor, Globe, Download, Trash2, RefreshCw, Check, HardDrive, FolderOpen, Github, Database, Cpu, Info, Palette, Loader2, Sparkles, Cloud } from "lucide-react"
+import { Moon, Sun, Monitor, Globe, Download, Trash2, RefreshCw, Check, HardDrive, FolderOpen, Github, Database, Cpu, Info, Palette, Loader2, Sparkles, Cloud, MessageSquare } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -16,6 +16,7 @@ import { openUrl } from "@tauri-apps/plugin-opener"
 import { toast } from "sonner"
 import { ThemeCustomizer } from "@/components/theme/ThemeCustomizer"
 import { CloudStorageConfig } from "@/components/CloudStorageConfig"
+import { DiscordConfig } from "@/components/DiscordConfig"
 import { useUpdateChecker } from "@/hooks/useUpdateChecker"
 import { useOnboardingStore } from "@/stores/onboardingStore"
 
@@ -311,7 +312,7 @@ export function Settings() {
 
       {/* Tabs */}
       <Tabs defaultValue="appearance" className="flex-1">
-        <TabsList className="grid w-full grid-cols-5">
+        <TabsList className="grid w-full grid-cols-6">
           <TabsTrigger value="appearance" className="gap-2">
             <Palette className="h-4 w-4" />
             {t("settings.appearance")}
@@ -327,6 +328,10 @@ export function Settings() {
           <TabsTrigger value="cloud" className="gap-2">
             <Cloud className="h-4 w-4" />
             {t("settings.cloudBackup")}
+          </TabsTrigger>
+          <TabsTrigger value="discord" className="gap-2">
+            <MessageSquare className="h-4 w-4" />
+            {t("settings.discord")}
           </TabsTrigger>
           <TabsTrigger value="about" className="gap-2">
             <Info className="h-4 w-4" />
@@ -828,6 +833,11 @@ export function Settings() {
         {/* Cloud Backup Tab */}
         <TabsContent value="cloud" className="mt-6">
           <CloudStorageConfig />
+        </TabsContent>
+
+        {/* Discord Tab */}
+        <TabsContent value="discord" className="mt-6">
+          <DiscordConfig />
         </TabsContent>
 
         {/* About Tab */}

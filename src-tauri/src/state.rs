@@ -297,6 +297,42 @@ impl AppState {
         .execute(db)
         .await?;
 
+        // Migration: Discord configuration
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS discord_config (
+                id TEXT PRIMARY KEY DEFAULT 'global',
+                rpc_enabled INTEGER DEFAULT 1,
+                rpc_show_instance_name INTEGER DEFAULT 1,
+                rpc_show_version INTEGER DEFAULT 1,
+                rpc_show_playtime INTEGER DEFAULT 1,
+                rpc_show_modloader INTEGER DEFAULT 1,
+                webhook_enabled INTEGER DEFAULT 0,
+                webhook_url TEXT,
+                webhook_server_start INTEGER DEFAULT 1,
+                webhook_server_stop INTEGER DEFAULT 1,
+                webhook_backup_created INTEGER DEFAULT 0,
+                webhook_player_join INTEGER DEFAULT 1,
+                webhook_player_leave INTEGER DEFAULT 1,
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE TABLE IF NOT EXISTS instance_webhook_config (
+                instance_id TEXT PRIMARY KEY,
+                webhook_url TEXT,
+                enabled INTEGER DEFAULT 1,
+                server_start INTEGER DEFAULT 1,
+                server_stop INTEGER DEFAULT 1,
+                player_join INTEGER DEFAULT 1,
+                player_leave INTEGER DEFAULT 1,
+                FOREIGN KEY (instance_id) REFERENCES instances(id) ON DELETE CASCADE
+            );
+        "#,
+        )
+        .execute(db)
+        .await?;
+
         Ok(())
     }
 }

@@ -41,6 +41,9 @@ pub enum AppError {
     #[error("Cloud storage error: {0}")]
     CloudStorage(String),
 
+    #[error("Discord error: {0}")]
+    Discord(String),
+
     #[error("{0}")]
     Custom(String),
 }

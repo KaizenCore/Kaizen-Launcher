@@ -1,5 +1,6 @@
 use crate::db::accounts::Account;
 use crate::db::instances::Instance;
+use crate::discord::hooks as discord_hooks;
 use crate::error::{AppError, AppResult};
 use crate::launcher::java;
 use crate::minecraft::installer::get_instance_classpath;
@@ -235,6 +236,23 @@ pub async fn launch_minecraft(
         },
     );
 
+    // Set Discord Rich Presence for playing
+    {
+        let db_clone = db.clone();
+        let instance_name = instance.name.clone();
+        let mc_version = instance.mc_version.clone();
+        let loader = instance.loader_version.clone();
+        tokio::spawn(async move {
+            discord_hooks::set_playing_activity(
+                &db_clone,
+                &instance_name,
+                &mc_version,
+                loader.as_deref(),
+            )
+            .await;
+        });
+    }
+
     println!("[RUNNER] Instance {} started with PID {}", instance_id, pid);
 
     // Record start time for playtime tracking
@@ -294,6 +312,9 @@ pub async fn launch_minecraft(
             let mut running = running_instances_clone.write().await;
             running.remove(&instance_id);
         }
+
+        // Clear Discord Rich Presence
+        discord_hooks::clear_activity(&db).await;
 
         // Emit stopped event
         let _ = app_handle.emit(
@@ -805,6 +826,23 @@ pub async fn launch_server(
         },
     );
 
+    // Send Discord webhook for server start
+    {
+        let db_clone = db.clone();
+        let instance_name = instance.name.clone();
+        let mc_version = instance.mc_version.clone();
+        let loader = instance.loader_version.clone();
+        tokio::spawn(async move {
+            discord_hooks::on_server_started(
+                &db_clone,
+                &instance_name,
+                &mc_version,
+                loader.as_deref(),
+            )
+            .await;
+        });
+    }
+
     // Check for auto-start tunnel
     let tunnel_config = get_tunnel_config_if_autostart(&db, &instance.id).await;
     if let Some(config) = tunnel_config {
@@ -842,6 +880,8 @@ pub async fn launch_server(
 
     // Spawn task to stream stdout
     let instance_id_stdout = instance.id.clone();
+    let instance_name_stdout = instance.name.clone();
+    let db_stdout = db.clone();
     let app_stdout = app.clone();
     if let Some(stdout) = stdout {
         tokio::spawn(async move {
@@ -849,6 +889,24 @@ pub async fn launch_server(
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
+                // Debug: print all lines containing "joined" or "left"
+                if line.contains("joined") || line.contains("left") {
+                    eprintln!("[DISCORD DEBUG] Log line: {}", line);
+                }
+                // Check for player join/leave events
+                if let Some((event_type, player_name)) = discord_hooks::parse_player_event(&line) {
+                    let db_clone = db_stdout.clone();
+                    let instance_name = instance_name_stdout.clone();
+                    let player = player_name.clone();
+                    tokio::spawn(async move {
+                        if event_type == "join" {
+                            discord_hooks::on_player_joined(&db_clone, &instance_name, &player).await;
+                        } else {
+                            discord_hooks::on_player_left(&db_clone, &instance_name, &player).await;
+                        }
+                    });
+                }
+
                 let _ = app_stdout.emit(
                     "server-log",
                     ServerLogEvent {
@@ -887,6 +945,8 @@ pub async fn launch_server(
 
     // Spawn task to wait for server exit
     let instance_id = instance.id.clone();
+    let instance_name_exit = instance.name.clone();
+    let db_exit = db.clone();
     let app_handle = app.clone();
     let running_clone = running_instances.clone();
     let stdin_handles_clone = stdin_handles.clone();
@@ -897,6 +957,10 @@ pub async fn launch_server(
 
         // Calculate and save playtime
         let elapsed_seconds = start_time.elapsed().as_secs() as i64;
+
+        // Send Discord webhook for server stop
+        discord_hooks::on_server_stopped(&db_exit, &instance_name_exit, elapsed_seconds).await;
+
         if let Err(e) = Instance::add_playtime(&db, &instance_id, elapsed_seconds).await {
             eprintln!("[RUNNER] Failed to update server playtime: {}", e);
         } else {

@@ -10,7 +10,9 @@ import {
   Gamepad2,
   Settings,
   Archive,
-  Zap
+  Zap,
+  MessageSquare,
+  Bell
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -27,6 +29,34 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.3.6",
+    date: "2024-12-11",
+    highlights: [
+      "Discord Rich Presence",
+      "Discord Webhooks for server events",
+    ],
+    features: [
+      {
+        icon: <MessageSquare className="h-5 w-5" />,
+        title: "Discord Rich Presence",
+        description: "Show your activity on Discord: Idle when browsing, Playing when in-game with instance name, version, and modloader. Persistent connection keeps status visible.",
+        tag: "new",
+      },
+      {
+        icon: <Bell className="h-5 w-5" />,
+        title: "Discord Webhooks",
+        description: "Get notified on Discord when your server starts/stops or players join/leave. Configure webhook URL in Settings > Discord.",
+        tag: "new",
+      },
+      {
+        icon: <Settings className="h-5 w-5" />,
+        title: "Discord Settings Tab",
+        description: "New Discord tab in Settings to enable/disable Rich Presence features and configure webhook notifications with test buttons.",
+        tag: "new",
+      },
+    ],
+  },
   {
     version: "0.3.5",
     date: "2024-12-11",

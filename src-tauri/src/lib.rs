@@ -2,6 +2,7 @@ mod auth;
 pub mod cache;
 mod cloud_storage;
 pub mod crypto;
+mod discord;
 mod db;
 mod devtools;
 mod download;
@@ -93,9 +94,15 @@ pub fn run() {
             info!("Data directory: {:?}", state.data_dir);
 
             let shared_state: SharedState = Arc::new(RwLock::new(state));
-            app.handle().manage(shared_state);
+            app.handle().manage(shared_state.clone());
 
             info!("Application initialized successfully");
+
+            // Initialize Discord Rich Presence (Idle state)
+            tauri::async_runtime::spawn(async move {
+                let state = shared_state.read().await;
+                discord::hooks::set_idle_activity(&state.db).await;
+            });
 
             Ok(())
         })
@@ -233,6 +240,14 @@ pub fn run() {
             cloud_storage::commands::list_remote_backups,
             cloud_storage::commands::delete_backup_sync_record,
             cloud_storage::commands::mark_backup_for_upload,
+            // Discord commands
+            discord::commands::get_discord_config,
+            discord::commands::save_discord_config,
+            discord::commands::test_discord_rpc,
+            discord::commands::test_discord_webhook,
+            discord::commands::get_instance_webhook_config,
+            discord::commands::save_instance_webhook_config,
+            discord::commands::delete_instance_webhook_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
