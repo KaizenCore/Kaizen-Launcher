@@ -130,6 +130,13 @@ Download the latest release for your platform:
 
 ---
 
+## Documentation
+
+- **[User Guide](docs/USER_GUIDE.md)** - Complete guide for using the launcher
+- **[Features Overview](docs/FEATURES.md)** - Detailed feature documentation
+
+---
+
 ## Development
 
 ### Prerequisites
