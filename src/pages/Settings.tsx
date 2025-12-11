@@ -78,8 +78,8 @@ export function Settings() {
   const { theme, setTheme } = useTheme()
   const { t, locale, setLocale, availableLocales } = useTranslation()
 
-  // Update checker
-  const { checking, checkForUpdates, updateInfo, updateAvailable, downloadAndInstall, installing, downloadProgress } = useUpdateChecker(false)
+  // Update checker - manualCheckForUpdates shows ALL updates (including dev/patch versions)
+  const { checking, manualCheckForUpdates, updateInfo, updateAvailable, downloadAndInstall, installing, downloadProgress } = useUpdateChecker(false)
 
   // Onboarding
   const { setCompleted: setOnboardingCompleted } = useOnboardingStore()
@@ -869,7 +869,7 @@ export function Settings() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => checkForUpdates()}
+                  onClick={() => manualCheckForUpdates()}
                   disabled={checking || installing}
                 >
                   {checking ? (

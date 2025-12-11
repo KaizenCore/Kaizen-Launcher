@@ -50,6 +50,7 @@ export interface UseUpdateCheckerReturn {
   installing: boolean;
   error: string | null;
   checkForUpdates: () => Promise<void>;
+  manualCheckForUpdates: () => Promise<void>; // Shows ALL updates (including dev builds)
   downloadAndInstall: () => Promise<void>;
   dismissUpdate: () => void;
 }
@@ -90,11 +91,51 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
           isMajorUpdate: isMajor,
         });
 
-        // Show update prompt for ALL version changes
-        // Dev users need to be able to install any newer version
-        setUpdateAvailable(true);
+        // Auto-prompt only for major/minor version changes (0.4.x → 0.5.x)
+        // Dev builds (patch versions) can be installed manually via Settings
+        setUpdateAvailable(isMajor);
 
         console.log(`[Update] Current: ${currentVersion} → New: ${newVersion} | Major: ${isMajor} | Stable: ${isStableVer}`);
+      } else {
+        setUpdateAvailable(false);
+        setUpdateInfo(null);
+      }
+    } catch (err) {
+      console.error("Failed to check for updates:", err);
+      setError(err instanceof Error ? err.message : "Failed to check for updates");
+    } finally {
+      setChecking(false);
+    }
+  }, []);
+
+  // Manual check - shows ALL updates including dev builds (patch versions)
+  const manualCheckForUpdates = useCallback(async () => {
+    setChecking(true);
+    setError(null);
+    setDismissed(false);
+
+    try {
+      const result = await check();
+
+      if (result) {
+        const currentVersion = await getVersion();
+        const newVersion = result.version;
+        const isMajor = isMajorUpdate(currentVersion, newVersion);
+        const isStableVer = isStable(newVersion);
+
+        setUpdate(result);
+        setUpdateInfo({
+          version: newVersion,
+          date: result.date,
+          body: result.body,
+          isStableVersion: isStableVer,
+          isMajorUpdate: isMajor,
+        });
+
+        // Manual check shows ALL available updates (even patch/dev builds)
+        setUpdateAvailable(true);
+
+        console.log(`[Update Manual] Current: ${currentVersion} → New: ${newVersion} | Showing: true`);
       } else {
         setUpdateAvailable(false);
         setUpdateInfo(null);
@@ -178,6 +219,7 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
     installing,
     error,
     checkForUpdates,
+    manualCheckForUpdates,
     downloadAndInstall,
     dismissUpdate,
   };
