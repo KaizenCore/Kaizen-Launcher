@@ -90,9 +90,9 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
           isMajorUpdate: isMajor,
         });
 
-        // Only show update prompt for major version changes
-        // Minor/patch updates are available but won't show the prompt automatically
-        setUpdateAvailable(isMajor);
+        // Show update prompt for ALL version changes
+        // Dev users need to be able to install any newer version
+        setUpdateAvailable(true);
 
         console.log(`[Update] Current: ${currentVersion} → New: ${newVersion} | Major: ${isMajor} | Stable: ${isStableVer}`);
       } else {
