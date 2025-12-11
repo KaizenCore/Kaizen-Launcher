@@ -6,6 +6,7 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter};
 use tokio::fs;
+use tracing::{debug, info};
 use zip::ZipArchive;
 
 const RESOURCES_URL: &str = "https://resources.download.minecraft.net";
@@ -74,8 +75,8 @@ pub async fn install_instance(
     version: &VersionDetails,
     app: &AppHandle,
 ) -> AppResult<()> {
-    println!(
-        "[INSTALLER] Starting installation for version: {} in {:?}",
+    info!(
+        "Starting installation for version: {} in {:?}",
         version.id, instance_dir
     );
 
@@ -96,10 +97,10 @@ pub async fn install_instance(
         100,
         "Telechargement du client Minecraft...",
     );
-    println!("[INSTALLER] Step 1/3: Downloading client JAR...");
+    info!("Step 1/3: Downloading client JAR...");
     download_client_to_instance(client, &client_dir, version).await?;
     emit_progress(app, "installing", 5, 100, "Client telecharge!");
-    println!("[INSTALLER] Step 1/3: Client JAR downloaded!");
+    info!("Step 1/3: Client JAR downloaded!");
 
     // 2. Download libraries (5% - 30% of total)
     emit_progress(
@@ -109,10 +110,10 @@ pub async fn install_instance(
         100,
         "Telechargement des bibliotheques...",
     );
-    println!("[INSTALLER] Step 2/4: Downloading libraries...");
+    info!("Step 2/4: Downloading libraries...");
     download_libraries_to_instance_with_progress(client, &libraries_dir, version, app).await?;
     emit_progress(app, "installing", 30, 100, "Bibliotheques telechargees!");
-    println!("[INSTALLER] Step 2/4: Libraries downloaded!");
+    info!("Step 2/4: Libraries downloaded!");
 
     // 3. Extract natives (30% - 35% of total)
     let natives_dir = instance_dir.join("natives");
@@ -123,17 +124,17 @@ pub async fn install_instance(
         100,
         "Extraction des natives...",
     );
-    println!("[INSTALLER] Step 3/4: Extracting natives...");
+    info!("Step 3/4: Extracting natives...");
     extract_natives(&libraries_dir, &natives_dir, version).await?;
     emit_progress(app, "installing", 35, 100, "Natives extraites!");
-    println!("[INSTALLER] Step 3/4: Natives extracted!");
+    info!("Step 3/4: Natives extracted!");
 
     // 4. Download assets (35% - 100% of total)
     emit_progress(app, "installing", 35, 100, "Telechargement des assets...");
-    println!("[INSTALLER] Step 3/3: Downloading assets...");
+    info!("Step 3/3: Downloading assets...");
     download_assets_to_instance_with_progress(client, &assets_dir, version, app).await?;
     emit_progress(app, "installing", 100, 100, "Installation terminee!");
-    println!("[INSTALLER] Step 3/3: Assets downloaded!");
+    info!("Step 3/3: Assets downloaded!");
 
     // Mark as installed
     let installed_marker = instance_dir.join(".installed");
@@ -141,8 +142,8 @@ pub async fn install_instance(
         .await
         .map_err(|e| AppError::Io(format!("Failed to write installed marker: {}", e)))?;
 
-    println!(
-        "[INSTALLER] Installation complete for version: {}",
+    info!(
+        "Installation complete for version: {}",
         version.id
     );
     Ok(())
@@ -153,7 +154,7 @@ pub async fn is_instance_installed(instance_dir: &Path) -> bool {
     let installed_marker = instance_dir.join(".installed");
 
     if !installed_marker.exists() {
-        println!("[IS_INSTALLED] {:?}: marker not found", instance_dir);
+        debug!("{:?}: marker not found", instance_dir);
         return false;
     }
 
@@ -182,8 +183,8 @@ pub async fn is_instance_installed(instance_dir: &Path) -> bool {
         instance_dir.join("client").join("client.jar").exists()
     };
 
-    println!(
-        "[IS_INSTALLED] {:?}: type={}, installed={}",
+    debug!(
+        "{:?}: type={}, installed={}",
         instance_dir,
         if is_server { "server" } else { "client" },
         is_installed
@@ -223,8 +224,8 @@ async fn download_libraries_to_instance_with_progress(
 ) -> AppResult<()> {
     let mut downloads = Vec::new();
 
-    println!(
-        "[INSTALLER] Processing {} libraries...",
+    debug!(
+        "Processing {} libraries...",
         version.libraries.len()
     );
 
@@ -268,7 +269,7 @@ async fn download_libraries_to_instance_with_progress(
 
     // Download libraries in parallel with progress
     let total_libs = downloads.len();
-    println!("[INSTALLER] Downloading {} library files...", total_libs);
+    info!("Downloading {} library files...", total_libs);
 
     let app_clone = app.clone();
     download_files_parallel_with_progress(client, downloads, 10, move |current, total| {
@@ -323,8 +324,8 @@ async fn download_assets_to_instance_with_progress(
 
     // Prepare downloads
     let mut downloads = Vec::new();
-    println!(
-        "[INSTALLER] Processing {} assets...",
+    debug!(
+        "Processing {} assets...",
         asset_index.objects.len()
     );
 
@@ -338,7 +339,7 @@ async fn download_assets_to_instance_with_progress(
 
     // Download assets in parallel with progress
     let total_assets = downloads.len();
-    println!("[INSTALLER] Downloading {} asset files...", total_assets);
+    info!("Downloading {} asset files...", total_assets);
 
     let app_clone = app.clone();
     download_files_parallel_with_progress(client, downloads, 20, move |current, total| {
@@ -427,7 +428,7 @@ async fn extract_natives(
         None => return Ok(()), // No natives for this OS
     };
 
-    println!("[INSTALLER] Extracting natives with key: {}", native_key);
+    debug!("Extracting natives with key: {}", native_key);
 
     for lib in &version.libraries {
         // Check if library should be included
@@ -444,12 +445,12 @@ async fn extract_natives(
                             let native_jar = libraries_dir.join(path);
                             if native_jar.exists() {
                                 if let Err(e) = extract_native_jar(&native_jar, natives_dir).await {
-                                    println!(
-                                        "[INSTALLER] Warning: Failed to extract natives from {}: {}",
+                                    debug!(
+                                        "Warning: Failed to extract natives from {}: {}",
                                         path, e
                                     );
                                 } else {
-                                    println!("[INSTALLER] Extracted natives from: {}", path);
+                                    debug!("Extracted natives from: {}", path);
                                 }
                             }
                         }
@@ -464,12 +465,12 @@ async fn extract_natives(
             let native_jar = libraries_dir.join(&path);
             if native_jar.exists() {
                 if let Err(e) = extract_native_jar(&native_jar, natives_dir).await {
-                    println!(
-                        "[INSTALLER] Warning: Failed to extract natives from {}: {}",
+                    debug!(
+                        "Warning: Failed to extract natives from {}: {}",
                         path, e
                     );
                 } else {
-                    println!("[INSTALLER] Extracted natives from: {}", path);
+                    debug!("Extracted natives from: {}", path);
                 }
             }
         }
@@ -604,8 +605,8 @@ pub fn get_instance_classpath(
     let mut skipped = 0;
     let mut deduplicated = 0;
 
-    println!(
-        "[CLASSPATH] Building classpath from {} libraries",
+    debug!(
+        "Building classpath from {} libraries",
         version.libraries.len()
     );
 
@@ -619,8 +620,8 @@ pub fn get_instance_classpath(
         // Loader libraries are inserted first, so they take precedence
         let artifact_key = get_artifact_key(&lib.name);
         if seen_artifacts.contains(&artifact_key) {
-            println!(
-                "[CLASSPATH] Skipping duplicate artifact: {} (keeping earlier version)",
+            debug!(
+                "Skipping duplicate artifact: {} (keeping earlier version)",
                 lib.name
             );
             deduplicated += 1;
@@ -635,8 +636,8 @@ pub fn get_instance_classpath(
                     classpath.push(path);
                     found += 1;
                 } else {
-                    println!(
-                        "[CLASSPATH] MISSING (downloads): {} -> {:?}",
+                    debug!(
+                        "MISSING (downloads): {} -> {:?}",
                         lib.name, path
                     );
                     missing += 1;
@@ -649,7 +650,7 @@ pub fn get_instance_classpath(
                 classpath.push(path);
                 found += 1;
             } else {
-                println!("[CLASSPATH] MISSING (name): {} -> {:?}", lib.name, path);
+                debug!("MISSING (name): {} -> {:?}", lib.name, path);
                 missing += 1;
             }
         }
@@ -659,17 +660,17 @@ pub fn get_instance_classpath(
     if !is_neoforge_or_forge {
         let client_jar = instance_dir.join("client").join("client.jar");
         if client_jar.exists() {
-            println!("[CLASSPATH] Client JAR: {:?}", client_jar);
+            debug!("Client JAR: {:?}", client_jar);
         } else {
-            println!("[CLASSPATH] MISSING CLIENT JAR: {:?}", client_jar);
+            debug!("MISSING CLIENT JAR: {:?}", client_jar);
         }
         classpath.push(client_jar);
     } else {
-        println!("[CLASSPATH] Skipping vanilla client.jar (NeoForge/Forge uses patched client)");
+        debug!("Skipping vanilla client.jar (NeoForge/Forge uses patched client)");
     }
 
-    println!(
-        "[CLASSPATH] Summary: {} found, {} missing, {} skipped (rules), {} deduplicated",
+    debug!(
+        "Summary: {} found, {} missing, {} skipped (rules), {} deduplicated",
         found, missing, skipped, deduplicated
     );
 

@@ -13,6 +13,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::RwLock;
+use tracing::{debug, info};
 
 // Windows-specific: CREATE_NO_WINDOW flag to hide console window
 #[cfg(target_os = "windows")]
@@ -43,7 +44,7 @@ pub async fn start_playit_tunnel(
         return Err(AppError::Custom("playit agent not installed".to_string()));
     }
 
-    println!(
+    info!(
         "[PLAYIT] Starting tunnel for port {}...",
         config.target_port
     );
@@ -74,7 +75,7 @@ pub async fn start_playit_tunnel(
         .map_err(|e| AppError::Io(format!("Failed to start playit: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
-    println!("[PLAYIT] Started with PID: {}", pid);
+    info!("[PLAYIT] Started with PID: {}", pid);
 
     let initial_status = if config.playit_secret_key.is_some() {
         TunnelStatus::Connecting
@@ -114,12 +115,12 @@ pub async fn start_playit_tunnel(
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                println!("[PLAYIT] {}", line);
+                debug!("[PLAYIT] {}", line);
 
                 // Check for claim URL (first time setup)
                 if let Some(captures) = CLAIM_REGEX.find(&line) {
                     let claim_url = captures.as_str().to_string();
-                    println!("[PLAYIT] Found claim URL: {}", claim_url);
+                    info!("[PLAYIT] Found claim URL: {}", claim_url);
 
                     // Update status to waiting for claim
                     {
@@ -143,7 +144,7 @@ pub async fn start_playit_tunnel(
                 if let Some(captures) = TUNNEL_REGEX.captures(&line) {
                     let url = captures.get(0).map(|m| m.as_str().to_string());
                     if let Some(url) = url {
-                        println!("[PLAYIT] Found tunnel URL: {}", url);
+                        info!("[PLAYIT] Found tunnel URL: {}", url);
 
                         {
                             let mut status = status_clone.write().await;
@@ -190,7 +191,7 @@ pub async fn start_playit_tunnel(
                 if line.contains("tunnel address") || line.contains("connect to") {
                     if let Some(captures) = IP_PORT_REGEX.find(&line) {
                         let addr = captures.as_str().to_string();
-                        println!("[PLAYIT] Found address: {}", addr);
+                        info!("[PLAYIT] Found address: {}", addr);
 
                         {
                             let mut status = status_clone.write().await;
@@ -249,7 +250,7 @@ pub async fn start_playit_tunnel(
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                println!("[PLAYIT STDERR] {}", line);
+                debug!("[PLAYIT STDERR] {}", line);
 
                 if line.contains("error") || line.contains("failed") {
                     let mut status = status_err.write().await;
@@ -296,7 +297,7 @@ pub async fn start_playit_tunnel(
             },
         );
 
-        println!("[PLAYIT] Tunnel process exited");
+        info!("[PLAYIT] Tunnel process exited");
     });
 
     Ok(running_tunnel)

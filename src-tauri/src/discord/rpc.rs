@@ -4,6 +4,7 @@ use std::sync::Mutex;
 use once_cell::sync::Lazy;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+use tracing::debug;
 
 use crate::error::{AppError, AppResult};
 
@@ -76,7 +77,7 @@ pub fn connect() -> AppResult<()> {
             AppError::Discord("Discord IPC socket not found. Is Discord running?".to_string())
         })?;
 
-        eprintln!("[DISCORD RPC] Connecting to socket: {}", socket_path);
+        debug!("Connecting to socket: {}", socket_path);
 
         let mut stream = UnixStream::connect(&socket_path)
             .map_err(|e| AppError::Discord(format!("Failed to connect to Discord: {}", e)))?;
@@ -108,11 +109,11 @@ pub fn connect() -> AppResult<()> {
         stream.read_exact(&mut response_data)?;
 
         if let Ok(response_str) = String::from_utf8(response_data) {
-            eprintln!("[DISCORD RPC] Handshake response: {}", response_str);
+            debug!("Handshake response: {}", response_str);
         }
 
         *conn_guard = Some(DiscordConnection { stream });
-        eprintln!("[DISCORD RPC] Connected and handshake complete!");
+        debug!("Connected and handshake complete!");
     }
 
     #[cfg(windows)]
@@ -136,10 +137,11 @@ pub fn is_connected() -> bool {
 }
 
 /// Disconnect from Discord (clears activity)
+#[allow(dead_code)]
 pub fn disconnect() {
     if let Ok(mut guard) = DISCORD_CONNECTION.lock() {
         *guard = None;
-        eprintln!("[DISCORD RPC] Disconnected");
+        debug!("Disconnected");
     }
 }
 
@@ -234,6 +236,7 @@ pub fn set_activity(activity: &DiscordActivity) -> AppResult<()> {
 }
 
 /// Clear Discord Rich Presence (set to null activity)
+#[allow(dead_code)]
 pub fn clear_activity() -> AppResult<()> {
     let mut conn_guard = DISCORD_CONNECTION
         .lock()
@@ -289,7 +292,7 @@ fn send_activity_internal(
     conn.stream.read_exact(&mut response_data)?;
 
     if let Ok(response_str) = String::from_utf8(response_data) {
-        eprintln!("[DISCORD RPC] Response (opcode {}): {}", opcode, response_str);
+        debug!("Response (opcode {}): {}", opcode, response_str);
     }
 
     Ok(())

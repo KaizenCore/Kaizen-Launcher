@@ -257,6 +257,7 @@ export function CloudStorageConfig() {
     saveTimeoutRef.current = setTimeout(() => {
       saveConfig(false)
     }, 500)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     provider,
     enabled,

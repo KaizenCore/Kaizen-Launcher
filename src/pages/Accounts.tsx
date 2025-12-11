@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { Plus, User, Check, Trash2 } from "lucide-react"
 import { toast } from "sonner"
@@ -31,7 +31,7 @@ export function Accounts() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null)
 
-  const loadAccounts = async () => {
+  const loadAccounts = useCallback(async () => {
     try {
       const result = await invoke<Account[]>("get_accounts")
       setAccounts(result)
@@ -41,11 +41,11 @@ export function Accounts() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [t])
 
   useEffect(() => {
     loadAccounts()
-  }, [])
+  }, [loadAccounts])
 
   const handleSetActive = async (accountId: string) => {
     try {

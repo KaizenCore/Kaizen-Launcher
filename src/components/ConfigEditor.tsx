@@ -908,7 +908,7 @@ function VisualConfigEditor({ content, fileType, onChange }: VisualConfigEditorP
     } else {
       setParseError(t("configEditor.unableToParseVisual"))
     }
-  }, [content, fileType])
+  }, [content, fileType, t])
 
   const handleConfigChange = useCallback(
     (newConfig: ConfigValue) => {

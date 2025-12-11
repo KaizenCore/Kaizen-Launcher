@@ -475,7 +475,7 @@ export function Instances() {
   const [launchStep, setLaunchStep] = useState<string | null>(null)
 
   // Use global installation store
-  const { installations, startInstallation, isInstalling, getInstallation } = useInstallationStore()
+  const { startInstallation, isInstalling, getInstallation } = useInstallationStore()
   const [error, setError] = useState<string | null>(null)
   const [javaInfo, setJavaInfo] = useState<JavaInfo | null>(null)
   const [javaChecked, setJavaChecked] = useState(false)
@@ -576,7 +576,7 @@ export function Instances() {
   const serverCount = instances.filter(i => i.is_server && !i.is_proxy).length
   const proxyCount = instances.filter(i => i.is_proxy).length
 
-  const toggleFavorite = (instanceId: string) => {
+  const toggleFavorite = useCallback((instanceId: string) => {
     setFavorites(prev => {
       const newFavorites = new Set(prev)
       if (newFavorites.has(instanceId)) {
@@ -586,7 +586,7 @@ export function Instances() {
       }
       return newFavorites
     })
-  }
+  }, [])
 
   const checkJava = async () => {
     try {
@@ -615,7 +615,7 @@ export function Instances() {
     }
   }
 
-  const loadInstances = async () => {
+  const loadInstances = useCallback(async () => {
     try {
       const result = await invoke<Instance[]>("get_instances")
       setInstances(result)
@@ -673,7 +673,7 @@ export function Instances() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [t])
 
   useEffect(() => {
     loadInstances()
@@ -715,7 +715,7 @@ export function Instances() {
       unlistenStatus.then(fn => fn()).catch(() => {})
       unlistenInstall.then(fn => fn()).catch(() => {})
     }
-  }, [])
+  }, [loadInstances])
 
   // Check running instances when instances list changes
   useEffect(() => {
@@ -725,7 +725,7 @@ export function Instances() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instances])
 
-  const handleInstall = async (instance: Instance) => {
+  const handleInstall = useCallback(async (instance: Instance) => {
     setError(null)
     // Start installation in global store (shows notification)
     startInstallation(instance.id, instance.name)
@@ -738,9 +738,9 @@ export function Instances() {
       toast.error(t("instances.unableToInstall"))
       setError(String(err))
     }
-  }
+  }, [startInstallation, t])
 
-  const handleLaunch = async (instance: Instance) => {
+  const handleLaunch = useCallback(async (instance: Instance) => {
     setError(null)
     setLaunchingInstance(instance.id)
     try {
@@ -765,12 +765,12 @@ export function Instances() {
     } finally {
       setLaunchingInstance(null)
     }
-  }
+  }, [t])
 
-  const openDeleteDialog = (instance: Instance) => {
+  const openDeleteDialog = useCallback((instance: Instance) => {
     setInstanceToDelete(instance)
     setDeleteDialogOpen(true)
-  }
+  }, [])
 
   const handleConfirmDelete = async () => {
     if (!instanceToDelete) return
@@ -794,7 +794,7 @@ export function Instances() {
     }
   }
 
-  const handleStop = async (instanceId: string) => {
+  const handleStop = useCallback(async (instanceId: string) => {
     setStoppingInstance(instanceId)
     try {
       await invoke("stop_instance", { instanceId })
@@ -811,7 +811,7 @@ export function Instances() {
     } finally {
       setStoppingInstance(null)
     }
-  }
+  }, [t])
 
   const checkRunningInstances = async () => {
     const running = new Set<string>()
@@ -873,7 +873,7 @@ export function Instances() {
         t={t}
       />
     )
-  }, [viewMode, installedVersions, installations, isInstalling, getInstallation, launchingInstance, launchStep, runningInstances, stoppingInstance, getIconUrl, favorites, handleNavigate, toggleFavorite, handleLaunch, handleInstall, handleStop, openDeleteDialog, formatPlaytime, t])
+  }, [viewMode, installedVersions, isInstalling, getInstallation, launchingInstance, launchStep, runningInstances, stoppingInstance, getIconUrl, favorites, handleNavigate, toggleFavorite, handleLaunch, handleInstall, handleStop, openDeleteDialog, formatPlaytime, t])
 
   const sortLabels: Record<SortBy, string> = {
     name: t("common.name"),

@@ -3,6 +3,7 @@ use crate::minecraft::versions::{self, filter_versions, VersionDetails, VersionI
 use crate::state::SharedState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use tracing::warn;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MinecraftVersionList {
@@ -24,14 +25,14 @@ pub async fn get_minecraft_versions(
         Ok(manifest) => {
             // Cache it for offline use
             if let Err(e) = versions::cache_version_manifest(&state.data_dir, &manifest).await {
-                eprintln!("Warning: Failed to cache version manifest: {}", e);
+                warn!("Failed to cache version manifest: {}", e);
             }
             manifest
         }
         Err(e) => {
             // Try to use cached version
-            eprintln!(
-                "Warning: Failed to fetch version manifest: {}. Trying cache...",
+            warn!(
+                "Failed to fetch version manifest: {}. Trying cache...",
                 e
             );
             versions::load_cached_manifest(&state.data_dir)

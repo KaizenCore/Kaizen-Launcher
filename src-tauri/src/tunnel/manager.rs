@@ -5,6 +5,7 @@ use crate::tunnel::{
 };
 use std::path::Path;
 use tauri::{AppHandle, Emitter};
+use tracing::info;
 
 /// Start a tunnel for an instance
 pub async fn start_tunnel(
@@ -52,7 +53,7 @@ pub async fn stop_tunnel(
     };
 
     if let Some(tunnel) = tunnel {
-        println!(
+        info!(
             "[TUNNEL] Stopping {} tunnel for instance {}",
             tunnel.provider, instance_id
         );

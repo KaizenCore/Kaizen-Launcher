@@ -13,6 +13,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::RwLock;
+use tracing::{debug, info};
 
 // Windows-specific: CREATE_NO_WINDOW flag to hide console window
 #[cfg(target_os = "windows")]
@@ -38,10 +39,7 @@ pub async fn start_bore_tunnel(
         return Err(AppError::Custom("bore agent not installed".to_string()));
     }
 
-    println!(
-        "[BORE] Starting TCP tunnel for port {}...",
-        config.target_port
-    );
+    info!("[BORE] Starting TCP tunnel for port {}...", config.target_port);
 
     // Start bore tunnel
     // bore local <PORT> --to bore.pub
@@ -61,7 +59,7 @@ pub async fn start_bore_tunnel(
         .map_err(|e| AppError::Io(format!("Failed to start bore: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
-    println!("[BORE] Started with PID: {}", pid);
+    info!("[BORE] Started with PID: {}", pid);
 
     let status = Arc::new(RwLock::new(TunnelStatus::Connecting));
 
@@ -93,7 +91,7 @@ pub async fn start_bore_tunnel(
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                println!("[BORE] {}", line);
+                debug!("[BORE] {}", line);
 
                 // Check for URL in the line
                 let found_url = if let Some(captures) = URL_REGEX.captures(&line) {
@@ -103,7 +101,7 @@ pub async fn start_bore_tunnel(
                 };
 
                 if let Some(minecraft_addr) = found_url {
-                    println!("[BORE] Found tunnel URL: {}", minecraft_addr);
+                    info!("[BORE] Found tunnel URL: {}", minecraft_addr);
 
                     // Update status
                     {
@@ -137,19 +135,17 @@ pub async fn start_bore_tunnel(
                     // Save URL to database for persistence
                     let state: tauri::State<SharedState> = app_handle.state();
                     let db = {
-                        let s = state.blocking_read();
+                        let s = state.read().await;
                         s.db.clone()
                     };
                     let instance_id_for_save = instance_id.clone();
                     let url_for_save = minecraft_addr;
-                    tokio::spawn(async move {
-                        let _ = sqlx::query("UPDATE tunnel_configs SET tunnel_url = ? WHERE instance_id = ?")
-                            .bind(&url_for_save)
-                            .bind(&instance_id_for_save)
-                            .execute(&db)
-                            .await;
-                        tracing::info!("Saved tunnel URL {} for instance {}", url_for_save, instance_id_for_save);
-                    });
+                    let _ = sqlx::query("UPDATE tunnel_configs SET tunnel_url = ? WHERE instance_id = ?")
+                        .bind(&url_for_save)
+                        .bind(&instance_id_for_save)
+                        .execute(&db)
+                        .await;
+                    tracing::info!("Saved tunnel URL {} for instance {}", url_for_save, instance_id_for_save);
                 }
 
                 // Check for errors
@@ -185,7 +181,7 @@ pub async fn start_bore_tunnel(
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                println!("[BORE STDERR] {}", line);
+                debug!("[BORE STDERR] {}", line);
 
                 // Check for URL in stderr too
                 let found_url = if let Some(captures) = URL_REGEX.captures(&line) {
@@ -268,7 +264,7 @@ pub async fn start_bore_tunnel(
             },
         );
 
-        println!("[BORE] Tunnel process exited");
+        info!("[BORE] Tunnel process exited");
     });
 
     Ok(running_tunnel)

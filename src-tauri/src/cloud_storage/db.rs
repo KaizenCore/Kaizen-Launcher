@@ -129,49 +129,6 @@ pub async fn delete_config(db: &SqlitePool) -> AppResult<()> {
     Ok(())
 }
 
-/// Update OAuth tokens for Google
-pub async fn update_google_tokens(
-    db: &SqlitePool,
-    access_token: &str,
-    refresh_token: &str,
-    expires_at: &str,
-) -> AppResult<()> {
-    sqlx::query(
-        r#"
-        UPDATE cloud_storage_config
-        SET google_access_token = ?1, google_refresh_token = ?2, google_expires_at = ?3, updated_at = datetime('now')
-        WHERE id = 'global'
-        "#,
-    )
-    .bind(access_token)
-    .bind(refresh_token)
-    .bind(expires_at)
-    .execute(db)
-    .await?;
-    Ok(())
-}
-
-/// Update OAuth tokens for Dropbox
-pub async fn update_dropbox_tokens(
-    db: &SqlitePool,
-    access_token: &str,
-    refresh_token: &str,
-    expires_at: &str,
-) -> AppResult<()> {
-    sqlx::query(
-        r#"
-        UPDATE cloud_storage_config
-        SET dropbox_access_token = ?1, dropbox_refresh_token = ?2, dropbox_expires_at = ?3, updated_at = datetime('now')
-        WHERE id = 'global'
-        "#,
-    )
-    .bind(access_token)
-    .bind(refresh_token)
-    .bind(expires_at)
-    .execute(db)
-    .await?;
-    Ok(())
-}
 
 // ============ Cloud Backup Sync Operations ============
 
@@ -307,38 +264,6 @@ pub async fn upsert_backup_sync(db: &SqlitePool, sync: &CloudBackupSync) -> AppR
     Ok(())
 }
 
-/// Update sync status for a backup
-pub async fn update_sync_status(
-    db: &SqlitePool,
-    id: &str,
-    status: CloudSyncStatus,
-    remote_path: Option<&str>,
-    error_message: Option<&str>,
-) -> AppResult<()> {
-    let status_str = status.to_string();
-    let now = if matches!(status, CloudSyncStatus::Synced) {
-        Some(chrono::Utc::now().to_rfc3339())
-    } else {
-        None
-    };
-
-    sqlx::query(
-        r#"
-        UPDATE cloud_backup_sync
-        SET sync_status = ?1, remote_path = COALESCE(?2, remote_path),
-            last_synced_at = COALESCE(?3, last_synced_at), error_message = ?4
-        WHERE id = ?5
-        "#,
-    )
-    .bind(&status_str)
-    .bind(remote_path)
-    .bind(&now)
-    .bind(error_message)
-    .bind(id)
-    .execute(db)
-    .await?;
-    Ok(())
-}
 
 /// Delete a backup sync record
 pub async fn delete_backup_sync(db: &SqlitePool, id: &str) -> AppResult<()> {

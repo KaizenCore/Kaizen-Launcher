@@ -736,12 +736,8 @@ export function InstanceDetails() {
     if (!instanceId) return
     try {
       const config = await invoke<{ tunnel_url: string | null } | null>("get_tunnel_config", { instanceId })
-      console.log("Loaded tunnel config:", config, "tunnel_url:", config?.tunnel_url)
       if (config?.tunnel_url) {
-        console.log("Setting tunnel URL:", config.tunnel_url)
         setTunnelUrl(config.tunnel_url)
-      } else {
-        console.log("No tunnel_url in config")
       }
     } catch (err) {
       console.error("Failed to load tunnel config:", err)
@@ -806,7 +802,6 @@ export function InstanceDetails() {
                 instanceId,
                 url: event.payload.url
               })
-              console.log("Tunnel URL saved from InstanceDetails:", event.payload.url)
             } catch (err) {
               console.error("Failed to save tunnel URL:", err)
             }

@@ -229,7 +229,7 @@ export function Home() {
       unlistenLaunchProgress.then(fn => fn()).catch(() => {})
       unlistenStatus.then(fn => fn()).catch(() => {})
     }
-  }, [selectedInstance])
+  }, [selectedInstance, t])
 
   const getIconUrl = (instance: Instance): string | null => {
     return instanceIcons[instance.id] || null

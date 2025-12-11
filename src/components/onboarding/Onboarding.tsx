@@ -146,6 +146,7 @@ export function Onboarding({ open, onComplete }: OnboardingProps) {
     if (currentStep === 3 && versions.length === 0) {
       fetchVersions()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentStep])
 
   // Fetch loader versions when loader changes
@@ -156,6 +157,7 @@ export function Onboarding({ open, onComplete }: OnboardingProps) {
       setLoaderVersions([])
       setLoaderVersion("")
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loader, mcVersion])
 
   const fetchVersions = async () => {

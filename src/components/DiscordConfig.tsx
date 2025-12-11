@@ -133,7 +133,7 @@ export function DiscordConfig() {
       await invoke<string>("test_discord_rpc")
       setRpcStatus("success")
       toast.success(t("discord.rpcTestSuccess"))
-    } catch (error) {
+    } catch {
       setRpcStatus("error")
       toast.error(t("discord.rpcTestFailed"))
     } finally {
@@ -152,7 +152,7 @@ export function DiscordConfig() {
       await invoke<string>("test_discord_webhook", { webhookUrl: config.webhook_url })
       setWebhookStatus("success")
       toast.success(t("discord.webhookTestSuccess"))
-    } catch (error) {
+    } catch {
       setWebhookStatus("error")
       toast.error(t("discord.webhookTestFailed"))
     } finally {

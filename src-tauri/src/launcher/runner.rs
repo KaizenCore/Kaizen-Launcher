@@ -16,6 +16,7 @@ use std::time::Instant;
 use tauri::{AppHandle, Emitter};
 use tokio::process::Command;
 use tokio::sync::Mutex;
+use tracing::{debug, error, info};
 
 // Windows-specific: CREATE_NO_WINDOW flag to hide console window
 #[cfg(target_os = "windows")]
@@ -61,8 +62,8 @@ pub async fn launch_minecraft(
     let natives_dir = instance_dir.join("natives");
     let assets_dir = instance_dir.join("assets");
 
-    println!("[RUNNER] Launching instance from: {:?}", instance_dir);
-    println!("[RUNNER] Assets dir: {:?}", assets_dir);
+    info!("Launching instance from: {:?}", instance_dir);
+    debug!("Assets dir: {:?}", assets_dir);
 
     // Create natives directory
     tokio::fs::create_dir_all(&natives_dir)
@@ -71,7 +72,7 @@ pub async fn launch_minecraft(
 
     // Get classpath from instance directory
     let classpath = get_instance_classpath(instance_dir, version, instance.loader.as_deref());
-    println!("[RUNNER] Classpath has {} entries", classpath.len());
+    debug!("Classpath has {} entries", classpath.len());
     let classpath_str = classpath
         .iter()
         .map(|p| p.to_string_lossy().to_string())
@@ -99,7 +100,7 @@ pub async fn launch_minecraft(
             )
         })?;
 
-    println!("[RUNNER] Using Java: {}", java);
+    info!("Using Java: {}", java);
 
     // Build JVM arguments
     let libraries_dir = instance_dir.join("libraries");
@@ -163,18 +164,18 @@ pub async fn launch_minecraft(
     }
 
     // Log the full command for debugging
-    println!("[RUNNER] === FULL LAUNCH COMMAND ===");
-    println!("[RUNNER] Java: {}", java);
-    println!("[RUNNER] JVM args ({}):", jvm_args.len());
+    debug!("=== FULL LAUNCH COMMAND ===");
+    debug!("Java: {}", java);
+    debug!("JVM args ({}):", jvm_args.len());
     for (i, arg) in jvm_args.iter().enumerate() {
-        println!("[RUNNER]   JVM[{}]: {}", i, arg);
+        debug!("  JVM[{}]: {}", i, arg);
     }
-    println!("[RUNNER] Main class: {}", version.main_class);
-    println!("[RUNNER] Game args ({}):", game_args.len());
+    debug!("Main class: {}", version.main_class);
+    debug!("Game args ({}):", game_args.len());
     for (i, arg) in game_args.iter().enumerate() {
-        println!("[RUNNER]   Game[{}]: {}", i, arg);
+        debug!("  Game[{}]: {}", i, arg);
     }
-    println!("[RUNNER] === END COMMAND ===");
+    debug!("=== END COMMAND ===");
 
     // Build the command
     let mut cmd = Command::new(&java);
@@ -253,7 +254,7 @@ pub async fn launch_minecraft(
         });
     }
 
-    println!("[RUNNER] Instance {} started with PID {}", instance_id, pid);
+    info!("Instance {} started with PID {}", instance_id, pid);
 
     // Record start time for playtime tracking
     let start_time = Instant::now();
@@ -270,7 +271,7 @@ pub async fn launch_minecraft(
             let mut stdout_reader = BufReader::new(stdout).lines();
             tokio::spawn(async move {
                 while let Ok(Some(line)) = stdout_reader.next_line().await {
-                    println!("[MC STDOUT] {}", line);
+                    debug!("[MC STDOUT] {}", line);
                 }
             });
         }
@@ -279,7 +280,7 @@ pub async fn launch_minecraft(
             let mut stderr_reader = BufReader::new(stderr).lines();
             tokio::spawn(async move {
                 while let Ok(Some(line)) = stderr_reader.next_line().await {
-                    eprintln!("[MC STDERR] {}", line);
+                    error!("[MC STDERR] {}", line);
                 }
             });
         }
@@ -287,11 +288,11 @@ pub async fn launch_minecraft(
         // Wait for the process to complete
         let exit_code = match child.wait().await {
             Ok(status) => {
-                println!("[RUNNER] Minecraft exited with status: {}", status);
+                info!("Minecraft exited with status: {}", status);
                 status.code()
             }
             Err(e) => {
-                eprintln!("[RUNNER] Error waiting for Minecraft: {}", e);
+                error!("Error waiting for Minecraft: {}", e);
                 None
             }
         };
@@ -299,10 +300,10 @@ pub async fn launch_minecraft(
         // Calculate and save playtime
         let elapsed_seconds = start_time.elapsed().as_secs() as i64;
         if let Err(e) = Instance::add_playtime(&db, &instance_id, elapsed_seconds).await {
-            eprintln!("[RUNNER] Failed to update playtime: {}", e);
+            error!("Failed to update playtime: {}", e);
         } else {
-            println!(
-                "[RUNNER] Added {} seconds of playtime to instance {}",
+            info!(
+                "Added {} seconds of playtime to instance {}",
                 elapsed_seconds, instance_id
             );
         }
@@ -326,7 +327,7 @@ pub async fn launch_minecraft(
             },
         );
 
-        println!("[RUNNER] Instance {} stopped", instance_id);
+        info!("Instance {} stopped", instance_id);
     });
 
     Ok(())
@@ -683,7 +684,7 @@ pub async fn launch_server(
     db: SqlitePool,
     running_tunnels: RunningTunnels,
 ) -> AppResult<()> {
-    println!("[RUNNER] Launching server from: {:?}", instance_dir);
+    info!("Launching server from: {:?}", instance_dir);
 
     // Find Java
     let java_path = java::check_java_installed(data_dir)
@@ -691,7 +692,7 @@ pub async fn launch_server(
         .or_else(find_system_java)
         .ok_or_else(|| AppError::Instance("Java not found".to_string()))?;
 
-    println!("[RUNNER] Using Java: {}", java_path);
+    info!("Using Java: {}", java_path);
 
     // Build JVM args
     let min_memory = instance.memory_min_mb;
@@ -755,8 +756,8 @@ pub async fn launch_server(
                 args.push("--nogui".to_string());
             }
 
-            println!(
-                "[RUNNER] Modern Forge/NeoForge server detected, args: {:?}",
+            debug!(
+                "Modern Forge/NeoForge server detected, args: {:?}",
                 args
             );
         } else {
@@ -787,7 +788,7 @@ pub async fn launch_server(
         }
     }
 
-    println!("[RUNNER] Server args: {:?}", args);
+    debug!("Server args: {:?}", args);
 
     // Spawn the server process
     let mut cmd = Command::new(&java_path);
@@ -808,7 +809,7 @@ pub async fn launch_server(
         .map_err(|e| AppError::Io(format!("Failed to start server: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
-    println!("[RUNNER] Server started with PID: {}", pid);
+    info!("Server started with PID: {}", pid);
 
     // Track running instance
     {
@@ -853,7 +854,7 @@ pub async fn launch_server(
         // Start tunnel after a short delay to let the server start
         tokio::spawn(async move {
             tokio::time::sleep(std::time::Duration::from_secs(3)).await;
-            println!("[RUNNER] Auto-starting {} tunnel...", config.provider);
+            info!("Auto-starting {} tunnel...", config.provider);
             if let Err(e) = tunnel_manager::start_tunnel(
                 &data_dir_clone,
                 &config,
@@ -862,7 +863,7 @@ pub async fn launch_server(
             )
             .await
             {
-                eprintln!("[RUNNER] Failed to auto-start tunnel: {}", e);
+                error!("Failed to auto-start tunnel: {}", e);
             }
         });
     }
@@ -891,7 +892,7 @@ pub async fn launch_server(
             while let Ok(Some(line)) = lines.next_line().await {
                 // Debug: print all lines containing "joined" or "left"
                 if line.contains("joined") || line.contains("left") {
-                    eprintln!("[DISCORD DEBUG] Log line: {}", line);
+                    debug!("[DISCORD DEBUG] Log line: {}", line);
                 }
                 // Check for player join/leave events
                 if let Some((event_type, player_name)) = discord_hooks::parse_player_event(&line) {
@@ -962,10 +963,10 @@ pub async fn launch_server(
         discord_hooks::on_server_stopped(&db_exit, &instance_name_exit, elapsed_seconds).await;
 
         if let Err(e) = Instance::add_playtime(&db, &instance_id, elapsed_seconds).await {
-            eprintln!("[RUNNER] Failed to update server playtime: {}", e);
+            error!("Failed to update server playtime: {}", e);
         } else {
-            println!(
-                "[RUNNER] Added {} seconds of playtime to server {}",
+            info!(
+                "Added {} seconds of playtime to server {}",
                 elapsed_seconds, instance_id
             );
         }

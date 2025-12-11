@@ -13,6 +13,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::RwLock;
+use tracing::{debug, info};
 
 // Windows-specific: CREATE_NO_WINDOW flag to hide console window
 #[cfg(target_os = "windows")]
@@ -39,7 +40,7 @@ pub async fn start_cloudflare_tunnel(
         ));
     }
 
-    println!(
+    info!(
         "[CLOUDFLARE] Starting tunnel for port {}...",
         config.target_port
     );
@@ -66,7 +67,7 @@ pub async fn start_cloudflare_tunnel(
         .map_err(|e| AppError::Io(format!("Failed to start cloudflared: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
-    println!("[CLOUDFLARE] Started with PID: {}", pid);
+    info!("[CLOUDFLARE] Started with PID: {}", pid);
 
     let status = Arc::new(RwLock::new(TunnelStatus::Connecting));
 
@@ -99,12 +100,12 @@ pub async fn start_cloudflare_tunnel(
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                println!("[CLOUDFLARE] {}", line);
+                debug!("[CLOUDFLARE] {}", line);
 
                 // Check for URL in the line
                 if let Some(captures) = URL_REGEX.find(&line) {
                     let url = captures.as_str().to_string();
-                    println!("[CLOUDFLARE] Found tunnel URL: {}", url);
+                    info!("[CLOUDFLARE] Found tunnel URL: {}", url);
 
                     // Update status
                     {
@@ -177,7 +178,7 @@ pub async fn start_cloudflare_tunnel(
             let reader = BufReader::new(stdout);
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
-                println!("[CLOUDFLARE STDOUT] {}", line);
+                debug!("[CLOUDFLARE STDOUT] {}", line);
             }
         });
     }
@@ -206,7 +207,7 @@ pub async fn start_cloudflare_tunnel(
             },
         );
 
-        println!("[CLOUDFLARE] Tunnel process exited");
+        info!("[CLOUDFLARE] Tunnel process exited");
     });
 
     Ok(running_tunnel)

@@ -58,8 +58,6 @@ struct DriveFile {
     size: Option<String>,
     #[serde(default)]
     modified_time: Option<String>,
-    #[serde(default)]
-    mime_type: Option<String>,
 }
 
 /// Drive files list response
@@ -197,45 +195,6 @@ pub async fn poll_for_token(
     }
 }
 
-/// Refresh an expired access token
-pub async fn refresh_token(
-    client: &reqwest::Client,
-    client_id: &str,
-    client_secret: &str,
-    refresh_token: &str,
-) -> AppResult<GoogleTokens> {
-    let response = client
-        .post(GOOGLE_TOKEN)
-        .form(&[
-            ("client_id", client_id),
-            ("client_secret", client_secret),
-            ("refresh_token", refresh_token),
-            ("grant_type", "refresh_token"),
-        ])
-        .send()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Token refresh failed: {}", e)))?;
-
-    if !response.status().is_success() {
-        let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::CloudStorage(format!(
-            "Token refresh failed: {}",
-            error_text
-        )));
-    }
-
-    let mut tokens: GoogleTokens = response
-        .json()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to parse tokens: {}", e)))?;
-
-    // Refresh response doesn't include refresh_token, keep the old one
-    if tokens.refresh_token.is_none() {
-        tokens.refresh_token = Some(refresh_token.to_string());
-    }
-
-    Ok(tokens)
-}
 
 /// Test connection to Google Drive
 pub async fn test_connection(
@@ -490,27 +449,3 @@ pub async fn list_backups(
     Ok(backups)
 }
 
-/// Delete a file from Google Drive
-pub async fn delete_file(
-    client: &reqwest::Client,
-    access_token: &str,
-    file_id: &str,
-) -> AppResult<()> {
-    let response = client
-        .delete(format!("{}/{}", DRIVE_FILES_API, file_id))
-        .header(AUTHORIZATION, format!("Bearer {}", access_token))
-        .send()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to delete file: {}", e)))?;
-
-    if response.status().is_success() || response.status() == reqwest::StatusCode::NO_CONTENT {
-        Ok(())
-    } else if response.status() == reqwest::StatusCode::NOT_FOUND {
-        Ok(()) // File doesn't exist
-    } else {
-        Err(AppError::CloudStorage(format!(
-            "Failed to delete file: HTTP {}",
-            response.status()
-        )))
-    }
-}

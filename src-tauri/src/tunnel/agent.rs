@@ -2,6 +2,7 @@ use crate::error::{AppError, AppResult};
 use crate::tunnel::{AgentInfo, TunnelProvider};
 use std::path::{Path, PathBuf};
 use tokio::fs;
+use tracing::info;
 
 /// Get the tunnel agents directory
 pub fn get_tunnels_dir(data_dir: &Path) -> PathBuf {
@@ -236,7 +237,7 @@ pub async fn install_agent(
     data_dir: &Path,
     provider: TunnelProvider,
 ) -> AppResult<AgentInfo> {
-    println!("[TUNNEL] Installing {} agent...", provider);
+    info!("[TUNNEL] Installing {} agent...", provider);
 
     let provider_dir = get_provider_dir(data_dir, provider);
     fs::create_dir_all(&provider_dir)
@@ -244,7 +245,7 @@ pub async fn install_agent(
         .map_err(|e| AppError::Io(format!("Failed to create tunnel directory: {}", e)))?;
 
     let download_url = get_download_url(provider)?;
-    println!("[TUNNEL] Downloading from: {}", download_url);
+    info!("[TUNNEL] Downloading from: {}", download_url);
 
     // Download the file
     let response = client
@@ -312,7 +313,7 @@ pub async fn install_agent(
             .map_err(|e| AppError::Io(format!("Failed to set permissions: {}", e)))?;
     }
 
-    println!("[TUNNEL] {} agent installed successfully!", provider);
+    info!("[TUNNEL] {} agent installed successfully!", provider);
 
     Ok(AgentInfo {
         provider,

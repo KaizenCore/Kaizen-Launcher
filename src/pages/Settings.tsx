@@ -140,7 +140,7 @@ export function Settings() {
     } finally {
       setLoadingJava(false)
     }
-  }, [])
+  }, [t])
 
   const loadStorageData = useCallback(async () => {
     setLoadingStorage(true)
@@ -159,7 +159,7 @@ export function Settings() {
     } finally {
       setLoadingStorage(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     loadJavaData()

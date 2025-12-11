@@ -9,7 +9,7 @@ use crate::crypto;
 use crate::error::{AppError, AppResult};
 
 use super::{
-    db, dropbox, google_drive, nextcloud, s3, CloudBackupSync, CloudProvider, CloudStorageConfig,
+    dropbox, google_drive, nextcloud, s3, CloudProvider, CloudStorageConfig,
     CloudSyncStatus, CloudUploadProgressEvent, ConnectionTestResult, RemoteBackupInfo,
 };
 

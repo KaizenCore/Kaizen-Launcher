@@ -29,23 +29,6 @@ pub struct DropboxTokens {
     pub token_type: String,
 }
 
-/// Dropbox device authorization response
-#[derive(Debug, Deserialize)]
-struct DeviceAuthResponse {
-    device_code: String,
-    user_code: String,
-    expires_in: u64,
-    interval: u64,
-}
-
-/// Token error response
-#[derive(Debug, Deserialize)]
-struct TokenErrorResponse {
-    error: String,
-    #[serde(default)]
-    error_description: Option<String>,
-}
-
 /// Dropbox file metadata
 #[derive(Debug, Deserialize)]
 struct DropboxFile {
@@ -83,7 +66,7 @@ struct Allocation {
 /// Request device authorization code
 /// Note: Dropbox uses a slightly different flow - we generate a code and user visits URL
 pub async fn request_device_code(
-    client: &reqwest::Client,
+    _client: &reqwest::Client,
     app_key: &str,
 ) -> AppResult<DeviceCodeResponse> {
     // Generate a random state for PKCE
@@ -146,45 +129,6 @@ pub async fn exchange_code(
     Ok(tokens)
 }
 
-/// Refresh an expired access token
-pub async fn refresh_token(
-    client: &reqwest::Client,
-    app_key: &str,
-    app_secret: &str,
-    refresh_token: &str,
-) -> AppResult<DropboxTokens> {
-    let response = client
-        .post(DROPBOX_DEVICE_AUTH)
-        .form(&[
-            ("refresh_token", refresh_token),
-            ("grant_type", "refresh_token"),
-            ("client_id", app_key),
-            ("client_secret", app_secret),
-        ])
-        .send()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Token refresh failed: {}", e)))?;
-
-    if !response.status().is_success() {
-        let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::CloudStorage(format!(
-            "Token refresh failed: {}",
-            error_text
-        )));
-    }
-
-    let mut tokens: DropboxTokens = response
-        .json()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to parse tokens: {}", e)))?;
-
-    // Refresh response may not include new refresh_token
-    if tokens.refresh_token.is_none() {
-        tokens.refresh_token = Some(refresh_token.to_string());
-    }
-
-    Ok(tokens)
-}
 
 /// Test connection to Dropbox
 pub async fn test_connection(
@@ -442,69 +386,3 @@ pub async fn list_backups(
     Ok(backups)
 }
 
-/// Delete a file from Dropbox
-pub async fn delete_file(
-    client: &reqwest::Client,
-    access_token: &str,
-    path: &str,
-) -> AppResult<()> {
-    let response = client
-        .post(format!("{}/files/delete_v2", DROPBOX_API))
-        .header(AUTHORIZATION, format!("Bearer {}", access_token))
-        .header(CONTENT_TYPE, "application/json")
-        .json(&serde_json::json!({ "path": path }))
-        .send()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to delete file: {}", e)))?;
-
-    if response.status().is_success() {
-        Ok(())
-    } else {
-        let error = response.text().await.unwrap_or_default();
-        // Check if file doesn't exist
-        if error.contains("path_lookup/not_found") {
-            Ok(())
-        } else {
-            Err(AppError::CloudStorage(format!(
-                "Failed to delete file: {}",
-                error
-            )))
-        }
-    }
-}
-
-/// Download a file from Dropbox
-pub async fn download_file(
-    client: &reqwest::Client,
-    access_token: &str,
-    remote_path: &str,
-    local_path: &Path,
-) -> AppResult<()> {
-    let api_args = serde_json::json!({ "path": remote_path });
-
-    let response = client
-        .post(format!("{}/files/download", DROPBOX_CONTENT_API))
-        .header(AUTHORIZATION, format!("Bearer {}", access_token))
-        .header("Dropbox-API-Arg", api_args.to_string())
-        .send()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Download failed: {}", e)))?;
-
-    if !response.status().is_success() {
-        return Err(AppError::CloudStorage(format!(
-            "Download failed: HTTP {}",
-            response.status()
-        )));
-    }
-
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to read response: {}", e)))?;
-
-    tokio::fs::write(local_path, &bytes)
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to write file: {}", e)))?;
-
-    Ok(())
-}

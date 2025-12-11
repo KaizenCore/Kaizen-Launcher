@@ -8,6 +8,7 @@
 use once_cell::sync::Lazy;
 use reqwest::Client;
 use sqlx::SqlitePool;
+use tracing::debug;
 
 use super::{db, rpc, webhook, DiscordActivity, WebhookEvent};
 
@@ -46,7 +47,7 @@ pub async fn on_server_started(
 
     // Send webhook (fire and forget, don't block)
     if let Err(e) = webhook::send_event(http_client, webhook_url, &event).await {
-        eprintln!("[DISCORD] Failed to send server start webhook: {}", e);
+        debug!("Failed to send server start webhook: {}", e);
     }
 }
 
@@ -77,7 +78,7 @@ pub async fn on_server_stopped(
     };
 
     if let Err(e) = webhook::send_event(http_client, webhook_url, &event).await {
-        eprintln!("[DISCORD] Failed to send server stop webhook: {}", e);
+        debug!("Failed to send server stop webhook: {}", e);
     }
 }
 
@@ -87,37 +88,37 @@ pub async fn on_player_joined(
     instance_name: &str,
     player_name: &str,
 ) {
-    eprintln!("[DISCORD] on_player_joined called: {} on {}", player_name, instance_name);
+    debug!("on_player_joined called: {} on {}", player_name, instance_name);
     let http_client = &*HTTP_CLIENT;
     let config = match db::get_discord_config(db).await {
         Ok(Some(c)) => c,
         _ => {
-            eprintln!("[DISCORD] No config found");
+            debug!("No config found");
             return;
         }
     };
 
     if !config.webhook_enabled || config.webhook_url.is_none() {
-        eprintln!("[DISCORD] Webhooks disabled or no URL");
+        debug!("Webhooks disabled or no URL");
         return;
     }
 
     if !config.webhook_player_join {
-        eprintln!("[DISCORD] Player join webhook disabled");
+        debug!("Player join webhook disabled");
         return;
     }
 
     let webhook_url = config.webhook_url.as_ref().unwrap();
-    eprintln!("[DISCORD] Sending player join webhook to: {}", webhook_url);
+    debug!("Sending player join webhook to: {}", webhook_url);
     let event = WebhookEvent::PlayerJoined {
         instance_name: instance_name.to_string(),
         player_name: player_name.to_string(),
     };
 
     if let Err(e) = webhook::send_event(http_client, webhook_url, &event).await {
-        eprintln!("[DISCORD] Failed to send player join webhook: {}", e);
+        debug!("Failed to send player join webhook: {}", e);
     } else {
-        eprintln!("[DISCORD] Player join webhook sent successfully");
+        debug!("Player join webhook sent successfully");
     }
 }
 
@@ -127,41 +128,42 @@ pub async fn on_player_left(
     instance_name: &str,
     player_name: &str,
 ) {
-    eprintln!("[DISCORD] on_player_left called: {} on {}", player_name, instance_name);
+    debug!("on_player_left called: {} on {}", player_name, instance_name);
     let http_client = &*HTTP_CLIENT;
     let config = match db::get_discord_config(db).await {
         Ok(Some(c)) => c,
         _ => {
-            eprintln!("[DISCORD] No config found");
+            debug!("No config found");
             return;
         }
     };
 
     if !config.webhook_enabled || config.webhook_url.is_none() {
-        eprintln!("[DISCORD] Webhooks disabled or no URL");
+        debug!("Webhooks disabled or no URL");
         return;
     }
 
     if !config.webhook_player_leave {
-        eprintln!("[DISCORD] Player leave webhook disabled");
+        debug!("Player leave webhook disabled");
         return;
     }
 
     let webhook_url = config.webhook_url.as_ref().unwrap();
-    eprintln!("[DISCORD] Sending player leave webhook to: {}", webhook_url);
+    debug!("Sending player leave webhook to: {}", webhook_url);
     let event = WebhookEvent::PlayerLeft {
         instance_name: instance_name.to_string(),
         player_name: player_name.to_string(),
     };
 
     if let Err(e) = webhook::send_event(http_client, webhook_url, &event).await {
-        eprintln!("[DISCORD] Failed to send player leave webhook: {}", e);
+        debug!("Failed to send player leave webhook: {}", e);
     } else {
-        eprintln!("[DISCORD] Player leave webhook sent successfully");
+        debug!("Player leave webhook sent successfully");
     }
 }
 
 /// Send a webhook notification for backup created
+#[allow(dead_code)]
 pub async fn on_backup_created(
     db: &SqlitePool,
     instance_name: &str,
@@ -190,7 +192,7 @@ pub async fn on_backup_created(
     };
 
     if let Err(e) = webhook::send_event(http_client, webhook_url, &event).await {
-        eprintln!("[DISCORD] Failed to send backup webhook: {}", e);
+        debug!("Failed to send backup webhook: {}", e);
     }
 }
 
@@ -198,48 +200,48 @@ pub async fn on_backup_created(
 /// Uses a persistent global connection that stays open
 /// Retries connection up to 5 times with 2 second delays
 pub async fn set_idle_activity(db: &SqlitePool) {
-    eprintln!("[DISCORD RPC] set_idle_activity called");
+    debug!("set_idle_activity called");
 
     let config = match db::get_discord_config(db).await {
         Ok(Some(c)) => c,
         Ok(None) => {
-            eprintln!("[DISCORD RPC] No config found in database");
+            debug!("No config found in database");
             return;
         }
         Err(e) => {
-            eprintln!("[DISCORD RPC] Error getting config: {}", e);
+            debug!("Error getting config: {}", e);
             return;
         }
     };
 
     if !config.rpc_enabled {
-        eprintln!("[DISCORD RPC] RPC is disabled in settings");
+        debug!("RPC is disabled in settings");
         return;
     }
 
     // Retry connection up to 5 times (Discord may not be ready yet)
     for attempt in 1..=5 {
-        eprintln!("[DISCORD RPC] Connecting to Discord (attempt {}/5)...", attempt);
+        debug!("Connecting to Discord (attempt {}/5)...", attempt);
 
         if let Err(e) = rpc::connect() {
-            eprintln!("[DISCORD RPC] Connection attempt {} failed: {}", attempt, e);
+            debug!("Connection attempt {} failed: {}", attempt, e);
             if attempt < 5 {
                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                 continue;
             }
-            eprintln!("[DISCORD RPC] All connection attempts failed, giving up");
+            debug!("All connection attempts failed, giving up");
             return;
         }
 
-        eprintln!("[DISCORD RPC] Connected, setting Idle activity");
+        debug!("Connected, setting Idle activity");
 
         match rpc::set_activity(&DiscordActivity::Idle) {
             Ok(_) => {
-                eprintln!("[DISCORD RPC] Idle activity set successfully");
+                debug!("Idle activity set successfully");
                 return;
             }
             Err(e) => {
-                eprintln!("[DISCORD RPC] Failed to set Idle activity: {}", e);
+                debug!("Failed to set Idle activity: {}", e);
                 return;
             }
         }
@@ -254,35 +256,35 @@ pub async fn set_playing_activity(
     mc_version: &str,
     loader: Option<&str>,
 ) {
-    eprintln!("[DISCORD RPC] set_playing_activity called for: {}", instance_name);
+    debug!("set_playing_activity called for: {}", instance_name);
 
     let config = match db::get_discord_config(db).await {
         Ok(Some(c)) => c,
         Ok(None) => {
-            eprintln!("[DISCORD RPC] No config found in database");
+            debug!("No config found in database");
             return;
         }
         Err(e) => {
-            eprintln!("[DISCORD RPC] Error getting config: {}", e);
+            debug!("Error getting config: {}", e);
             return;
         }
     };
 
-    eprintln!("[DISCORD RPC] rpc_enabled = {}", config.rpc_enabled);
+    debug!("rpc_enabled = {}", config.rpc_enabled);
 
     if !config.rpc_enabled {
-        eprintln!("[DISCORD RPC] RPC is disabled in settings");
+        debug!("RPC is disabled in settings");
         return;
     }
 
-    eprintln!("[DISCORD RPC] Connecting to Discord...");
+    debug!("Connecting to Discord...");
 
     if let Err(e) = rpc::connect() {
-        eprintln!("[DISCORD RPC] Failed to connect to Discord: {}", e);
+        debug!("Failed to connect to Discord: {}", e);
         return;
     }
 
-    eprintln!("[DISCORD RPC] Connected to Discord successfully");
+    debug!("Connected to Discord successfully");
 
     let activity = DiscordActivity::Playing {
         instance_name: if config.rpc_show_instance_name {
@@ -304,13 +306,14 @@ pub async fn set_playing_activity(
     };
 
     match rpc::set_activity(&activity) {
-        Ok(_) => eprintln!("[DISCORD RPC] Activity set successfully"),
-        Err(e) => eprintln!("[DISCORD RPC] Failed to set activity: {}", e),
+        Ok(_) => debug!("Activity set successfully"),
+        Err(e) => debug!("Failed to set activity: {}", e),
     }
 }
 
 /// Set Discord Rich Presence for hosting a server
 /// Uses persistent global connection
+#[allow(dead_code)]
 pub async fn set_hosting_activity(
     db: &SqlitePool,
     instance_name: &str,
@@ -364,7 +367,7 @@ pub async fn clear_activity(db: &SqlitePool) {
     // Instead of clearing, return to Idle state
     if rpc::is_connected() {
         let _ = rpc::set_activity(&DiscordActivity::Idle);
-        eprintln!("[DISCORD RPC] Returned to Idle state");
+        debug!("Returned to Idle state");
     }
 }
 
@@ -422,7 +425,7 @@ pub fn parse_player_event(log_line: &str) -> Option<(&'static str, String)> {
     if let Some(bracket_idx) = before.rfind("]: ") {
         let player = before[bracket_idx + 3..].trim();
         if !player.is_empty() && is_valid_player_name(player) {
-            eprintln!("[DISCORD] Detected player {}: {}", event_type, player);
+            debug!("Detected player {}: {}", event_type, player);
             return Some((event_type, player.to_string()));
         }
     }
@@ -432,7 +435,7 @@ pub fn parse_player_event(log_line: &str) -> Option<(&'static str, String)> {
     if let Some(space_idx) = trimmed.rfind(' ') {
         let player = trimmed[space_idx + 1..].trim();
         if !player.is_empty() && is_valid_player_name(player) {
-            eprintln!("[DISCORD] Detected player {}: {}", event_type, player);
+            debug!("Detected player {}: {}", event_type, player);
             return Some((event_type, player.to_string()));
         }
     }

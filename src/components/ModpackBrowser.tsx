@@ -195,13 +195,15 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
     if (hasSearched) {
       performSearch(debouncedQuery, selectedCategories, sortBy, selectedLoader, 1)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [debouncedQuery])
 
   // Load popular modpacks and installed IDs on mount
   useEffect(() => {
     loadInstalledModpacks()
     performSearch("", [], "downloads", "", 1)
-  }, [performSearch, loadInstalledModpacks])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const handleSearch = useCallback(async () => {
     await performSearch(searchQuery, selectedCategories, sortBy, selectedLoader, 1)

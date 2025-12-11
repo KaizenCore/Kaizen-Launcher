@@ -3,6 +3,7 @@ use crate::error::{AppError, AppResult};
 use crate::state::SharedState;
 use serde::{Deserialize, Serialize};
 use tauri::State;
+use tracing::debug;
 
 use super::{build_facets, ModrinthClient, SearchHit, SearchQuery, Version, VersionFile};
 
@@ -940,7 +941,7 @@ pub async fn install_modrinth_modpack(
             }),
         );
 
-        println!("[MODPACK] Downloading icon from: {}", url);
+        debug!("Downloading icon from: {}", url);
 
         // Determine file extension from URL (handle query parameters)
         let url_without_params = url.split('?').next().unwrap_or(url);
@@ -956,7 +957,7 @@ pub async fn install_modrinth_modpack(
         let icon_filename = format!("icon.{}", extension);
         let icon_full_path = instance_dir.join(&icon_filename);
 
-        println!("[MODPACK] Saving icon to: {:?}", icon_full_path);
+        debug!("Saving icon to: {:?}", icon_full_path);
 
         // Download the icon
         match http_client.get(url).send().await {
@@ -964,42 +965,42 @@ pub async fn install_modrinth_modpack(
                 if response.status().is_success() {
                     match response.bytes().await {
                         Ok(bytes) => {
-                            println!("[MODPACK] Downloaded {} bytes for icon", bytes.len());
+                            debug!("Downloaded {} bytes for icon", bytes.len());
                             match tokio::fs::write(&icon_full_path, &bytes).await {
                                 Ok(_) => {
                                     saved_icon_path = Some(icon_filename.clone());
-                                    println!(
-                                        "[MODPACK] Saved modpack icon to {:?}",
+                                    debug!(
+                                        "Saved modpack icon to {:?}",
                                         icon_full_path
                                     );
                                 }
-                                Err(e) => println!("[MODPACK] Failed to write icon: {}", e),
+                                Err(e) => debug!("Failed to write icon: {}", e),
                             }
                         }
-                        Err(e) => println!("[MODPACK] Failed to read icon bytes: {}", e),
+                        Err(e) => debug!("Failed to read icon bytes: {}", e),
                     }
                 } else {
-                    println!(
-                        "[MODPACK] Icon download failed with status: {}",
+                    debug!(
+                        "Icon download failed with status: {}",
                         response.status()
                     );
                 }
             }
-            Err(e) => println!("[MODPACK] Failed to download icon: {}", e),
+            Err(e) => debug!("Failed to download icon: {}", e),
         }
     } else {
-        println!("[MODPACK] No icon URL provided for this modpack");
+        debug!("No icon URL provided for this modpack");
     }
 
     // Update instance with icon path
     if let Some(ref icon_path) = saved_icon_path {
-        println!(
-            "[MODPACK] Updating instance {} with icon_path: {}",
+        debug!(
+            "Updating instance {} with icon_path: {}",
             instance.id, icon_path
         );
         match Instance::update_icon(&state_guard.db, &instance.id, Some(icon_path)).await {
-            Ok(_) => println!("[MODPACK] Icon path updated in database"),
-            Err(e) => println!("[MODPACK] Failed to update icon in database: {}", e),
+            Ok(_) => debug!("Icon path updated in database"),
+            Err(e) => debug!("Failed to update icon in database: {}", e),
         }
     }
 

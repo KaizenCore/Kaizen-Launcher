@@ -204,7 +204,7 @@ fn get_java_version(java_path: &Path) -> Option<String> {
 
 /// Download and install Java from Adoptium
 pub async fn install_java(client: &reqwest::Client, data_dir: &Path) -> AppResult<JavaInfo> {
-    println!("[JAVA] Starting Java 21 installation...");
+    info!("Starting Java 21 installation...");
 
     let java_dir = get_java_extract_dir(data_dir);
     fs::create_dir_all(&java_dir)
@@ -213,14 +213,14 @@ pub async fn install_java(client: &reqwest::Client, data_dir: &Path) -> AppResul
 
     // Get OS and architecture for Adoptium API
     let (os, arch) = get_platform_info();
-    println!("[JAVA] Platform: {} {}", os, arch);
+    info!("Platform: {} {}", os, arch);
 
     // Fetch latest Java 21 release info from Adoptium
     let api_url = format!(
         "{}/assets/latest/21/hotspot?architecture={}&image_type=jdk&os={}&vendor=eclipse",
         ADOPTIUM_API, arch, os
     );
-    println!("[JAVA] Fetching release info from: {}", api_url);
+    info!("Fetching release info from: {}", api_url);
 
     let response = client
         .get(&api_url)
@@ -244,11 +244,11 @@ pub async fn install_java(client: &reqwest::Client, data_dir: &Path) -> AppResul
         .first()
         .ok_or_else(|| AppError::Network("No Java releases found".to_string()))?;
 
-    println!("[JAVA] Found release: {}", release.release_name);
+    info!("Found release: {}", release.release_name);
 
     // Download the archive
     let archive_path = java_dir.join(&release.binary.package.name);
-    println!("[JAVA] Downloading to: {:?}", archive_path);
+    info!("Downloading to: {:?}", archive_path);
 
     download_file_sha256(
         client,
@@ -258,7 +258,7 @@ pub async fn install_java(client: &reqwest::Client, data_dir: &Path) -> AppResul
     )
     .await?;
 
-    println!("[JAVA] Download complete, extracting...");
+    info!("Download complete, extracting...");
 
     // Extract the archive
     extract_java_archive(&archive_path, &java_dir).await?;
@@ -291,7 +291,7 @@ pub async fn install_java(client: &reqwest::Client, data_dir: &Path) -> AppResul
         }
     }
 
-    println!("[JAVA] Java 21 installed successfully!");
+    info!("Java 21 installed successfully!");
 
     let java_path = get_bundled_java_path(data_dir);
     let version = get_java_version(&java_path).unwrap_or_else(|| "21".to_string());

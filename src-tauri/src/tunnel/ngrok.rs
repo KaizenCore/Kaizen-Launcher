@@ -14,6 +14,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::RwLock;
+use tracing::{debug, info, warn};
 
 // Windows-specific: CREATE_NO_WINDOW flag to hide console window
 #[cfg(target_os = "windows")]
@@ -62,7 +63,7 @@ async fn poll_ngrok_api() -> Option<String> {
             }
         }
         Err(e) => {
-            println!("[NGROK] API poll error: {}", e);
+            debug!("[NGROK] API poll error: {}", e);
         }
     }
     None
@@ -76,7 +77,7 @@ pub async fn configure_authtoken(data_dir: &Path, authtoken: &str) -> AppResult<
         return Err(AppError::Custom("ngrok agent not installed".to_string()));
     }
 
-    println!("[NGROK] Configuring authtoken...");
+    info!("[NGROK] Configuring authtoken...");
 
     let mut cmd = Command::new(&binary_path);
     cmd.args(["config", "add-authtoken", authtoken]);
@@ -99,7 +100,7 @@ pub async fn configure_authtoken(data_dir: &Path, authtoken: &str) -> AppResult<
         )));
     }
 
-    println!("[NGROK] Authtoken configured successfully");
+    info!("[NGROK] Authtoken configured successfully");
     Ok(())
 }
 
@@ -153,7 +154,7 @@ pub async fn start_ngrok_tunnel(
         configure_authtoken(data_dir, token).await?;
     }
 
-    println!(
+    info!(
         "[NGROK] Starting TCP tunnel for port {}...",
         config.target_port
     );
@@ -181,7 +182,7 @@ pub async fn start_ngrok_tunnel(
         .map_err(|e| AppError::Io(format!("Failed to start ngrok: {}", e)))?;
 
     let pid = child.id().unwrap_or(0);
-    println!("[NGROK] Started with PID: {}", pid);
+    info!("[NGROK] Started with PID: {}", pid);
 
     let status = Arc::new(RwLock::new(TunnelStatus::Connecting));
 
@@ -217,13 +218,13 @@ pub async fn start_ngrok_tunnel(
             {
                 let status_read = status_api.read().await;
                 if matches!(*status_read, TunnelStatus::Connected { .. }) {
-                    println!("[NGROK] Already connected, stopping API poll");
+                    info!("[NGROK] Already connected, stopping API poll");
                     return;
                 }
             }
 
             if let Some(minecraft_addr) = poll_ngrok_api().await {
-                println!("[NGROK] Got URL from API: {}", minecraft_addr);
+                info!("[NGROK] Got URL from API: {}", minecraft_addr);
 
                 // Update status
                 {
@@ -274,11 +275,11 @@ pub async fn start_ngrok_tunnel(
                 return;
             }
 
-            println!("[NGROK] API poll attempt {} - no tunnel yet", i + 1);
+            debug!("[NGROK] API poll attempt {} - no tunnel yet", i + 1);
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
 
-        println!("[NGROK] API polling timed out after 30 seconds");
+        warn!("[NGROK] API polling timed out after 30 seconds");
     });
 
     // Spawn task to monitor output and find URL (backup method)
@@ -293,7 +294,7 @@ pub async fn start_ngrok_tunnel(
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                println!("[NGROK] {}", line);
+                debug!("[NGROK] {}", line);
 
                 // Check for URL in the line (try multiple formats)
                 let found_url = if let Some(captures) = LOGFMT_URL_REGEX.captures(&line) {
@@ -311,7 +312,7 @@ pub async fn start_ngrok_tunnel(
 
                 if let Some(minecraft_addr) = found_url {
                     // URL is already in host:port format for Minecraft
-                    println!("[NGROK] Found tunnel URL: {}", minecraft_addr);
+                    info!("[NGROK] Found tunnel URL: {}", minecraft_addr);
 
                     // Update status
                     {
@@ -393,7 +394,7 @@ pub async fn start_ngrok_tunnel(
             let mut lines = reader.lines();
 
             while let Ok(Some(line)) = lines.next_line().await {
-                println!("[NGROK STDERR] {}", line);
+                debug!("[NGROK STDERR] {}", line);
 
                 // Check for URL in stderr too
                 let minecraft_addr = if let Some(captures) = LOGFMT_URL_REGEX.captures(&line) {
@@ -493,7 +494,7 @@ pub async fn start_ngrok_tunnel(
             },
         );
 
-        println!("[NGROK] Tunnel process exited");
+        info!("[NGROK] Tunnel process exited");
     });
 
     Ok(running_tunnel)

@@ -280,7 +280,7 @@ pub async fn list_backups(
 }
 
 /// Parse PROPFIND response to extract file information
-fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<RemoteBackupInfo> {
+fn parse_propfind_response(xml: &str, _base_path: &str) -> Vec<RemoteBackupInfo> {
     let mut backups = Vec::new();
 
     // Split by response elements
@@ -329,72 +329,4 @@ fn parse_propfind_response(xml: &str, base_path: &str) -> Vec<RemoteBackupInfo> 
     }
 
     backups
-}
-
-/// Delete a file from Nextcloud
-pub async fn delete_file(
-    client: &reqwest::Client,
-    url: &str,
-    username: &str,
-    password: &str,
-    remote_path: &str,
-) -> AppResult<()> {
-    let auth = build_auth_header(username, password);
-    let file_url = build_webdav_url(url, username, remote_path);
-
-    let response = client
-        .delete(&file_url)
-        .header(AUTHORIZATION, &auth)
-        .send()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to delete file: {}", e)))?;
-
-    if response.status().is_success() || response.status() == reqwest::StatusCode::NO_CONTENT {
-        Ok(())
-    } else if response.status() == reqwest::StatusCode::NOT_FOUND {
-        Ok(()) // File doesn't exist, that's fine
-    } else {
-        Err(AppError::CloudStorage(format!(
-            "Failed to delete file: HTTP {}",
-            response.status()
-        )))
-    }
-}
-
-/// Download a file from Nextcloud
-pub async fn download_file(
-    client: &reqwest::Client,
-    url: &str,
-    username: &str,
-    password: &str,
-    remote_path: &str,
-    local_path: &Path,
-) -> AppResult<()> {
-    let auth = build_auth_header(username, password);
-    let file_url = build_webdav_url(url, username, remote_path);
-
-    let response = client
-        .get(&file_url)
-        .header(AUTHORIZATION, &auth)
-        .send()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to download file: {}", e)))?;
-
-    if !response.status().is_success() {
-        return Err(AppError::CloudStorage(format!(
-            "Download failed: HTTP {}",
-            response.status()
-        )));
-    }
-
-    let bytes = response
-        .bytes()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to read response: {}", e)))?;
-
-    tokio::fs::write(local_path, &bytes)
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to write file: {}", e)))?;
-
-    Ok(())
 }

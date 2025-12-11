@@ -48,8 +48,9 @@ export function AddAccountDialog({
 
   // Cleanup timeouts on unmount
   useEffect(() => {
+    const currentRefs = timeoutRefs.current
     return () => {
-      timeoutRefs.current.forEach(clearTimeout)
+      currentRefs.forEach(clearTimeout)
     }
   }, [])
 

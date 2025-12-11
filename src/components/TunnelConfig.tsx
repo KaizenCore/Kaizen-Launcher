@@ -152,18 +152,14 @@ export function TunnelConfig({ instanceId, serverPort, isServerRunning }: Tunnel
             setIsTunnelRunning(true)
             // Save the tunnel URL to config for persistence
             if (event.payload.status.url) {
-              console.log("Saving tunnel URL:", event.payload.status.url)
               try {
                 await invoke("save_tunnel_url", {
                   instanceId,
                   url: event.payload.status.url
                 })
-                console.log("Tunnel URL saved successfully")
               } catch (err) {
                 console.error("Failed to save tunnel URL:", err)
               }
-            } else {
-              console.log("No URL in connected status:", event.payload.status)
             }
           }
         }

@@ -478,7 +478,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
     } finally {
       setIsSearching(false)
     }
-  }, [mcVersion, loader, projectType, itemLabel, ITEMS_PER_PAGE])
+  }, [mcVersion, loader, projectType, itemLabel])
 
   // Track if initial search has been done for current content type
   const initialSearchDoneRef = useRef<string | null>(null)

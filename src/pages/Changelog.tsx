@@ -12,7 +12,10 @@ import {
   Archive,
   Zap,
   MessageSquare,
-  Bell
+  Bell,
+  Bug,
+  Wrench,
+  FileCode
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -29,6 +32,34 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.3.7",
+    date: "2024-12-11",
+    highlights: [
+      "Bug fixes and code quality improvements",
+      "Tunnel stability fix",
+    ],
+    features: [
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Tunnel Auto-Start Fix",
+        description: "Fixed a crash that could occur when tunnels auto-started after server launch. The tunnel system is now more stable.",
+        tag: "fix",
+      },
+      {
+        icon: <Wrench className="h-5 w-5" />,
+        title: "React Hooks Optimization",
+        description: "Fixed 12 React hooks dependency warnings across the app for better performance and fewer potential bugs.",
+        tag: "fix",
+      },
+      {
+        icon: <FileCode className="h-5 w-5" />,
+        title: "Code Quality Improvements",
+        description: "Replaced 100+ debug statements with proper logging system. Removed unused code from cloud storage and Discord modules.",
+        tag: "improved",
+      },
+    ],
+  },
   {
     version: "0.3.6",
     date: "2024-12-11",

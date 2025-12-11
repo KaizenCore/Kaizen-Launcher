@@ -150,13 +150,8 @@ export function WorldsTab({ instanceId, isServer }: WorldsTabProps) {
     }
   }, [instanceId]);
 
-  useEffect(() => {
-    loadWorlds();
-    loadCloudConfig();
-  }, [loadWorlds]);
-
   // Load cloud config
-  const loadCloudConfig = async () => {
+  const loadCloudConfig = useCallback(async () => {
     try {
       const config = await invoke<CloudStorageConfig | null>("get_cloud_storage_config");
       setCloudConfig(config);
@@ -166,7 +161,12 @@ export function WorldsTab({ instanceId, isServer }: WorldsTabProps) {
     } catch {
       // Cloud storage not configured
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    loadWorlds();
+    loadCloudConfig();
+  }, [loadWorlds, loadCloudConfig]);
 
   // Load cloud sync statuses
   const loadCloudSyncStatuses = async () => {
