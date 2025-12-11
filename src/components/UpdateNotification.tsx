@@ -9,7 +9,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useTranslation } from "@/i18n";
-import { Download, RefreshCw, X } from "lucide-react";
+import { Download, RefreshCw, X, AlertTriangle } from "lucide-react";
 import type { UpdateInfo } from "@/hooks/useUpdateChecker";
 
 interface UpdateNotificationProps {
@@ -64,6 +64,17 @@ export function UpdateNotification({
               </div>
             )}
           </div>
+
+          {/* Warning for non-stable versions */}
+          {!updateInfo.isStableVersion && (
+            <div className="flex items-start gap-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10">
+              <AlertTriangle className="h-5 w-5 text-amber-500 mt-0.5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-500">{t("updater.devVersionWarning")}</p>
+                <p className="text-muted-foreground mt-1">{t("updater.devVersionDescription")}</p>
+              </div>
+            </div>
+          )}
 
           {/* Release notes */}
           {updateInfo.body && (

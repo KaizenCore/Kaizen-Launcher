@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { useInstallationStore } from "@/stores/installationStore"
-import { Plus, Play, Trash2, Download, Loader2, Coffee, Monitor, Server, Network, Square, Circle, Search, Star, LayoutGrid, LayoutList, Columns, ArrowUpDown } from "lucide-react"
+import { Plus, Play, Trash2, Download, Loader2, Coffee, Monitor, Server, Network, Square, Circle, Search, Star, LayoutGrid, LayoutList, Columns, ArrowUpDown, FolderDown } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslation, TranslationKey } from "@/i18n"
 import { Button } from "@/components/ui/button"
@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { CreateInstanceDialog } from "@/components/dialogs/CreateInstanceDialog"
 import { DeleteInstanceDialog } from "@/components/dialogs/DeleteInstanceDialog"
+import { ImportInstanceDialog } from "@/components/sharing/ImportInstanceDialog"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -470,6 +471,7 @@ export function Instances() {
   const [instances, setInstances] = useState<Instance[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [installedVersions, setInstalledVersions] = useState<Set<string>>(new Set())
   const [launchingInstance, setLaunchingInstance] = useState<string | null>(null)
   const [launchStep, setLaunchStep] = useState<string | null>(null)
@@ -875,10 +877,16 @@ export function Instances() {
               {t("instances.subtitle")}
             </p>
           </div>
-          <Button className="gap-2" onClick={() => setDialogOpen(true)}>
-            <Plus className="h-4 w-4" />
-            {t("instances.create")}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
+              <FolderDown className="h-4 w-4" />
+              {t("sharing.import")}
+            </Button>
+            <Button className="gap-2" onClick={() => setDialogOpen(true)}>
+              <Plus className="h-4 w-4" />
+              {t("instances.create")}
+            </Button>
+          </div>
         </div>
 
         {/* Java warning */}
@@ -1090,6 +1098,13 @@ export function Instances() {
         <CreateInstanceDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
+          onSuccess={loadInstances}
+        />
+
+        {/* Import Instance Dialog */}
+        <ImportInstanceDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
           onSuccess={loadInstances}
         />
 

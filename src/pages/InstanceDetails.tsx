@@ -6,7 +6,7 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { toast } from "sonner"
 import { useInstallationStore } from "@/stores/installationStore"
 import { useTourStore, TourStep } from "@/stores/tourStore"
-import { ArrowLeft, Settings, Package, Save, Loader2, FolderOpen, FileText, RefreshCw, ChevronDown, Search, ArrowUpDown, Filter, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, ArrowUp, Trash2, ChevronLeft, ChevronRight } from "lucide-react"
+import { ArrowLeft, Settings, Package, Save, Loader2, FolderOpen, FileText, RefreshCw, ChevronDown, Search, ArrowUpDown, Filter, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, ArrowUp, Trash2, ChevronLeft, ChevronRight, Share2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -32,6 +32,7 @@ const ServerPropertiesEditor = lazy(() => import("@/components/ServerPropertiesE
 const ServerStats = lazy(() => import("@/components/ServerStats").then(m => ({ default: m.ServerStats })))
 const TunnelConfig = lazy(() => import("@/components/TunnelConfig").then(m => ({ default: m.TunnelConfig })))
 const WorldsTab = lazy(() => import("@/components/WorldsTab").then(m => ({ default: m.WorldsTab })))
+const ExportInstanceDialog = lazy(() => import("@/components/sharing/ExportInstanceDialog").then(m => ({ default: m.ExportInstanceDialog })))
 
 // Loading fallback for lazy components
 function ComponentLoader() {
@@ -166,6 +167,9 @@ export function InstanceDetails() {
 
   // Tunnel state
   const [tunnelUrl, setTunnelUrl] = useState<string | null>(null)
+
+  // Share dialog state
+  const [showExportDialog, setShowExportDialog] = useState(false)
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
 
   // Logs state
@@ -1104,6 +1108,16 @@ export function InstanceDetails() {
             title={t("common.openFolder")}
           >
             <FolderOpen className="h-5 w-5" />
+          </Button>
+
+          {/* Share button */}
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setShowExportDialog(true)}
+            title={t("sharing.share")}
+          >
+            <Share2 className="h-5 w-5" />
           </Button>
 
           {launchError && (
@@ -2079,6 +2093,18 @@ export function InstanceDetails() {
         )}
 
       </Tabs>
+
+      {/* Export Instance Dialog */}
+      {instance && (
+        <Suspense fallback={null}>
+          <ExportInstanceDialog
+            open={showExportDialog}
+            onOpenChange={setShowExportDialog}
+            instanceId={instance.id}
+            instanceName={instance.name}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

@@ -13,6 +13,7 @@ mod minecraft;
 mod modloader;
 mod modpacks;
 mod modrinth;
+mod sharing;
 mod state;
 mod tunnel;
 mod updater;
@@ -251,6 +252,13 @@ pub fn run() {
             discord::commands::get_instance_webhook_config,
             discord::commands::save_instance_webhook_config,
             discord::commands::delete_instance_webhook_config,
+            // Sharing commands
+            sharing::commands::get_exportable_content,
+            sharing::commands::prepare_export,
+            sharing::commands::cleanup_export,
+            sharing::commands::validate_import_package,
+            sharing::commands::import_instance,
+            sharing::commands::get_sharing_temp_dir,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

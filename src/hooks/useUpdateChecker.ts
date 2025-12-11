@@ -1,12 +1,45 @@
 import { useState, useEffect, useCallback } from "react";
 import { check, Update } from "@tauri-apps/plugin-updater";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { getVersion } from "@tauri-apps/api/app";
 import { invoke } from "@tauri-apps/api/core";
 
 export interface UpdateInfo {
   version: string;
   date?: string;
   body?: string;
+  isStableVersion: boolean; // true if version ends in .0 (e.g., 0.5.0)
+  isMajorUpdate: boolean;   // true if major/minor version changed (0.4.x → 0.5.x)
+}
+
+/**
+ * Parse version string into [major, minor, patch]
+ * e.g., "0.4.1" → [0, 4, 1]
+ */
+function parseVersion(version: string): [number, number, number] {
+  const clean = version.replace(/^v/, "");
+  const parts = clean.split(".").map(Number);
+  return [parts[0] || 0, parts[1] || 0, parts[2] || 0];
+}
+
+/**
+ * Check if version is stable (ends in .0)
+ * e.g., "0.5.0" → true, "0.5.1" → false
+ */
+function isStable(version: string): boolean {
+  const [, , patch] = parseVersion(version);
+  return patch === 0;
+}
+
+/**
+ * Check if this is a major update (major or minor version changed)
+ * e.g., "0.4.0" → "0.5.0" = true (minor changed)
+ * e.g., "0.4.0" → "0.4.1" = false (only patch changed)
+ */
+function isMajorUpdate(currentVersion: string, newVersion: string): boolean {
+  const [curMajor, curMinor] = parseVersion(currentVersion);
+  const [newMajor, newMinor] = parseVersion(newVersion);
+  return newMajor > curMajor || newMinor > curMinor;
 }
 
 export interface UseUpdateCheckerReturn {
@@ -40,13 +73,28 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
       const result = await check();
 
       if (result) {
+        // Get current app version
+        const currentVersion = await getVersion();
+        const newVersion = result.version;
+
+        // Check if this is a major update (0.4.x → 0.5.x)
+        const isMajor = isMajorUpdate(currentVersion, newVersion);
+        const isStableVer = isStable(newVersion);
+
         setUpdate(result);
-        setUpdateAvailable(true);
         setUpdateInfo({
-          version: result.version,
+          version: newVersion,
           date: result.date,
           body: result.body,
+          isStableVersion: isStableVer,
+          isMajorUpdate: isMajor,
         });
+
+        // Only show update prompt for major version changes
+        // Minor/patch updates are available but won't show the prompt automatically
+        setUpdateAvailable(isMajor);
+
+        console.log(`[Update] Current: ${currentVersion} → New: ${newVersion} | Major: ${isMajor} | Stable: ${isStableVer}`);
       } else {
         setUpdateAvailable(false);
         setUpdateInfo(null);

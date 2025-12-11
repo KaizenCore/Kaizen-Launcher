@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { nodePolyfills } from "vite-plugin-node-polyfills";
 import path from "path";
 
 // @ts-expect-error process is a nodejs global
@@ -7,10 +8,29 @@ const host = process.env.TAURI_DEV_HOST;
 
 // https://vite.dev/config/
 export default defineConfig(async () => ({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Node.js polyfills for WebTorrent (P2P sharing)
+    nodePolyfills({
+      include: ["buffer", "stream", "events", "util", "process", "path", "crypto"],
+      globals: {
+        Buffer: true,
+        global: true,
+        process: true,
+      },
+    }),
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+    },
+  },
+  optimizeDeps: {
+    include: ["webtorrent"],
+    esbuildOptions: {
+      define: {
+        global: "globalThis",
+      },
     },
   },
 

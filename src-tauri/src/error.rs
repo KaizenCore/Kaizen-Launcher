@@ -44,6 +44,9 @@ pub enum AppError {
     #[error("Discord error: {0}")]
     Discord(String),
 
+    #[error("Sharing error: {0}")]
+    Sharing(String),
+
     #[error("{0}")]
     Custom(String),
 }
