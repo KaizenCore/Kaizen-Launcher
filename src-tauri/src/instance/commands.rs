@@ -1,11 +1,12 @@
 use crate::db::instances::{CreateInstance, Instance};
 use crate::error::{AppError, AppResult};
+use crate::instance::worlds::{self, BackupInfo, BackupStats, GlobalBackupInfo, WorldInfo};
 use crate::minecraft::versions;
 use crate::state::SharedState;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use sysinfo::System;
-use tauri::State;
+use tauri::{AppHandle, State};
 use tokio::fs;
 
 /// Open a folder in the system file manager (cross-platform)
@@ -1792,4 +1793,384 @@ pub async fn get_used_server_ports(state: State<'_, SharedState>) -> AppResult<V
         .collect();
 
     Ok(used_ports)
+}
+
+// ============================================================================
+// World Management Commands
+// ============================================================================
+
+/// Get all worlds for an instance
+#[tauri::command]
+pub async fn get_instance_worlds(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<Vec<WorldInfo>> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let instances_dir = state_guard.get_instances_dir().await;
+    let instance_dir = instances_dir.join(&instance.game_dir);
+
+    if instance.is_server || instance.is_proxy {
+        worlds::get_worlds_for_server(&instance_dir, &state_guard.data_dir, &instance_id).await
+    } else {
+        worlds::get_worlds_for_client(&instance_dir, &state_guard.data_dir, &instance_id).await
+    }
+}
+
+/// Get all backups for a specific world
+#[tauri::command]
+pub async fn get_world_backups(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    world_name: String,
+) -> AppResult<Vec<BackupInfo>> {
+    let state_guard = state.read().await;
+    worlds::list_backups(&state_guard.data_dir, &instance_id, &world_name).await
+}
+
+/// Create a backup of a world
+#[tauri::command]
+pub async fn backup_world(
+    state: State<'_, SharedState>,
+    app: AppHandle,
+    instance_id: String,
+    world_name: String,
+) -> AppResult<BackupInfo> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let instances_dir = state_guard.get_instances_dir().await;
+    let instance_dir = instances_dir.join(&instance.game_dir);
+
+    // Get world info to determine folders
+    let worlds = if instance.is_server || instance.is_proxy {
+        worlds::get_worlds_for_server(&instance_dir, &state_guard.data_dir, &instance_id).await?
+    } else {
+        worlds::get_worlds_for_client(&instance_dir, &state_guard.data_dir, &instance_id).await?
+    };
+
+    let world = worlds
+        .iter()
+        .find(|w| w.name == world_name)
+        .ok_or_else(|| AppError::Instance("World not found".to_string()))?;
+
+    worlds::create_backup(
+        &instance_dir,
+        &state_guard.data_dir,
+        &instance_id,
+        &world_name,
+        &world.world_folders,
+        Some(&app),
+    )
+    .await
+}
+
+/// Restore a world from a backup
+#[tauri::command]
+pub async fn restore_world_backup(
+    state: State<'_, SharedState>,
+    app: AppHandle,
+    instance_id: String,
+    world_name: String,
+    backup_filename: String,
+) -> AppResult<()> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let instances_dir = state_guard.get_instances_dir().await;
+    let instance_dir = instances_dir.join(&instance.game_dir);
+
+    worlds::restore_backup(
+        &instance_dir,
+        &state_guard.data_dir,
+        &instance_id,
+        &world_name,
+        &backup_filename,
+        instance.is_server || instance.is_proxy,
+        Some(&app),
+    )
+    .await
+}
+
+/// Delete a world
+#[tauri::command]
+pub async fn delete_world(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    world_name: String,
+) -> AppResult<()> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let instances_dir = state_guard.get_instances_dir().await;
+    let instance_dir = instances_dir.join(&instance.game_dir);
+
+    worlds::delete_world(
+        &instance_dir,
+        &world_name,
+        instance.is_server || instance.is_proxy,
+    )
+    .await
+}
+
+/// Duplicate a world with a new name
+#[tauri::command]
+pub async fn duplicate_world(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    world_name: String,
+    new_name: String,
+) -> AppResult<WorldInfo> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    if instance.is_server || instance.is_proxy {
+        return Err(AppError::Instance(
+            "Cannot duplicate server worlds".to_string(),
+        ));
+    }
+
+    let instances_dir = state_guard.get_instances_dir().await;
+    let instance_dir = instances_dir.join(&instance.game_dir);
+
+    worlds::duplicate_world(
+        &instance_dir,
+        &state_guard.data_dir,
+        &instance_id,
+        &world_name,
+        &new_name,
+        false,
+    )
+    .await
+}
+
+/// Rename a world
+#[tauri::command]
+pub async fn rename_world(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    old_name: String,
+    new_name: String,
+) -> AppResult<WorldInfo> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    if instance.is_server || instance.is_proxy {
+        return Err(AppError::Instance(
+            "Cannot rename server worlds".to_string(),
+        ));
+    }
+
+    let instances_dir = state_guard.get_instances_dir().await;
+    let instance_dir = instances_dir.join(&instance.game_dir);
+
+    worlds::rename_world(
+        &instance_dir,
+        &state_guard.data_dir,
+        &instance_id,
+        &old_name,
+        &new_name,
+        false,
+    )
+    .await
+}
+
+/// Open a world folder in file manager
+#[tauri::command]
+pub async fn open_world_folder(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    world_name: String,
+) -> AppResult<()> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let instances_dir = state_guard.get_instances_dir().await;
+    let instance_dir = instances_dir.join(&instance.game_dir);
+
+    let world_path = if instance.is_server || instance.is_proxy {
+        instance_dir.join("world")
+    } else {
+        instance_dir.join("saves").join(&world_name)
+    };
+
+    if !world_path.exists() {
+        return Err(AppError::Instance("World folder not found".to_string()));
+    }
+
+    open_folder_in_file_manager(&world_path)
+}
+
+/// Delete a specific backup
+#[tauri::command]
+pub async fn delete_world_backup(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    world_name: String,
+    backup_filename: String,
+) -> AppResult<()> {
+    let state_guard = state.read().await;
+    worlds::delete_backup(
+        &state_guard.data_dir,
+        &instance_id,
+        &world_name,
+        &backup_filename,
+    )
+    .await
+}
+
+/// Get auto-backup setting for an instance
+#[tauri::command]
+pub async fn get_instance_auto_backup(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<bool> {
+    let state_guard = state.read().await;
+
+    let result = sqlx::query_scalar::<_, i64>(
+        "SELECT auto_backup_worlds FROM instances WHERE id = ?",
+    )
+    .bind(&instance_id)
+    .fetch_optional(&state_guard.db)
+    .await
+    .map_err(AppError::from)?;
+
+    Ok(result.unwrap_or(0) == 1)
+}
+
+/// Set auto-backup setting for an instance
+#[tauri::command]
+pub async fn set_instance_auto_backup(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    enabled: bool,
+) -> AppResult<()> {
+    let state_guard = state.read().await;
+
+    sqlx::query("UPDATE instances SET auto_backup_worlds = ? WHERE id = ?")
+        .bind(if enabled { 1 } else { 0 })
+        .bind(&instance_id)
+        .execute(&state_guard.db)
+        .await
+        .map_err(AppError::from)?;
+
+    Ok(())
+}
+
+/// Perform auto-backup of all worlds (called before launch)
+#[tauri::command]
+pub async fn auto_backup_worlds(
+    state: State<'_, SharedState>,
+    app: AppHandle,
+    instance_id: String,
+) -> AppResult<Vec<BackupInfo>> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let instances_dir = state_guard.get_instances_dir().await;
+    let instance_dir = instances_dir.join(&instance.game_dir);
+
+    worlds::auto_backup_all_worlds(
+        &instance_dir,
+        &state_guard.data_dir,
+        &instance_id,
+        instance.is_server || instance.is_proxy,
+        Some(&app),
+    )
+    .await
+}
+
+// ============================================================================
+// Global Backup Management Commands (for centralized Backups page)
+// ============================================================================
+
+/// Get all backups across all instances
+#[tauri::command]
+pub async fn get_all_backups(state: State<'_, SharedState>) -> AppResult<Vec<GlobalBackupInfo>> {
+    let state_guard = state.read().await;
+
+    // Get all instances to map IDs to names
+    let instances = Instance::get_all(&state_guard.db)
+        .await
+        .map_err(AppError::from)?;
+
+    let instance_info: Vec<(String, String, bool)> = instances
+        .iter()
+        .map(|i| (i.id.clone(), i.name.clone(), i.is_server || i.is_proxy))
+        .collect();
+
+    worlds::list_all_backups(&state_guard.data_dir, &instance_info).await
+}
+
+/// Get backup storage statistics
+#[tauri::command]
+pub async fn get_backup_stats(state: State<'_, SharedState>) -> AppResult<BackupStats> {
+    let state_guard = state.read().await;
+    worlds::get_backup_storage_stats(&state_guard.data_dir).await
+}
+
+/// Restore a backup to a different instance
+#[tauri::command]
+pub async fn restore_backup_to_other_instance(
+    state: State<'_, SharedState>,
+    app: AppHandle,
+    source_instance_id: String,
+    world_name: String,
+    backup_filename: String,
+    target_instance_id: String,
+) -> AppResult<()> {
+    let state_guard = state.read().await;
+
+    // Get target instance
+    let target_instance = Instance::get_by_id(&state_guard.db, &target_instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Target instance not found".to_string()))?;
+
+    let instances_dir = state_guard.get_instances_dir().await;
+
+    worlds::restore_backup_to_instance(
+        &state_guard.data_dir,
+        &instances_dir,
+        &source_instance_id,
+        &world_name,
+        &backup_filename,
+        &target_instance.game_dir,
+        target_instance.is_server || target_instance.is_proxy,
+        Some(&app),
+    )
+    .await
 }

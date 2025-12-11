@@ -198,6 +198,11 @@ impl AppState {
             .execute(db)
             .await;
 
+        // Migration: Add auto_backup_worlds column to instances
+        let _ = sqlx::query("ALTER TABLE instances ADD COLUMN auto_backup_worlds INTEGER DEFAULT 0")
+            .execute(db)
+            .await;
+
         // Migration: Tunnel configurations table
         sqlx::query(
             r#"

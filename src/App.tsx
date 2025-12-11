@@ -16,6 +16,7 @@ const Instances = lazy(() => import("@/pages/Instances").then(m => ({ default: m
 const InstanceDetails = lazy(() => import("@/pages/InstanceDetails").then(m => ({ default: m.InstanceDetails })))
 const Browse = lazy(() => import("@/pages/Browse").then(m => ({ default: m.Browse })))
 const ModpackDetails = lazy(() => import("@/pages/ModpackDetails").then(m => ({ default: m.ModpackDetails })))
+const Backups = lazy(() => import("@/pages/Backups").then(m => ({ default: m.Backups })))
 const Accounts = lazy(() => import("@/pages/Accounts").then(m => ({ default: m.Accounts })))
 const Settings = lazy(() => import("@/pages/Settings").then(m => ({ default: m.Settings })))
 
@@ -67,6 +68,7 @@ function App() {
             <Route path="instances/:instanceId" element={<Suspense fallback={<PageLoader />}><InstanceDetails /></Suspense>} />
             <Route path="browse" element={<Suspense fallback={<PageLoader />}><Browse /></Suspense>} />
             <Route path="browse/modpack/:projectId" element={<Suspense fallback={<PageLoader />}><ModpackDetails /></Suspense>} />
+            <Route path="backups" element={<Suspense fallback={<PageLoader />}><Backups /></Suspense>} />
             <Route path="accounts" element={<Suspense fallback={<PageLoader />}><Accounts /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
           </Route>

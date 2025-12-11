@@ -144,6 +144,23 @@ pub fn run() {
             instance::commands::get_instance_resourcepacks,
             instance::commands::get_instance_shaders,
             instance::commands::get_instance_datapacks,
+            // World management commands
+            instance::commands::get_instance_worlds,
+            instance::commands::get_world_backups,
+            instance::commands::backup_world,
+            instance::commands::restore_world_backup,
+            instance::commands::delete_world,
+            instance::commands::duplicate_world,
+            instance::commands::rename_world,
+            instance::commands::open_world_folder,
+            instance::commands::delete_world_backup,
+            instance::commands::get_instance_auto_backup,
+            instance::commands::set_instance_auto_backup,
+            instance::commands::auto_backup_worlds,
+            // Global backup management commands
+            instance::commands::get_all_backups,
+            instance::commands::get_backup_stats,
+            instance::commands::restore_backup_to_other_instance,
             // Minecraft version commands
             minecraft::commands::get_minecraft_versions,
             minecraft::commands::get_minecraft_version_details,

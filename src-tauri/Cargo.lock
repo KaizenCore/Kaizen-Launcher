@@ -2370,7 +2370,7 @@ dependencies = [
 
 [[package]]
 name = "kaizen-launcher"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "aes-gcm",
  "anyhow",
@@ -2409,6 +2409,7 @@ dependencies = [
  "tracing-subscriber",
  "urlencoding",
  "uuid",
+ "walkdir",
  "zip 2.4.2",
 ]
 

@@ -30,6 +30,7 @@ const ServerConsole = lazy(() => import("@/components/ServerConsole").then(m => 
 const ServerPropertiesEditor = lazy(() => import("@/components/ServerPropertiesEditor").then(m => ({ default: m.ServerPropertiesEditor })))
 const ServerStats = lazy(() => import("@/components/ServerStats").then(m => ({ default: m.ServerStats })))
 const TunnelConfig = lazy(() => import("@/components/TunnelConfig").then(m => ({ default: m.TunnelConfig })))
+const WorldsTab = lazy(() => import("@/components/WorldsTab").then(m => ({ default: m.WorldsTab })))
 
 // Loading fallback for lazy components
 function ComponentLoader() {
@@ -207,6 +208,9 @@ export function InstanceDetails() {
   const [iconInputUrl, setIconInputUrl] = useState("")
   const [isUpdatingIcon, setIsUpdatingIcon] = useState(false)
 
+  // Auto-backup state
+  const [autoBackupEnabled, setAutoBackupEnabled] = useState(false)
+
   const loadInstance = async () => {
     if (!instanceId) return
     try {
@@ -232,6 +236,28 @@ export function InstanceDetails() {
     } catch (err) {
       console.error("Failed to load icon:", err)
       setIconDataUrl(null)
+    }
+  }
+
+  const loadAutoBackup = async () => {
+    if (!instanceId) return
+    try {
+      const enabled = await invoke<boolean>("get_instance_auto_backup", { instanceId })
+      setAutoBackupEnabled(enabled)
+    } catch (err) {
+      console.error("Failed to load auto-backup setting:", err)
+    }
+  }
+
+  const handleToggleAutoBackup = async (enabled: boolean) => {
+    if (!instanceId) return
+    try {
+      await invoke("set_instance_auto_backup", { instanceId, enabled })
+      setAutoBackupEnabled(enabled)
+      toast.success(enabled ? t("instanceDetails.autoBackupEnabled") : t("instanceDetails.autoBackupDisabled"))
+    } catch (err) {
+      console.error("Failed to toggle auto-backup:", err)
+      toast.error(t("instanceDetails.autoBackupError"))
     }
   }
 
@@ -486,6 +512,19 @@ export function InstanceDetails() {
     }
     setIsLaunching(true)
     setLaunchError(null)
+
+    // Auto-backup worlds before launch if enabled
+    if (autoBackupEnabled) {
+      toast.loading(t("instanceDetails.backingUpWorlds"), { id: "auto-backup" })
+      try {
+        await invoke("auto_backup_worlds", { instanceId })
+        toast.success(t("instanceDetails.backupComplete"), { id: "auto-backup" })
+      } catch (err) {
+        console.warn("Auto-backup failed:", err)
+        toast.warning(t("instanceDetails.backupWarning"), { id: "auto-backup" })
+      }
+    }
+
     toast.loading(t("instanceDetails.starting"), { id: "launch-instance" })
     try {
       await invoke("launch_instance", { instanceId, accountId: activeAccountId })
@@ -718,6 +757,7 @@ export function InstanceDetails() {
       loadIcon(),
       loadMods(),
       loadTunnelUrl(),
+      loadAutoBackup(),
     ]).catch(console.error)
 
     // Listen for instance status events
@@ -1063,6 +1103,10 @@ export function InstanceDetails() {
               {t("content.manageContent")}
             </TabsTrigger>
           )}
+          <TabsTrigger value="worlds" className="gap-2">
+            <Globe className="h-4 w-4" />
+            {t("instanceDetails.worlds")}
+          </TabsTrigger>
           <TabsTrigger value="logs" className="gap-2" onClick={() => loadLogs()}>
             <FileText className="h-4 w-4" />
             {t("instances.logs")}
@@ -1349,6 +1393,30 @@ export function InstanceDetails() {
                 )}
                 {t("common.save")}
               </Button>
+            </CardContent>
+          </Card>
+
+          {/* World Backups Card */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle>{t("instanceDetails.worldBackups")}</CardTitle>
+              <CardDescription>
+                {t("instanceDetails.worldBackupsDesc")}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5">
+                  <Label>{t("instanceDetails.autoBackup")}</Label>
+                  <p className="text-sm text-muted-foreground">
+                    {t("instanceDetails.autoBackupDesc")}
+                  </p>
+                </div>
+                <Switch
+                  checked={autoBackupEnabled}
+                  onCheckedChange={handleToggleAutoBackup}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -1642,6 +1710,16 @@ export function InstanceDetails() {
           </Suspense>
         </TabsContent>
         )}
+
+        {/* Worlds Tab */}
+        <TabsContent value="worlds" className="mt-4 flex flex-col flex-1 min-h-0">
+          <Suspense fallback={<ComponentLoader />}>
+            <WorldsTab
+              instanceId={instanceId!}
+              isServer={instance?.is_server || instance?.is_proxy || false}
+            />
+          </Suspense>
+        </TabsContent>
 
         {/* Logs Tab */}
         <TabsContent value="logs" className="mt-4">

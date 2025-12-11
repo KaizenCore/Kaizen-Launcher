@@ -5,6 +5,7 @@ import {
   Home,
   Layers,
   Search,
+  Archive,
   User,
   Settings,
   type LucideIcon
@@ -138,6 +139,7 @@ export function Sidebar() {
           <NavItem to="/" icon={Home} label={t("nav.home")} exact />
           <NavItem to="/instances" icon={Layers} label={t("nav.instances")} />
           <NavItem to="/browse" icon={Search} label={t("nav.browse")} />
+          <NavItem to="/backups" icon={Archive} label={t("nav.backups")} />
         </nav>
 
         {/* Spacer */}
