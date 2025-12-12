@@ -1,3 +1,6 @@
+// OptiFine cape integration
+#![allow(dead_code)]
+
 use crate::error::{AppError, AppResult};
 use crate::skins::{Cape, CapeSource};
 

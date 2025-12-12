@@ -220,11 +220,10 @@ pub async fn get_available_capes(
         .map_err(|e| AppError::Skin(format!("Failed to decrypt token: {}", e)))?;
 
     // Get Mojang capes
-    let (_, mut capes, _) = match mojang::get_profile_skins(&state.http_client, &access_token).await
-    {
-        Ok(result) => result,
-        Err(_) => (None, vec![], None),
-    };
+    let (_, mut capes, _): (Option<super::Skin>, Vec<super::Cape>, Option<super::Cape>) =
+        mojang::get_profile_skins(&state.http_client, &access_token)
+            .await
+            .unwrap_or_default();
 
     // Also check OptiFine
     if let Ok(Some(cape)) = optifine::get_cape(&state.http_client, &account.username).await {

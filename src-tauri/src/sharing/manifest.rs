@@ -47,24 +47,13 @@ pub struct Contents {
 }
 
 /// A section of content (mods, configs, etc.)
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ContentSection {
     pub included: bool,
     pub count: u32,
     pub total_size_bytes: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<Vec<FileInfo>>,
-}
-
-impl Default for ContentSection {
-    fn default() -> Self {
-        Self {
-            included: false,
-            count: 0,
-            total_size_bytes: 0,
-            files: None,
-        }
-    }
 }
 
 /// Information about a file in the package
@@ -102,19 +91,10 @@ pub struct ModMetadata {
 }
 
 /// Saves section with individual worlds
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SavesSection {
     pub included: bool,
     pub worlds: Vec<WorldInfo>,
-}
-
-impl Default for SavesSection {
-    fn default() -> Self {
-        Self {
-            included: false,
-            worlds: vec![],
-        }
-    }
 }
 
 /// World information

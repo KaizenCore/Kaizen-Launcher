@@ -6,22 +6,19 @@
 //! - Ashcon (player profiles with skins)
 //! - Crafatar (player avatars/skins by UUID)
 
+#![allow(dead_code)] // Many utility functions for future use
+
 use crate::error::{AppError, AppResult};
 use crate::skins::{CommunitySkin, SearchSkinsResponse, SkinSource, SkinVariant};
 use serde::{Deserialize, Serialize};
 
 // ==================== Source Configuration ====================
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum SkinSourceType {
+    #[default]
     MineSkin,
     PlayerSearch, // MCHeads + Ashcon
-}
-
-impl Default for SkinSourceType {
-    fn default() -> Self {
-        Self::MineSkin
-    }
 }
 
 // ==================== MineSkin v2 API ====================

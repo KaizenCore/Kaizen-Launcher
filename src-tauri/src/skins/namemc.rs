@@ -1,3 +1,7 @@
+// NameMC web scraping integration for skin browsing
+// Prepared for future integration but not yet used in commands
+#![allow(dead_code)]
+
 use crate::error::{AppError, AppResult};
 use crate::skins::{CommunitySkin, SearchSkinsResponse, SkinSource, SkinVariant};
 use regex::Regex;

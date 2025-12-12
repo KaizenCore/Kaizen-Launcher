@@ -578,8 +578,7 @@ pub async fn get_instance_datapacks(
         // Extract name from filename
         let name = base_filename
             .trim_end_matches(".zip")
-            .replace('-', " ")
-            .replace('_', " ");
+            .replace(['-', '_'], " ");
 
         // Try to read metadata file
         let meta_filename = format!("{}.meta.json", base_filename.trim_end_matches(".zip"));
@@ -682,8 +681,7 @@ async fn get_instance_content(
         let ext_to_strip = extensions.first().unwrap_or(&".zip");
         let name = base_filename
             .trim_end_matches(ext_to_strip)
-            .replace('-', " ")
-            .replace('_', " ");
+            .replace(['-', '_'], " ");
 
         // Try to read metadata file
         let meta_filename = format!("{}.meta.json", base_filename.trim_end_matches(ext_to_strip));

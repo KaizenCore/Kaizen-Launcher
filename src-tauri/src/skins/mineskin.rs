@@ -1,3 +1,7 @@
+// MineSkin API integration for skin generation and gallery browsing
+// Some functions and types are prepared for future use but not yet integrated
+#![allow(dead_code)]
+
 use crate::error::{AppError, AppResult};
 use crate::skins::{CommunitySkin, SearchSkinsResponse, SkinSource, SkinVariant};
 use reqwest::multipart::{Form, Part};

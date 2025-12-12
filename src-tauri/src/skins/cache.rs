@@ -107,6 +107,7 @@ pub async fn get_cached_skins(data_dir: &Path) -> AppResult<Vec<Skin>> {
 }
 
 /// Get a cached skin's file path
+#[allow(dead_code)] // Utility function for future use
 pub async fn get_cached_skin_path(data_dir: &Path, skin_id: &str) -> AppResult<Option<PathBuf>> {
     let index = load_cache_index(data_dir).await;
 

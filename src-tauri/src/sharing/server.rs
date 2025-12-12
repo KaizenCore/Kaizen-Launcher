@@ -166,6 +166,7 @@ async fn find_available_port() -> AppResult<u16> {
 }
 
 /// Start the HTTP file server with authentication and rate limiting
+#[allow(clippy::too_many_arguments)]
 async fn start_http_server(
     package_path: PathBuf,
     port: u16,

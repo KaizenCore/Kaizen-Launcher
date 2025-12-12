@@ -95,6 +95,7 @@ pub async fn get_all_shares(db: &SqlitePool) -> AppResult<Vec<PersistentShare>> 
 }
 
 /// Check if a package path is already being shared
+#[allow(dead_code)] // Utility function for future use
 pub async fn is_package_shared(db: &SqlitePool, package_path: &str) -> AppResult<bool> {
     let count: (i64,) =
         sqlx::query_as("SELECT COUNT(*) FROM persistent_shares WHERE package_path = ?")

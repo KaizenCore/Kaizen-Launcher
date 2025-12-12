@@ -210,7 +210,9 @@ pub async fn download_and_import_share(
         if body.contains("INVALID_PASSWORD") {
             return Err(AppError::Auth("INVALID_PASSWORD".to_string()));
         }
-        return Err(AppError::Network(format!("Download failed: access denied")));
+        return Err(AppError::Network(
+            "Download failed: access denied".to_string(),
+        ));
     }
 
     if !response.status().is_success() {
@@ -424,9 +426,10 @@ pub async fn get_shares_for_package(
 
     // Also check database for persistent shares not currently running
     let state_guard = state.read().await;
-    let db_shares = crate::db::shares::get_all_shares(&state_guard.db).await?;
+    let _db_shares = crate::db::shares::get_all_shares(&state_guard.db).await?;
 
     // Return active shares that match the package path
     // (DB shares might not be running yet if app just started)
+    // TODO: Merge db_shares with matching for comprehensive results
     Ok(matching)
 }

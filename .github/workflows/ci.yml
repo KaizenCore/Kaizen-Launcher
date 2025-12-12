@@ -43,8 +43,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      - name: Clean npm cache
+        run: rm -rf node_modules package-lock.json
+
       - name: Install npm dependencies
-        run: npm ci || npm install
+        run: npm install
 
       - name: Run ESLint
         run: npm run lint -- --max-warnings 20
@@ -84,8 +87,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
+      - name: Clean npm cache
+        run: rm -rf node_modules package-lock.json
+
       - name: Install npm dependencies
-        run: npm ci || npm install
+        run: npm install
 
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --all-features

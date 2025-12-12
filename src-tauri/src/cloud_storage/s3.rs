@@ -305,7 +305,7 @@ fn parse_list_response(xml: &str) -> Vec<RemoteBackupInfo> {
 
         let modified = extract_xml_tag(content, "LastModified").unwrap_or_default();
 
-        let filename = key.split('/').last().unwrap_or(&key).to_string();
+        let filename = key.split('/').next_back().unwrap_or(&key).to_string();
 
         backups.push(RemoteBackupInfo {
             filename,

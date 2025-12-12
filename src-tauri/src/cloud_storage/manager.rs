@@ -156,8 +156,7 @@ pub async fn upload_backup(
                 })?;
                 let folder_path = config
                     .nextcloud_folder_path
-                    .as_ref()
-                    .map(|s| s.as_str())
+                    .as_deref()
                     .unwrap_or("/Kaizen Backups");
 
                 let password = if crypto::is_encrypted(password_encrypted) {
@@ -272,8 +271,7 @@ pub async fn upload_backup(
                 })?;
                 let prefix = config
                     .s3_folder_prefix
-                    .as_ref()
-                    .map(|s| s.as_str())
+                    .as_deref()
                     .unwrap_or("kaizen-backups/");
 
                 let secret_key = if crypto::is_encrypted(secret_key_encrypted) {
@@ -334,8 +332,7 @@ pub async fn upload_backup(
                 })?;
                 let folder_path = config
                     .dropbox_folder_path
-                    .as_ref()
-                    .map(|s| s.as_str())
+                    .as_deref()
                     .unwrap_or("/Kaizen Backups");
 
                 let token = if crypto::is_encrypted(access_token) {
@@ -419,8 +416,7 @@ pub async fn list_remote_backups(
             })?;
             let folder_path = config
                 .nextcloud_folder_path
-                .as_ref()
-                .map(|s| s.as_str())
+                .as_deref()
                 .unwrap_or("/Kaizen Backups");
 
             let password = if crypto::is_encrypted(password_encrypted) {
@@ -470,8 +466,7 @@ pub async fn list_remote_backups(
             })?;
             let prefix = config
                 .s3_folder_prefix
-                .as_ref()
-                .map(|s| s.as_str())
+                .as_deref()
                 .unwrap_or("kaizen-backups/");
 
             let secret_key = if crypto::is_encrypted(secret_key_encrypted) {
@@ -498,8 +493,7 @@ pub async fn list_remote_backups(
                 .ok_or_else(|| AppError::CloudStorage("Dropbox not authenticated".to_string()))?;
             let folder_path = config
                 .dropbox_folder_path
-                .as_ref()
-                .map(|s| s.as_str())
+                .as_deref()
                 .unwrap_or("/Kaizen Backups");
 
             let token = if crypto::is_encrypted(access_token) {

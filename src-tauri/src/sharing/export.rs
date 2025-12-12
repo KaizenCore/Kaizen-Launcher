@@ -30,7 +30,7 @@ pub async fn get_exportable_content(
     // Get instance from DB
     let instance = Instance::get_by_id(db, instance_id)
         .await
-        .map_err(|e| AppError::Database(e))?
+        .map_err(AppError::Database)?
         .ok_or_else(|| AppError::Instance(format!("Instance not found: {}", instance_id)))?;
 
     let instance_dir = instances_dir.join(&instance.game_dir);
@@ -194,7 +194,7 @@ pub async fn prepare_export(
     // Get instance from DB
     let instance = Instance::get_by_id(db, instance_id)
         .await
-        .map_err(|e| AppError::Database(e))?
+        .map_err(AppError::Database)?
         .ok_or_else(|| AppError::Instance(format!("Instance not found: {}", instance_id)))?;
 
     let instance_dir = instances_dir.join(&instance.game_dir);
@@ -428,7 +428,7 @@ fn create_zip_file(
         .compression_level(Some(6));
 
     // Write manifest
-    let manifest_json = serde_json::to_string_pretty(manifest).map_err(|e| AppError::Json(e))?;
+    let manifest_json = serde_json::to_string_pretty(manifest).map_err(AppError::Json)?;
 
     zip.start_file("kaizen-manifest.json", options)
         .map_err(|e| AppError::Io(format!("Failed to start manifest file: {}", e)))?;

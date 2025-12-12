@@ -28,7 +28,7 @@ pub async fn save_discord_config(
 #[tauri::command]
 pub async fn test_discord_rpc() -> AppResult<String> {
     // Run blocking IPC operations in a separate thread
-    tokio::task::spawn_blocking(|| rpc::test_connection())
+    tokio::task::spawn_blocking(rpc::test_connection)
         .await
         .map_err(|e| crate::error::AppError::Discord(format!("Task join error: {}", e)))??;
     Ok("Discord Rich Presence is working!".to_string())

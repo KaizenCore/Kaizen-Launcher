@@ -8,6 +8,7 @@ const MINECRAFT_SERVICES_API: &str = "https://api.minecraftservices.com";
 /// Profile response from Minecraft Services API
 #[derive(Debug, Deserialize)]
 struct ProfileResponse {
+    #[allow(dead_code)] // Deserialized but not used directly
     id: String,
     name: String,
     skins: Option<Vec<SkinResponse>>,

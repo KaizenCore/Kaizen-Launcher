@@ -56,8 +56,7 @@ fn read_manifest_from_zip(package_path: &Path) -> AppResult<SharingManifest> {
         .read_to_string(&mut manifest_json)
         .map_err(|e| AppError::Io(format!("Failed to read manifest: {}", e)))?;
 
-    let manifest: SharingManifest =
-        serde_json::from_str(&manifest_json).map_err(|e| AppError::Json(e))?;
+    let manifest: SharingManifest = serde_json::from_str(&manifest_json).map_err(AppError::Json)?;
 
     Ok(manifest)
 }
@@ -127,7 +126,7 @@ pub async fn import_instance(
 
     let instance = Instance::create(db, create_data)
         .await
-        .map_err(|e| AppError::Database(e))?;
+        .map_err(AppError::Database)?;
 
     emit_progress(app, &import_id, "complete", 100, "Import complete!");
 
@@ -240,9 +239,7 @@ fn extract_package(
 
 /// Generate a unique instance name
 async fn generate_unique_name(db: &SqlitePool, base_name: &str) -> AppResult<String> {
-    let instances = Instance::get_all(db)
-        .await
-        .map_err(|e| AppError::Database(e))?;
+    let instances = Instance::get_all(db).await.map_err(AppError::Database)?;
     let existing_names: Vec<String> = instances.iter().map(|i| i.name.clone()).collect();
 
     if !existing_names.contains(&base_name.to_string()) {

@@ -8,20 +8,14 @@ pub mod sources;
 
 use serde::{Deserialize, Serialize};
 
-pub use sources::SkinSourceType;
-
 /// Skin variant (Steve vs Alex arm width)
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
+#[derive(Default)]
 pub enum SkinVariant {
+    #[default]
     Classic, // Steve (4px arms)
-    Slim,    // Alex (3px arms)
-}
-
-impl Default for SkinVariant {
-    fn default() -> Self {
-        Self::Classic
-    }
+    Slim, // Alex (3px arms)
 }
 
 impl std::fmt::Display for SkinVariant {

@@ -74,6 +74,7 @@ pub async fn get_app_metrics() -> AppResult<AppMetrics> {
 }
 
 /// Get thread count for current process
+#[allow(deprecated)] // mach_task_self is deprecated in libc but still works
 fn get_thread_count() -> usize {
     #[cfg(target_os = "macos")]
     {

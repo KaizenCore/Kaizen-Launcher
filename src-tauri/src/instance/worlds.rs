@@ -434,7 +434,7 @@ fn add_directory_to_zip<W: Write + std::io::Seek>(
         let zip_path = relative_path.to_string_lossy().replace('\\', "/");
 
         if path.is_dir() {
-            zip.add_directory(&format!("{}/", zip_path), *options)
+            zip.add_directory(format!("{}/", zip_path), *options)
                 .map_err(|e| AppError::Io(format!("Failed to add directory to ZIP: {}", e)))?;
         } else {
             zip.start_file(&zip_path, *options)

@@ -327,7 +327,7 @@ fn parse_propfind_response(xml: &str, _base_path: &str) -> Vec<RemoteBackupInfo>
 
         if let Some(path) = href {
             // Extract filename from path
-            let filename = path.split('/').last().unwrap_or(&path).to_string();
+            let filename = path.split('/').next_back().unwrap_or(&path).to_string();
             if !filename.is_empty() && filename.ends_with(".zip") {
                 backups.push(RemoteBackupInfo {
                     filename,
