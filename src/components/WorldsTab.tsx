@@ -144,7 +144,7 @@ export function WorldsTab({ instanceId, isServer }: WorldsTabProps) {
       setWorlds(data);
     } catch (err) {
       console.error("Failed to load worlds:", err);
-      toast.error("Failed to load worlds");
+      toast.error(t("instanceDetails.worldsLoadError"));
     } finally {
       setIsLoading(false);
     }
@@ -229,7 +229,7 @@ export function WorldsTab({ instanceId, isServer }: WorldsTabProps) {
       setBackups(data);
     } catch (err) {
       console.error("Failed to load backups:", err);
-      toast.error("Failed to load backups");
+      toast.error(t("instanceDetails.backupsLoadError"));
     } finally {
       setIsLoadingBackups(false);
     }

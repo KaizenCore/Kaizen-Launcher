@@ -154,6 +154,7 @@
     "unableToDelete": "Unable to delete instance",
     "instanceStopped": "Instance stopped",
     "unableToStop": "Unable to stop instance",
+    "unableToLoad": "Unable to load instances",
     "sortBy": "Sort by"
   },
   "instanceDetails": {
@@ -426,13 +427,12 @@
     "restartOnboardingButton": "Restart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "What's New in v0.5.2",
-    "whatsNewSkinManager": "Skin Manager",
-    "whatsNewSkin3D": "Interactive 3D viewer with pose animations",
-    "whatsNewSkinBrowse": "Browse community skins from MineSkin",
-    "whatsNewSkinFavorites": "Save your favorite skins",
-    "whatsNewSkinUpload": "Upload custom skins from file or URL",
-    "whatsNewUI": "Improved UI with responsive layouts for large screens"
+    "whatsNew": "What's New in v0.5.3",
+    "whatsNewI18nCheck": "i18n integrity check script",
+    "whatsNew4K": "Enhanced 4K display support",
+    "whatsNewBadgeFix": "Sidebar badge fix when deleting shares",
+    "whatsNewTranslations": "Complete Dutch & German translations",
+    "whatsNewHardcoded": "Fixed hardcoded strings in 10+ components"
   },
   "discord": {
     "loadFailed": "Failed to load Discord configuration",
@@ -530,7 +530,12 @@
     "pending": "Pending",
     "failed": "Failed",
     "noCloudConfigured": "No cloud storage configured",
-    "configureInSettings": "Configure cloud storage in settings"
+    "configureInSettings": "Configure cloud storage in settings",
+    "connectedToGoogleDrive": "Connected to Google Drive",
+    "disconnectedFromGoogleDrive": "Disconnected from Google Drive",
+    "connectedToDropbox": "Connected to Dropbox",
+    "disconnectedFromDropbox": "Disconnected from Dropbox",
+    "codeCopied": "Code copied!"
   },
   "changelog": {
     "title": "Changelog",
@@ -575,6 +580,7 @@
     "selectInstance": "Select an instance",
     "noCompatibleVersion": "No compatible version found",
     "installError": "Error installing",
+    "modpackLoadError": "Failed to load modpack details",
     "discoverModpacks": "Discover and install modpacks from Modrinth",
     "modsInInstanceDetails": "To install mods, go to an instance's details"
   },
@@ -748,7 +754,9 @@
       "noMatch": "Text does not match the instance name",
       "deletePermanently": "Delete permanently",
       "deleteFiles": "Also delete instance files",
-      "confirm": "Delete"
+      "confirm": "Delete",
+      "activeShares": "{count} active share(s) for this instance",
+      "alsoDeleteShares": "Also stop and delete active shares"
     },
     "deleteAccount": {
       "title": "Delete account",
@@ -1149,6 +1157,7 @@
     "restoreWarning": "This will replace the existing world in the target instance.",
     "restoreSuccess": "Backup restored successfully",
     "restoreError": "Failed to restore backup",
+    "loadError": "Failed to load backups",
     "deleteConfirm": "Delete this backup?",
     "deleteSuccess": "Backup deleted",
     "deleteError": "Failed to delete backup"
@@ -1240,7 +1249,8 @@
     "passwordRequired": "Password required",
     "passwordPrompt": "This share is password protected. Enter the password to continue.",
     "enterPassword": "Enter password",
-    "invalidPassword": "Invalid password"
+    "invalidPassword": "Invalid password",
+    "passwordRequiredForDownload": "Password required to download this instance"
   },
   "skins": {
     "title": "Skin Manager",
@@ -1315,6 +1325,8 @@
     "removeFromFavorites": "Remove from favorites",
     "addedToFavorites": "Added to favorites",
     "removedFromFavorites": "Removed from favorites",
+    "addToFavoritesError": "Failed to add to favorites",
+    "removeFromFavoritesError": "Failed to remove from favorites",
     "poseNone": "No animation",
     "poseIdle": "Idle",
     "poseWalk": "Walk",

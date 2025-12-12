@@ -273,6 +273,8 @@ pub fn run() {
             sharing::commands::stop_all_shares,
             sharing::commands::download_and_import_share,
             sharing::commands::fetch_share_manifest,
+            sharing::commands::restore_shares,
+            sharing::commands::get_shares_for_package,
             // Skin manager commands
             skins::commands::get_skin_profile,
             skins::commands::apply_skin,

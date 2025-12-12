@@ -108,7 +108,7 @@ export function Home() {
       })
     } catch (err) {
       console.error("Failed to load data:", err)
-      toast.error("Unable to load data")
+      toast.error(t("home.unableToLoadData"))
     }
   }, [])
 
@@ -184,7 +184,7 @@ export function Home() {
       if (event.payload.stage === "complete") {
         setInstallProgress(null)
         setInstanceStatus("ready")
-        toast.success("Installation complete")
+        toast.success(t("home.installComplete"))
       } else {
         setInstallProgress({
           current: event.payload.current,
@@ -620,7 +620,7 @@ export function Home() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-6">
             {instances.slice(0, 6).map((instance) => {
               const iconUrl = getIconUrl(instance)
               const isSelected = selectedInstance?.id === instance.id

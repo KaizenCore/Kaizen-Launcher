@@ -2,6 +2,36 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.5.3] - 2025-12-12
+
+### Added
+- **i18n Integrity Check Script** - New `npm run i18n:check` command to verify translation completeness
+  - Compares all language files against English base
+  - Reports missing keys, extra keys, type mismatches, and empty values
+  - Shows coverage percentage summary for each locale
+- Enhanced large screen support with 4xl breakpoint (2560px) for ultra-wide/4K displays
+
+### Fixed
+- Sidebar badge count now updates correctly when shares are deleted with an instance
+- Missing skin translations for Dutch (nl) and German (de) languages - 85+ keys added
+- Hardcoded strings replaced with i18n translation keys across multiple components:
+  - ConfigEditor: French "Ajouter un element" text
+  - CloudStorageConfig: 8 toast messages
+  - DiscordConfig: 7 toast messages
+  - WorldsTab, Settings, Backups, ModpackDetails, Skins, Home, Instances: Various error messages
+
+### Changed
+- Improved responsive grid layouts for 4K displays:
+  - Instances page: up to 6 columns on 4xl screens
+  - Home page (recent instances): up to 6 columns on 4xl screens
+  - Skins page (favorites & browse): up to 12 columns on 4xl screens
+  - ModpackDetails gallery: up to 8 columns on 4xl screens
+  - Sharing page: up to 4 columns on 4xl screens
+
+### Technical
+- Added 12 new translation keys to all 4 language files (en, fr, nl, de)
+- All locales now at 100% coverage with 1237+ keys each
+
 ## [0.5.2] - 2025-12-12
 
 ### Added

@@ -154,7 +154,7 @@ export function ImportInstanceDialog({
       setManifest(manifest)
       setCurrentImport(manifest)
       setNewName(manifest.instance.name)
-      setNeedsPassword(false)
+      // Keep needsPassword true so we pass the password to the import step
       setStep("preview")
     } catch (err) {
       console.error("Failed to fetch manifest:", err)
@@ -165,7 +165,8 @@ export function ImportInstanceDialog({
         setNeedsPassword(true)
         setError(null)
         setStep("input")
-      } else if (needsPassword && errorMsg.includes("Invalid password")) {
+      } else if (errorMsg.includes("INVALID_PASSWORD")) {
+        // Password was provided but is incorrect
         setError(t("sharing.invalidPassword"))
         setStep("input")
       } else {
@@ -232,8 +233,20 @@ export function ImportInstanceDialog({
       setCurrentImport(null)
       onSuccess?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-      setStep("preview")
+      const errorMsg = err instanceof Error ? err.message : String(err)
+
+      // Handle password errors during download
+      if (errorMsg.includes("PASSWORD_REQUIRED")) {
+        setNeedsPassword(true)
+        setError(t("sharing.passwordRequiredForDownload"))
+        setStep("input")
+      } else if (errorMsg.includes("INVALID_PASSWORD")) {
+        setError(t("sharing.invalidPassword"))
+        setStep("input")
+      } else {
+        setError(errorMsg)
+        setStep("preview")
+      }
     }
   }
 

@@ -1,7 +1,7 @@
 {
   "name": "kaizen-launcher",
   "private": true,
-  "version": "0.5.2",
+  "version": "0.5.3",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,6 +12,7 @@
     "restart": "npm run stop && npm run start",
     "stop": "pkill -f tauri 2>/dev/null; pkill -f vite 2>/dev/null; pkill -f kaizen 2>/dev/null || true",
     "type-check": "tsc --noEmit",
+    "i18n:check": "node scripts/check-i18n.js",
     "dev:frontend": "vite --host",
     "dev:all": "concurrently -k -n \"VITE,RUST\" -c \"cyan,yellow\" \"npm run dev\" \"cargo watch -C src-tauri -x check\"",
     "lint": "eslint src --ext ts,tsx --report-unused-disable-directives --max-warnings 0",

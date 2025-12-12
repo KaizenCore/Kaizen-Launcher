@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { useInstallationStore } from "@/stores/installationStore"
+import { useSharingStore } from "@/stores/sharingStore"
 import { Plus, Play, Trash2, Download, Loader2, Coffee, Monitor, Server, Network, Square, Circle, Search, Star, LayoutGrid, LayoutList, Columns, ArrowUpDown, FolderDown } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslation, TranslationKey } from "@/i18n"
@@ -478,6 +479,7 @@ export function Instances() {
 
   // Use global installation store
   const { startInstallation, isInstalling, getInstallation } = useInstallationStore()
+  const { removeSeed, activeSeeds } = useSharingStore()
   const [error, setError] = useState<string | null>(null)
   const [javaInfo, setJavaInfo] = useState<JavaInfo | null>(null)
   const [javaChecked, setJavaChecked] = useState(false)
@@ -655,7 +657,7 @@ export function Instances() {
       }
     } catch (err) {
       console.error("Failed to load instances:", err)
-      toast.error("Unable to load instances")
+      toast.error(t("instances.unableToLoad"))
     } finally {
       setIsLoading(false)
     }
@@ -760,10 +762,36 @@ export function Instances() {
     setDeleteDialogOpen(true)
   }, [])
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = async (deleteShares?: boolean) => {
     if (!instanceToDelete) return
 
     try {
+      // If deleteShares is true, stop and delete shares for this instance first
+      if (deleteShares) {
+        try {
+          interface ActiveShare {
+            share_id: string
+            instance_name: string
+            package_path: string
+          }
+          const shares = await invoke<ActiveShare[]>("get_active_shares")
+          const instanceShares = shares.filter(s => s.instance_name === instanceToDelete.name)
+          for (const share of instanceShares) {
+            await invoke("stop_share", { shareId: share.share_id })
+            // Also remove from the store to update sidebar badge
+            for (const [exportId, seed] of activeSeeds.entries()) {
+              if (seed.packagePath === share.package_path) {
+                removeSeed(exportId)
+                break
+              }
+            }
+          }
+        } catch (shareErr) {
+          console.error("Failed to delete shares:", shareErr)
+          // Continue with instance deletion even if share deletion fails
+        }
+      }
+
       await invoke("delete_instance", { instanceId: instanceToDelete.id })
       // Remove from favorites if it was favorited
       setFavorites(prev => {
@@ -1086,9 +1114,9 @@ export function Instances() {
           </Card>
         ) : (
           <div className={cn(
-            viewMode === "grid" && "grid gap-4 md:grid-cols-2 lg:grid-cols-3",
+            viewMode === "grid" && "grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-6",
             viewMode === "list" && "flex flex-col gap-2",
-            viewMode === "compact" && "grid gap-2 md:grid-cols-2"
+            viewMode === "compact" && "grid gap-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-6"
           )}>
             {filteredInstances.map(renderInstanceCard)}
           </div>

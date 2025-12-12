@@ -82,7 +82,7 @@ export function DiscordConfig() {
       setConfig(result)
     } catch (error) {
       console.error("Failed to load Discord config:", error)
-      toast.error("Failed to load Discord config")
+      toast.error(t("discord.loadFailed"))
     } finally {
       setLoading(false)
     }
@@ -99,7 +99,7 @@ export function DiscordConfig() {
         await invoke("save_discord_config", { config: newConfig })
       } catch (error) {
         console.error("Failed to save Discord config:", error)
-        toast.error("Failed to save Discord config")
+        toast.error(t("discord.saveFailed"))
       } finally {
         setSaving(false)
       }
@@ -132,10 +132,10 @@ export function DiscordConfig() {
       setRpcStatus("idle")
       await invoke<string>("test_discord_rpc")
       setRpcStatus("success")
-      toast.success("RPC connection successful")
+      toast.success(t("discord.rpcTestSuccess"))
     } catch {
       setRpcStatus("error")
-      toast.error("RPC connection failed")
+      toast.error(t("discord.rpcTestFailed"))
     } finally {
       setTestingRpc(false)
     }
@@ -143,7 +143,7 @@ export function DiscordConfig() {
 
   const testWebhook = useCallback(async () => {
     if (!config.webhook_url) {
-      toast.error("Webhook URL is required")
+      toast.error(t("discord.webhookUrlRequired"))
       return
     }
     try {
@@ -151,10 +151,10 @@ export function DiscordConfig() {
       setWebhookStatus("idle")
       await invoke<string>("test_discord_webhook", { webhookUrl: config.webhook_url })
       setWebhookStatus("success")
-      toast.success("Webhook test successful")
+      toast.success(t("discord.webhookTestSuccess"))
     } catch {
       setWebhookStatus("error")
-      toast.error("Webhook test failed")
+      toast.error(t("discord.webhookTestFailed"))
     } finally {
       setTestingWebhook(false)
     }

@@ -93,12 +93,12 @@ pub async fn start_share(
     provider: Option<SharingProvider>,
     password: Option<String>,
 ) -> AppResult<ActiveShare> {
-    let state = state.read().await;
+    let state_guard = state.read().await;
     let path = PathBuf::from(&package_path);
     let provider = provider.unwrap_or_default();
 
-    server::start_share(
-        &state.data_dir,
+    let share = server::start_share(
+        &state_guard.data_dir,
         &path,
         &instance_name,
         provider,
@@ -106,16 +106,37 @@ pub async fn start_share(
         app,
         running_shares.inner().clone(),
     )
-    .await
+    .await?;
+
+    // Save to database for persistence across restarts
+    crate::db::shares::save_share(
+        &state_guard.db,
+        &share.share_id,
+        &share.instance_name,
+        &share.package_path,
+        share.provider,
+        share.password_hash.as_deref(),
+        share.file_size,
+    )
+    .await?;
+
+    Ok(share)
 }
 
 /// Stop sharing
 #[tauri::command]
 pub async fn stop_share(
+    state: State<'_, SharedState>,
     running_shares: State<'_, RunningShares>,
     share_id: String,
 ) -> AppResult<()> {
-    server::stop_share(&share_id, running_shares.inner().clone()).await
+    server::stop_share(&share_id, running_shares.inner().clone()).await?;
+
+    // Remove from database
+    let state_guard = state.read().await;
+    crate::db::shares::delete_share(&state_guard.db, &share_id).await?;
+
+    Ok(())
 }
 
 /// Get all active shares
@@ -126,8 +147,16 @@ pub async fn get_active_shares(running_shares: State<'_, RunningShares>) -> AppR
 
 /// Stop all shares
 #[tauri::command]
-pub async fn stop_all_shares(running_shares: State<'_, RunningShares>) -> AppResult<()> {
+pub async fn stop_all_shares(
+    state: State<'_, SharedState>,
+    running_shares: State<'_, RunningShares>,
+) -> AppResult<()> {
     server::stop_all_shares(running_shares.inner().clone()).await;
+
+    // Remove all from database
+    let state_guard = state.read().await;
+    crate::db::shares::delete_all_shares(&state_guard.db).await?;
+
     Ok(())
 }
 
@@ -171,6 +200,15 @@ pub async fn download_and_import_share(
     // Check for password-required response
     if response.status() == reqwest::StatusCode::UNAUTHORIZED {
         return Err(AppError::Auth("PASSWORD_REQUIRED".to_string()));
+    }
+
+    // Check for invalid password (403 Forbidden with INVALID_PASSWORD body)
+    if response.status() == reqwest::StatusCode::FORBIDDEN {
+        let body = response.text().await.unwrap_or_default();
+        if body.contains("INVALID_PASSWORD") {
+            return Err(AppError::Auth("INVALID_PASSWORD".to_string()));
+        }
+        return Err(AppError::Network(format!("Download failed: access denied")));
     }
 
     if !response.status().is_success() {
@@ -241,6 +279,15 @@ pub async fn fetch_share_manifest(
         return Err(AppError::Auth("PASSWORD_REQUIRED".to_string()));
     }
 
+    // Check for invalid password (403 Forbidden with INVALID_PASSWORD body)
+    if response.status() == reqwest::StatusCode::FORBIDDEN {
+        let body = response.text().await.unwrap_or_default();
+        if body.contains("INVALID_PASSWORD") {
+            return Err(AppError::Auth("INVALID_PASSWORD".to_string()));
+        }
+        return Err(AppError::Network("Manifest fetch failed: access denied".to_string()));
+    }
+
     if !response.status().is_success() {
         return Err(AppError::Network(format!(
             "Manifest fetch failed with status: {}",
@@ -254,4 +301,125 @@ pub async fn fetch_share_manifest(
         .map_err(|e| AppError::Custom(format!("Failed to parse manifest: {}", e)))?;
 
     Ok(manifest)
+}
+
+/// Restore shares from database on app startup
+/// This recreates tunnels with new public URLs for previously active shares
+#[tauri::command]
+pub async fn restore_shares(
+    state: State<'_, SharedState>,
+    running_shares: State<'_, RunningShares>,
+    app: AppHandle,
+) -> AppResult<Vec<ActiveShare>> {
+    let state_guard = state.read().await;
+
+    // Get all persistent shares from database
+    let persistent_shares = crate::db::shares::get_all_shares(&state_guard.db).await?;
+
+    if persistent_shares.is_empty() {
+        tracing::info!("[SHARE] No shares to restore");
+        return Ok(vec![]);
+    }
+
+    tracing::info!(
+        "[SHARE] Restoring {} shares from database...",
+        persistent_shares.len()
+    );
+
+    let mut restored_shares = Vec::new();
+    let mut failed_share_ids = Vec::new();
+
+    for persistent in persistent_shares {
+        let package_path = std::path::PathBuf::from(&persistent.package_path);
+
+        // Check if package file still exists
+        if !package_path.exists() {
+            tracing::warn!(
+                "[SHARE] Package file no longer exists, removing share: {}",
+                persistent.package_path
+            );
+            failed_share_ids.push(persistent.share_id.clone());
+            continue;
+        }
+
+        // Start the share with a new tunnel (will get new public URL)
+        match server::start_share_with_password_hash(
+            &state_guard.data_dir,
+            &package_path,
+            &persistent.instance_name,
+            persistent.get_provider(),
+            persistent.password_hash.clone(),
+            app.clone(),
+            running_shares.inner().clone(),
+        )
+        .await
+        {
+            Ok(share) => {
+                tracing::info!(
+                    "[SHARE] Restored share for '{}' with new URL: {:?}",
+                    persistent.instance_name,
+                    share.public_url
+                );
+
+                // Update the database with the new share_id
+                // First delete the old entry, then save the new one
+                let _ = crate::db::shares::delete_share(&state_guard.db, &persistent.share_id).await;
+                let _ = crate::db::shares::save_share(
+                    &state_guard.db,
+                    &share.share_id,
+                    &share.instance_name,
+                    &share.package_path,
+                    share.provider,
+                    share.password_hash.as_deref(),
+                    share.file_size,
+                )
+                .await;
+
+                restored_shares.push(share);
+            }
+            Err(e) => {
+                tracing::error!(
+                    "[SHARE] Failed to restore share for '{}': {}",
+                    persistent.instance_name,
+                    e
+                );
+                failed_share_ids.push(persistent.share_id.clone());
+            }
+        }
+    }
+
+    // Clean up failed shares from database
+    for share_id in failed_share_ids {
+        let _ = crate::db::shares::delete_share(&state_guard.db, &share_id).await;
+    }
+
+    tracing::info!(
+        "[SHARE] Restored {}/{} shares",
+        restored_shares.len(),
+        restored_shares.len()
+    );
+
+    Ok(restored_shares)
+}
+
+/// Get shares for a specific package path (used when deleting instances)
+#[tauri::command]
+pub async fn get_shares_for_package(
+    state: State<'_, SharedState>,
+    running_shares: State<'_, RunningShares>,
+    package_path: String,
+) -> AppResult<Vec<ActiveShare>> {
+    let shares = server::get_active_shares(running_shares.inner().clone()).await;
+    let matching: Vec<ActiveShare> = shares
+        .into_iter()
+        .filter(|s| s.package_path == package_path)
+        .collect();
+
+    // Also check database for persistent shares not currently running
+    let state_guard = state.read().await;
+    let db_shares = crate::db::shares::get_all_shares(&state_guard.db).await?;
+
+    // Return active shares that match the package path
+    // (DB shares might not be running yet if app just started)
+    Ok(matching)
 }

@@ -101,6 +101,10 @@ pub struct ShareSession {
     pub server_handle: tokio::task::JoinHandle<()>,
     pub tunnel_pid: Option<u32>,
     pub shutdown_tx: tokio::sync::broadcast::Sender<()>,
+    /// Live download count tracker
+    pub download_count: Arc<RwLock<u32>>,
+    /// Live uploaded bytes tracker
+    pub uploaded_bytes: Arc<RwLock<u64>>,
 }
 
 /// Generate a cryptographically secure auth token
@@ -325,7 +329,7 @@ async fn handle_connection(
                 if !validate_password(password, share_id, expected_hash) {
                     warn!("[SECURITY] Invalid password attempted");
                     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                    send_response(&mut stream, 403, "Forbidden", Some("Invalid password")).await?;
+                    send_response(&mut stream, 403, "Forbidden", Some("INVALID_PASSWORD")).await?;
                     return Ok(());
                 }
                 debug!("[SHARE] Password validated successfully");
@@ -442,6 +446,8 @@ async fn serve_file(
     let mut remaining = content_length;
     let mut buffer = vec![0u8; 64 * 1024]; // 64KB chunks
     let mut total_sent: u64 = 0;
+    let mut bytes_since_last_emit: u64 = 0;
+    const EMIT_INTERVAL_BYTES: u64 = 256 * 1024; // Emit event every 256KB
 
     while remaining > 0 {
         let to_read = (remaining as usize).min(buffer.len());
@@ -461,20 +467,42 @@ async fn serve_file(
 
         remaining -= n as u64;
         total_sent += n as u64;
+        bytes_since_last_emit += n as u64;
+
+        // Update uploaded bytes and emit progress periodically
+        if bytes_since_last_emit >= EMIT_INTERVAL_BYTES {
+            let current_bytes = {
+                let mut bytes = uploaded_bytes.write().await;
+                *bytes += bytes_since_last_emit;
+                *bytes
+            };
+
+            // Emit progress event
+            let _ = app.emit(
+                "share-download",
+                ShareDownloadEvent {
+                    share_id: share_id.to_string(),
+                    download_count: *download_count.read().await,
+                    uploaded_bytes: current_bytes,
+                },
+            );
+
+            bytes_since_last_emit = 0;
+        }
     }
 
-    // Update stats
-    {
+    // Update remaining bytes that weren't emitted yet
+    if bytes_since_last_emit > 0 {
         let mut bytes = uploaded_bytes.write().await;
-        *bytes += total_sent;
+        *bytes += bytes_since_last_emit;
     }
 
-    // Only count as download if we sent the whole file
+    // Count as download if we sent the whole file
     if start == 0 && total_sent >= file_size {
         let mut count = download_count.write().await;
         *count += 1;
 
-        // Emit download event
+        // Emit final download event
         let _ = app.emit(
             "share-download",
             ShareDownloadEvent {
@@ -485,6 +513,16 @@ async fn serve_file(
         );
 
         info!("[SHARE] Download #{} completed ({} bytes)", *count, total_sent);
+    } else {
+        // For partial downloads, still emit final stats
+        let _ = app.emit(
+            "share-download",
+            ShareDownloadEvent {
+                share_id: share_id.to_string(),
+                download_count: *download_count.read().await,
+                uploaded_bytes: *uploaded_bytes.read().await,
+            },
+        );
     }
 
     Ok(())
@@ -977,7 +1015,7 @@ pub async fn start_share(
         password_hash,
     };
 
-    // Store session
+    // Store session with live stat trackers
     {
         let mut shares = running_shares.write().await;
         shares.insert(
@@ -987,6 +1025,149 @@ pub async fn start_share(
                 server_handle,
                 tunnel_pid: Some(tunnel_pid),
                 shutdown_tx,
+                download_count,
+                uploaded_bytes,
+            },
+        );
+    }
+
+    // Emit status
+    let _ = app.emit(
+        "share-status",
+        ShareStatusEvent {
+            share_id: info.share_id.clone(),
+            status: if info.public_url.is_some() {
+                "connected"
+            } else {
+                "connecting"
+            }
+            .to_string(),
+            public_url: info.public_url.clone(),
+            error: None,
+        },
+    );
+
+    Ok(info)
+}
+
+/// Start sharing with an existing password hash (for restoring shares)
+/// This is used when restoring shares from the database where we already have the password hash
+pub async fn start_share_with_password_hash(
+    data_dir: &Path,
+    package_path: &Path,
+    instance_name: &str,
+    provider: SharingProvider,
+    password_hash: Option<String>,
+    app: AppHandle,
+    running_shares: RunningShares,
+) -> AppResult<ActiveShare> {
+    let share_id = uuid::Uuid::new_v4().to_string();
+
+    // Generate new auth token (URL will be different)
+    let auth_token = generate_auth_token();
+    info!("[SHARE] Generated auth token for restored share {}", share_id);
+
+    if password_hash.is_some() {
+        info!("[SHARE] Restoring password-protected share {}", share_id);
+    }
+
+    // Get file size
+    let metadata = tokio::fs::metadata(package_path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to get file metadata: {}", e)))?;
+
+    // Find available port
+    let port = find_available_port().await?;
+    info!("[SHARE] Using port {} for restored share {}", port, share_id);
+
+    // Create shutdown channel
+    let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
+
+    // Tracking stats
+    let download_count = Arc::new(RwLock::new(0u32));
+    let uploaded_bytes = Arc::new(RwLock::new(0u64));
+
+    // Start HTTP server with auth token
+    let server_path = package_path.to_path_buf();
+    let server_share_id = share_id.clone();
+    let server_auth_token = auth_token.clone();
+    let server_password_hash = password_hash.clone();
+    let server_app = app.clone();
+    let server_download_count = download_count.clone();
+    let server_uploaded_bytes = uploaded_bytes.clone();
+
+    let server_handle = tokio::spawn(async move {
+        if let Err(e) = start_http_server(
+            server_path,
+            port,
+            server_share_id,
+            server_auth_token,
+            server_password_hash,
+            server_app,
+            shutdown_rx,
+            server_download_count,
+            server_uploaded_bytes,
+        )
+        .await
+        {
+            error!("[SHARE] HTTP server error: {}", e);
+        }
+    });
+
+    // Start tunnel based on provider
+    info!("[SHARE] Starting {:?} tunnel for restored share...", provider);
+    let (tunnel_pid, mut url_rx) = match provider {
+        SharingProvider::Bore => {
+            start_bore_tunnel(data_dir, port, share_id.clone(), app.clone()).await?
+        }
+        SharingProvider::Cloudflare => {
+            start_cloudflare_sharing_tunnel(data_dir, port, share_id.clone(), app.clone()).await?
+        }
+    };
+
+    // Wait for public URL (with timeout)
+    let base_url = tokio::time::timeout(std::time::Duration::from_secs(30), url_rx.recv())
+        .await
+        .ok()
+        .and_then(|r| r.ok());
+
+    if base_url.is_none() {
+        warn!("[SHARE] Timeout waiting for public URL, tunnel may still be connecting");
+    }
+
+    // Append auth token to URL for security
+    let public_url = base_url.map(|url| format!("{}/{}", url.trim_end_matches('/'), auth_token));
+
+    info!("[SHARE] Restored share URL generated with auth token");
+
+    let info = ActiveShare {
+        share_id: share_id.clone(),
+        instance_name: instance_name.to_string(),
+        package_path: package_path.to_string_lossy().to_string(),
+        local_port: port,
+        public_url,
+        download_count: 0,
+        uploaded_bytes: 0,
+        started_at: chrono::Utc::now().to_rfc3339(),
+        file_size: metadata.len(),
+        provider,
+        has_password: password_hash.is_some(),
+        auth_token,
+        password_hash,
+    };
+
+    // Store session with live stat trackers
+    {
+        let mut shares = running_shares.write().await;
+        shares.insert(
+            share_id,
+            ShareSession {
+                info: info.clone(),
+                server_handle,
+                tunnel_pid: Some(tunnel_pid),
+                shutdown_tx,
+                download_count,
+                uploaded_bytes,
             },
         );
     }
@@ -1052,10 +1233,20 @@ pub async fn stop_share(share_id: &str, running_shares: RunningShares) -> AppRes
     }
 }
 
-/// Get all active shares
+/// Get all active shares with live stats
 pub async fn get_active_shares(running_shares: RunningShares) -> Vec<ActiveShare> {
     let shares = running_shares.read().await;
-    shares.values().map(|s| s.info.clone()).collect()
+    let mut result = Vec::with_capacity(shares.len());
+
+    for session in shares.values() {
+        let mut info = session.info.clone();
+        // Read live stats from trackers
+        info.download_count = *session.download_count.read().await;
+        info.uploaded_bytes = *session.uploaded_bytes.read().await;
+        result.push(info);
+    }
+
+    result
 }
 
 /// Stop all shares

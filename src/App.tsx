@@ -1,6 +1,7 @@
-import { lazy, Suspense, useState, useEffect, useCallback } from "react"
+import { lazy, Suspense, useState, useEffect, useCallback, useRef } from "react"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
-import { Toaster } from "sonner"
+import { invoke } from "@tauri-apps/api/core"
+import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { MainLayout } from "@/components/layout/MainLayout"
 import { Home } from "@/pages/Home"
@@ -61,6 +62,33 @@ function App() {
     window.addEventListener("keydown", handleKeyDown)
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [handleKeyDown])
+
+  // Restore persistent shares on app startup
+  const sharesRestored = useRef(false)
+  useEffect(() => {
+    if (sharesRestored.current) return
+    sharesRestored.current = true
+
+    const restoreShares = async () => {
+      try {
+        interface ActiveShare {
+          share_id: string
+          instance_name: string
+          public_url: string | null
+        }
+        const restored = await invoke<ActiveShare[]>("restore_shares")
+        if (restored.length > 0) {
+          toast.success(`${restored.length} partage(s) restauré(s)`, {
+            description: restored.map(s => s.instance_name).join(", "),
+          })
+        }
+      } catch (err) {
+        console.error("[SHARE] Failed to restore shares:", err)
+      }
+    }
+
+    restoreShares()
+  }, [])
 
   return (
     <>

@@ -366,6 +366,17 @@ impl AppState {
 
             CREATE INDEX IF NOT EXISTS idx_skin_favorites_created ON skin_favorites(created_at DESC);
 
+            -- Persistent shares for automatic renewal on app restart
+            CREATE TABLE IF NOT EXISTS persistent_shares (
+                share_id TEXT PRIMARY KEY,
+                instance_name TEXT NOT NULL,
+                package_path TEXT NOT NULL,
+                provider TEXT NOT NULL DEFAULT 'bore',
+                password_hash TEXT,
+                file_size INTEGER NOT NULL,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
             -- Index for instance_webhook_config.instance_id already covered by PRIMARY KEY
         "#,
         )

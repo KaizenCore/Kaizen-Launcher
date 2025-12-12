@@ -151,7 +151,7 @@ export function ModpackDetails() {
       setIsInstalled(installedIds.includes(projectId))
     } catch (err) {
       console.error("Failed to load project:", err)
-      toast.error("Failed to load modpack details")
+      toast.error(t("browse.modpackLoadError"))
     } finally {
       setLoading(false)
     }
@@ -389,7 +389,7 @@ export function ModpackDetails() {
                     </Button>
                   </CollapsibleTrigger>
                   <CollapsibleContent>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 3xl:grid-cols-6 4xl:grid-cols-8 gap-4 mt-4">
                       {project.gallery.map((img, i) => (
                         <img
                           key={i}

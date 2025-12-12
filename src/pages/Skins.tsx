@@ -225,7 +225,7 @@ export function Skins() {
       loadFavorites()
     } catch (err) {
       console.error("Failed to add favorite:", err)
-      toast.error("Failed to add to favorites")
+      toast.error(t("skins.addToFavoritesError"))
     }
   }
 
@@ -237,7 +237,7 @@ export function Skins() {
       loadFavorites()
     } catch (err) {
       console.error("Failed to remove favorite:", err)
-      toast.error("Failed to remove from favorites")
+      toast.error(t("skins.removeFromFavoritesError"))
     }
   }
 
@@ -765,7 +765,7 @@ export function Skins() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 3xl:grid-cols-10 gap-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 3xl:grid-cols-10 4xl:grid-cols-12 gap-4">
                 {favorites.map((fav) => {
                   const skin = favoriteToCommunitySkin(fav)
                   return (
@@ -884,7 +884,7 @@ export function Skins() {
               </Card>
             ) : (
               <>
-                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 3xl:grid-cols-10 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 3xl:grid-cols-10 4xl:grid-cols-12 gap-4">
                   {communitySkins.map((skin) => (
                     <SkinCard
                       key={skin.id}

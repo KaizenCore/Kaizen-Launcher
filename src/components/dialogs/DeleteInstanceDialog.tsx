@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react"
-import { AlertTriangle, Copy, Check } from "lucide-react"
+import { invoke } from "@tauri-apps/api/core"
+import { AlertTriangle, Copy, Check, Share2 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Dialog,
   DialogContent,
@@ -13,11 +15,17 @@ import {
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
+interface ActiveShare {
+  share_id: string
+  instance_name: string
+  public_url: string | null
+}
+
 interface DeleteInstanceDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   instanceName: string
-  onConfirm: () => void
+  onConfirm: (deleteShares?: boolean) => void
 }
 
 export function DeleteInstanceDialog({
@@ -29,12 +37,33 @@ export function DeleteInstanceDialog({
   const { t } = useTranslation()
   const [confirmText, setConfirmText] = useState("")
   const [copied, setCopied] = useState(false)
+  const [activeShares, setActiveShares] = useState<ActiveShare[]>([])
+  const [deleteShares, setDeleteShares] = useState(true)
   const confirmPhrase = instanceName
+
+  // Check for active shares when dialog opens
+  useEffect(() => {
+    if (open) {
+      const checkShares = async () => {
+        try {
+          const shares = await invoke<ActiveShare[]>("get_active_shares")
+          const instanceShares = shares.filter(s => s.instance_name === instanceName)
+          setActiveShares(instanceShares)
+        } catch (err) {
+          console.error("Failed to check shares:", err)
+          setActiveShares([])
+        }
+      }
+      checkShares()
+    }
+  }, [open, instanceName])
 
   useEffect(() => {
     if (!open) {
       setConfirmText("")
       setCopied(false)
+      setActiveShares([])
+      setDeleteShares(true)
     }
   }, [open])
 
@@ -48,7 +77,7 @@ export function DeleteInstanceDialog({
 
   const handleConfirm = () => {
     if (isConfirmValid) {
-      onConfirm()
+      onConfirm(activeShares.length > 0 ? deleteShares : undefined)
       onOpenChange(false)
     }
   }
@@ -112,6 +141,28 @@ export function DeleteInstanceDialog({
               </p>
             )}
           </div>
+
+          {/* Active shares warning */}
+          {activeShares.length > 0 && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2 text-amber-500">
+                <Share2 className="h-4 w-4" />
+                <span className="text-sm font-medium">
+                  {t("dialogs.deleteInstance.activeShares", { count: activeShares.length })}
+                </span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Checkbox
+                  id="delete-shares"
+                  checked={deleteShares}
+                  onCheckedChange={(checked) => setDeleteShares(checked as boolean)}
+                />
+                <Label htmlFor="delete-shares" className="text-sm text-muted-foreground cursor-pointer">
+                  {t("dialogs.deleteInstance.alsoDeleteShares")}
+                </Label>
+              </div>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

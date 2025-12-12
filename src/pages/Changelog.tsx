@@ -47,8 +47,49 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.5.3",
+    date: "2025-12-12",
+    highlights: [
+      "i18n Integrity Check",
+      "4K Display Support",
+      "Bug fixes & translations",
+    ],
+    features: [
+      {
+        icon: <Globe className="h-5 w-5" />,
+        title: "i18n Integrity Check Script",
+        description: "New npm run i18n:check command to verify translation completeness. Reports missing keys, coverage percentage for each locale.",
+        tag: "new",
+      },
+      {
+        icon: <Monitor className="h-5 w-5" />,
+        title: "Enhanced 4K Display Support",
+        description: "Improved responsive grid layouts with 4xl breakpoint (2560px) for ultra-wide and 4K displays. Up to 12 columns on Skins page.",
+        tag: "improved",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Sidebar Badge Fix",
+        description: "Sidebar badge count now updates correctly when shares are deleted together with an instance.",
+        tag: "fix",
+      },
+      {
+        icon: <Globe className="h-5 w-5" />,
+        title: "Dutch & German Translations",
+        description: "Added 85+ missing skin-related translation keys for Dutch (nl) and German (de) languages. All 4 locales now at 100% coverage.",
+        tag: "fix",
+      },
+      {
+        icon: <FileCode className="h-5 w-5" />,
+        title: "Hardcoded Strings Fixed",
+        description: "Replaced hardcoded strings with i18n translation keys in 10+ components including ConfigEditor, CloudStorage, Discord, and more.",
+        tag: "fix",
+      },
+    ],
+  },
+  {
     version: "0.5.2",
-    date: "2024-12-12",
+    date: "2025-12-12",
     highlights: [
       "Skin Manager",
       "3D skin viewer with animations",

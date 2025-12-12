@@ -299,12 +299,12 @@ export function CloudStorageConfig() {
         await invoke("save_cloud_storage_config", { config: newConfig })
         setConfig(newConfig)
         if (showToast) {
-          toast.success("Configuration saved")
+          toast.success(t("cloudStorage.configSaved"))
         }
       } catch (err) {
         console.error("Failed to save config:", err)
         if (showToast) {
-          toast.error("Failed to save configuration")
+          toast.error(t("cloudStorage.saveFailed"))
         }
       } finally {
         setIsSaving(false)
@@ -339,7 +339,7 @@ export function CloudStorageConfig() {
       const result = await invoke<ConnectionTestResult>("test_cloud_connection")
       setTestResult(result)
       if (result.success) {
-        toast.success("Connection successful")
+        toast.success(t("cloudStorage.connectionSuccess"))
       } else {
         toast.error(result.message)
       }
@@ -385,7 +385,7 @@ export function CloudStorageConfig() {
         interval: deviceCodeResponse.interval,
         expiresIn: deviceCodeResponse.expires_in,
       })
-      toast.success("Connected to Google Drive")
+      toast.success(t("cloudStorage.connectedToGoogleDrive"))
       setDeviceCode(null)
       // Reload config to get the new tokens
       await loadConfig()
@@ -434,7 +434,7 @@ export function CloudStorageConfig() {
       }
       await invoke("save_cloud_storage_config", { config: newConfig })
       setConfig(newConfig)
-      toast.success("Disconnected from Google Drive")
+      toast.success(t("cloudStorage.disconnectedFromGoogleDrive"))
     } catch (err) {
       console.error("Failed to disconnect:", err)
     }
@@ -447,7 +447,7 @@ export function CloudStorageConfig() {
       await invoke("cloud_oauth_complete_dropbox", {
         authorizationCode: code,
       })
-      toast.success("Connected to Dropbox")
+      toast.success(t("cloudStorage.connectedToDropbox"))
       setDeviceCode(null)
       // Reload config to get the new tokens
       await loadConfig()
@@ -494,7 +494,7 @@ export function CloudStorageConfig() {
       }
       await invoke("save_cloud_storage_config", { config: newConfig })
       setConfig(newConfig)
-      toast.success("Disconnected from Dropbox")
+      toast.success(t("cloudStorage.disconnectedFromDropbox"))
     } catch (err) {
       console.error("Failed to disconnect:", err)
     }
@@ -504,7 +504,7 @@ export function CloudStorageConfig() {
   const copyUserCode = useCallback(async () => {
     if (deviceCode?.user_code) {
       await navigator.clipboard.writeText(deviceCode.user_code)
-      toast.success("Code copied!")
+      toast.success(t("cloudStorage.codeCopied"))
     }
   }, [deviceCode?.user_code])
 

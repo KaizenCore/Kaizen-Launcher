@@ -746,7 +746,7 @@ function ValueEditor({ keyName, value, onChange, onDelete, depth = 0, tooltip, c
                     <Plus className="h-3 w-3" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Ajouter un element</TooltipContent>
+                <TooltipContent>{t("configEditor.addElement")}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
             {onDelete && (

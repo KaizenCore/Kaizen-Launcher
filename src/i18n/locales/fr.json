@@ -154,6 +154,7 @@
     "unableToDelete": "Impossible de supprimer l'instance",
     "instanceStopped": "Instance arretee",
     "unableToStop": "Impossible d'arreter l'instance",
+    "unableToLoad": "Impossible de charger les instances",
     "sortBy": "Trier par"
   },
   "instanceDetails": {
@@ -426,13 +427,12 @@
     "restartOnboardingButton": "Relancer",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Nouveautes v0.5.2",
-    "whatsNewSkinManager": "Gestionnaire de Skins",
-    "whatsNewSkin3D": "Vue 3D interactive avec animations de pose",
-    "whatsNewSkinBrowse": "Parcourir les skins communautaires MineSkin",
-    "whatsNewSkinFavorites": "Sauvegarder vos skins favoris",
-    "whatsNewSkinUpload": "Importer des skins depuis un fichier ou URL",
-    "whatsNewUI": "Interface amelioree avec grilles responsives pour grands ecrans"
+    "whatsNew": "Nouveautes v0.5.3",
+    "whatsNewI18nCheck": "Script de verification i18n",
+    "whatsNew4K": "Support ameliore pour ecrans 4K",
+    "whatsNewBadgeFix": "Correction du badge sidebar lors de suppression de partages",
+    "whatsNewTranslations": "Traductions neerlandais et allemand completes",
+    "whatsNewHardcoded": "Correction des chaines codees en dur dans 10+ composants"
   },
   "discord": {
     "loadFailed": "Echec du chargement de la configuration Discord",
@@ -530,7 +530,12 @@
     "pending": "En attente",
     "failed": "Echec",
     "noCloudConfigured": "Aucun stockage cloud configure",
-    "configureInSettings": "Configurez le stockage cloud dans les parametres"
+    "configureInSettings": "Configurez le stockage cloud dans les parametres",
+    "connectedToGoogleDrive": "Connecté à Google Drive",
+    "disconnectedFromGoogleDrive": "Déconnecté de Google Drive",
+    "connectedToDropbox": "Connecté à Dropbox",
+    "disconnectedFromDropbox": "Déconnecté de Dropbox",
+    "codeCopied": "Code copié !"
   },
   "changelog": {
     "title": "Nouveautes",
@@ -575,6 +580,7 @@
     "selectInstance": "Selectionnez une instance",
     "noCompatibleVersion": "Aucune version compatible trouvee",
     "installError": "Erreur lors de l'installation",
+    "modpackLoadError": "Erreur lors du chargement des details du modpack",
     "discoverModpacks": "Decouvrez et installez des modpacks depuis Modrinth",
     "modsInInstanceDetails": "Pour installer des mods, allez dans les details d'une instance"
   },
@@ -748,7 +754,9 @@
       "noMatch": "Le texte ne correspond pas au nom de l'instance",
       "deletePermanently": "Supprimer definitivement",
       "deleteFiles": "Supprimer egalement les fichiers de l'instance",
-      "confirm": "Supprimer"
+      "confirm": "Supprimer",
+      "activeShares": "{count} partage(s) actif(s) pour cette instance",
+      "alsoDeleteShares": "Arreter et supprimer egalement les partages actifs"
     },
     "deleteAccount": {
       "title": "Supprimer le compte",
@@ -1149,6 +1157,7 @@
     "restoreWarning": "Ceci remplacera le monde existant dans l'instance cible.",
     "restoreSuccess": "Sauvegarde restauree",
     "restoreError": "Echec de la restauration",
+    "loadError": "Echec du chargement des sauvegardes",
     "deleteConfirm": "Supprimer cette sauvegarde ?",
     "deleteSuccess": "Sauvegarde supprimee",
     "deleteError": "Echec de la suppression"
@@ -1240,7 +1249,8 @@
     "passwordRequired": "Mot de passe requis",
     "passwordPrompt": "Ce partage est protege par mot de passe. Entrez le mot de passe pour continuer.",
     "enterPassword": "Entrer le mot de passe",
-    "invalidPassword": "Mot de passe invalide"
+    "invalidPassword": "Mot de passe invalide",
+    "passwordRequiredForDownload": "Mot de passe requis pour telecharger cette instance"
   },
   "skins": {
     "title": "Gestionnaire de skins",
@@ -1315,6 +1325,8 @@
     "removeFromFavorites": "Retirer des favoris",
     "addedToFavorites": "Ajouté aux favoris",
     "removedFromFavorites": "Retiré des favoris",
+    "addToFavoritesError": "Erreur lors de l'ajout aux favoris",
+    "removeFromFavoritesError": "Erreur lors du retrait des favoris",
     "poseNone": "Pas d'animation",
     "poseIdle": "Repos",
     "poseWalk": "Marche",

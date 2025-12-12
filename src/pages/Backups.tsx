@@ -143,7 +143,7 @@ export function Backups() {
       }
     } catch (err) {
       console.error("Failed to load backups:", err)
-      toast.error("Failed to load backups")
+      toast.error(t("backups.loadError"))
     } finally {
       setIsLoading(false)
     }

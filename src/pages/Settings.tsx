@@ -136,7 +136,7 @@ export function Settings() {
       }
     } catch (error) {
       console.error("Failed to load Java data:", error)
-      toast.error("Unable to load Java data")
+      toast.error(t("settings.unableToLoadJava"))
     } finally {
       setLoadingJava(false)
     }
@@ -155,7 +155,7 @@ export function Settings() {
       setInstancesDir(dirInfo)
     } catch (error) {
       console.error("Failed to load storage data:", error)
-      toast.error("Unable to load storage data")
+      toast.error(t("settings.unableToLoadStorage"))
     } finally {
       setLoadingStorage(false)
     }
@@ -923,14 +923,13 @@ export function Settings() {
                   <span className="text-sm font-medium">{t("settings.whatsNew")}</span>
                 </div>
                 <div className="space-y-2 text-xs text-muted-foreground">
-                  <p className="font-medium text-foreground">{t("settings.whatsNewSkinManager")}</p>
-                  <ul className="list-disc list-inside space-y-1 ml-2">
-                    <li>{t("settings.whatsNewSkin3D")}</li>
-                    <li>{t("settings.whatsNewSkinBrowse")}</li>
-                    <li>{t("settings.whatsNewSkinFavorites")}</li>
-                    <li>{t("settings.whatsNewSkinUpload")}</li>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li>{t("settings.whatsNewI18nCheck")}</li>
+                    <li>{t("settings.whatsNew4K")}</li>
+                    <li>{t("settings.whatsNewBadgeFix")}</li>
+                    <li>{t("settings.whatsNewTranslations")}</li>
+                    <li>{t("settings.whatsNewHardcoded")}</li>
                   </ul>
-                  <p className="pt-1">{t("settings.whatsNewUI")}</p>
                 </div>
               </div>
 

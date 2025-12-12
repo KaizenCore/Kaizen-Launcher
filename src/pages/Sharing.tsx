@@ -229,7 +229,7 @@ export function Sharing() {
             </p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div className="grid gap-4 lg:grid-cols-2 3xl:grid-cols-3 4xl:grid-cols-4">
             {activeShares.map((share) => (
               <Card key={share.share_id}>
                 <CardHeader className="pb-3">
