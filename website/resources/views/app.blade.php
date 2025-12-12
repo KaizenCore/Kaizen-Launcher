@@ -65,7 +65,7 @@
         <meta name="theme-color" content="#059669" media="(prefers-color-scheme: dark)">
         <meta name="msapplication-TileColor" content="#10b981">
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-        <meta name="apple-mobile-web-app-capable" content="yes">
+        <meta name="mobile-web-app-capable" content="yes">
         <meta name="apple-mobile-web-app-title" content="Kaizen">
 
         {{-- Favicon --}}
