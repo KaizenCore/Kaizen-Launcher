@@ -429,10 +429,10 @@
     "restartOnboardingButton": "Relancer",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Nouveautés v0.5.4",
-    "whatsNewAppImage": "Builds AppImage pour utilisateurs Linux",
-    "whatsNewCICD": "Fiabilité améliorée du pipeline CI/CD",
-    "whatsNewClippy": "Corrections de qualité de code et optimisations"
+    "whatsNew": "Nouveautés v0.5.5",
+    "whatsNewSecurity": "Sécurité renforcée avec audit complet",
+    "whatsNewAccessibility": "Accessibilité améliorée pour lecteurs d'écran",
+    "whatsNewUX": "Expérience de chargement fluide avec skeletons"
   },
   "discord": {
     "loadFailed": "Echec du chargement de la configuration Discord",

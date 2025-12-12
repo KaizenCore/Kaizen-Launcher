@@ -427,10 +427,10 @@
     "restartOnboardingButton": "Herstarten",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Wat is nieuw in v0.5.4",
-    "whatsNewAppImage": "AppImage builds voor Linux-gebruikers",
-    "whatsNewCICD": "Verbeterde CI/CD pipeline betrouwbaarheid",
-    "whatsNewClippy": "Codekwaliteit fixes en optimalisaties"
+    "whatsNew": "Wat is nieuw in v0.5.5",
+    "whatsNewSecurity": "Verbeterde beveiliging met uitgebreide audit",
+    "whatsNewAccessibility": "Verbeterde toegankelijkheid voor schermlezers",
+    "whatsNewUX": "Soepelere laadervaring met skeleton loaders"
   },
   "discord": {
     "loadFailed": "Kan Discord-configuratie niet laden",

@@ -948,9 +948,9 @@ export function Settings() {
                 </div>
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <ul className="list-disc list-inside space-y-1">
-                    <li>{t("settings.whatsNewAppImage")}</li>
-                    <li>{t("settings.whatsNewCICD")}</li>
-                    <li>{t("settings.whatsNewClippy")}</li>
+                    <li>{t("settings.whatsNewSecurity")}</li>
+                    <li>{t("settings.whatsNewAccessibility")}</li>
+                    <li>{t("settings.whatsNewUX")}</li>
                   </ul>
                 </div>
               </div>

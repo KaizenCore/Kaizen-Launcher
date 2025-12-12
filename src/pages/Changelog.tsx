@@ -47,6 +47,53 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.5.5",
+    date: "2025-12-12",
+    highlights: [
+      "Security Improvements",
+      "Accessibility Enhancements",
+      "Better User Experience",
+    ],
+    features: [
+      {
+        icon: <Shield className="h-5 w-5" />,
+        title: "Enhanced Security",
+        description: "Comprehensive security audit and fixes. Protection against common vulnerabilities, improved data validation, and secure URL handling.",
+        tag: "improved",
+      },
+      {
+        icon: <Users className="h-5 w-5" />,
+        title: "Accessibility Improvements",
+        description: "Added screen reader support with ARIA labels on all interactive elements. Better keyboard navigation throughout the app.",
+        tag: "improved",
+      },
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "Smoother Loading Experience",
+        description: "New skeleton loaders provide visual feedback while content loads. Error boundaries prevent page crashes from component failures.",
+        tag: "improved",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Mod Deletion Confirmation",
+        description: "Added confirmation dialog before deleting mods to prevent accidental data loss.",
+        tag: "fix",
+      },
+      {
+        icon: <Settings className="h-5 w-5" />,
+        title: "Memory Settings Reset",
+        description: "New 'Reset to Default' button for memory sliders in instance settings.",
+        tag: "new",
+      },
+      {
+        icon: <Wrench className="h-5 w-5" />,
+        title: "Backend Stability",
+        description: "Improved error handling and connection timeouts. More robust backend operations with better reliability.",
+        tag: "improved",
+      },
+    ],
+  },
+  {
     version: "0.5.4",
     date: "2025-12-12",
     highlights: [
