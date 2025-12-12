@@ -22,6 +22,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref_name }}
+  cancel-in-progress: false
+
 env:
   CARGO_INCREMENTAL: 1
   CARGO_NET_RETRY: 10
@@ -42,9 +46,29 @@ jobs:
           INPUT_VERSION: ${{ github.event.inputs.version }}
         with:
           script: |
-            // Use input version for workflow_dispatch, or extract from tag for push events
             const version = process.env.INPUT_VERSION || context.ref.replace('refs/tags/', '');
             console.log(`Creating release for version: ${version}`);
+
+            // Check if release already exists for this tag
+            const releases = await github.rest.repos.listReleases({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              per_page: 100
+            });
+
+            const existing = releases.data.find(r => r.tag_name === version);
+
+            if (existing) {
+              if (existing.draft) {
+                console.log(`Found existing draft release (ID: ${existing.id}), reusing it`);
+                return existing.id;
+              } else {
+                console.log(`Release ${version} already published, skipping creation`);
+                return existing.id;
+              }
+            }
+
+            // Create new draft release
             const { data } = await github.rest.repos.createRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -53,7 +77,8 @@ jobs:
               body: 'See the assets for download links and CHANGELOG.md for details.',
               draft: true,
               prerelease: false
-            })
+            });
+            console.log(`Created new draft release (ID: ${data.id})`);
             return data.id
 
   build-tauri:
@@ -217,9 +242,25 @@ jobs:
           release_id: ${{ needs.create-release.outputs.release_id }}
         with:
           script: |
-            github.rest.repos.updateRelease({
+            const releaseId = process.env.release_id;
+            console.log(`Publishing release ID: ${releaseId}`);
+
+            // Check current state
+            const { data: release } = await github.rest.repos.getRelease({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              release_id: process.env.release_id,
+              release_id: releaseId
+            });
+
+            if (!release.draft) {
+              console.log(`Release ${release.tag_name} is already published, skipping`);
+              return;
+            }
+
+            await github.rest.repos.updateRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              release_id: releaseId,
               draft: false
-            })
+            });
+            console.log(`Successfully published release ${release.tag_name}`)
