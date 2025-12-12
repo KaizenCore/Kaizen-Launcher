@@ -77,6 +77,7 @@ pub struct FileInfo {
 }
 
 /// Mod file with additional metadata
+#[allow(dead_code)] // Defined for future enhanced mod metadata in manifests
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModFileInfo {
     pub path: String,
@@ -88,6 +89,7 @@ pub struct ModFileInfo {
 }
 
 /// Mod metadata from .meta.json files
+#[allow(dead_code)] // Defined for future enhanced mod metadata in manifests
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModMetadata {
     pub name: String,

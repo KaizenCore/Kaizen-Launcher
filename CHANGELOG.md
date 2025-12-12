@@ -2,6 +2,44 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.5.2] - 2025-12-12
+
+### Added
+- **Skin Manager** - Complete skin customization system
+  - Interactive 3D skin viewer with pose animations (idle, walk, run, wave)
+  - Camera controls (zoom, rotate, reset) and screenshot capture
+  - Browse community skins from MineSkin gallery
+  - Search player skins by Minecraft username
+  - Favorites system to save preferred skins
+  - Upload custom skins from file or URL
+  - Cape selector for premium accounts
+  - Support for both Classic (Steve) and Slim (Alex) skin variants
+- Responsive grid layouts for large screens (up to 4K displays)
+- Unified toolbar design for Browse tab
+
+### Changed
+- Skin thumbnails now display proper 3D body renders instead of raw textures
+- Improved card layouts with better aspect ratios and padding
+
+### Fixed
+- Tooltips now properly display above 3D viewer overlays
+- Debug console.log statements removed from production code
+- Fixed JSX structure issues in Skins page
+
+### Technical
+- Added skinview3d library for WebGL skin rendering
+- New Tailwind breakpoints for 3xl (1920px) and 4xl (2560px) screens
+- Backend skin APIs: MineSkin v2, Ashcon player lookup, MCHeads renders
+
+## [0.5.0] - 2025-12-11
+
+### Added
+- Manual update check for dev/patch versions
+- HTTP Tunnel sharing system (replaces WebTorrent P2P)
+
+### Fixed
+- Update notifications now show for ALL version types
+
 ## [0.2.1] - 2025-12-10
 
 ### Added

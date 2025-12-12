@@ -31,6 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useSharingStore } from "@/stores/sharingStore";
 
 // Types matching Rust backend
 interface ActiveShare {
@@ -43,6 +44,7 @@ interface ActiveShare {
   uploaded_bytes: number;
   started_at: string;
   file_size: number;
+  provider: "bore" | "cloudflare";
 }
 
 interface ShareStatusEvent {
@@ -50,6 +52,12 @@ interface ShareStatusEvent {
   status: string;
   public_url?: string;
   error?: string;
+}
+
+interface ShareDownloadEvent {
+  share_id: string;
+  download_count: number;
+  uploaded_bytes: number;
 }
 
 function formatBytes(bytes: number): string {
@@ -70,6 +78,7 @@ function formatDuration(startedAt: string): string {
 
 export function Sharing() {
   const { t } = useTranslation();
+  const { removeSeed, activeSeeds } = useSharingStore();
   const [activeShares, setActiveShares] = useState<ActiveShare[]>([]);
   const [shareToStop, setShareToStop] = useState<ActiveShare | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
@@ -98,8 +107,7 @@ export function Sharing() {
 
   // Listen for share status events
   useEffect(() => {
-    const unlisten = listen<ShareStatusEvent>("share-status", async (event) => {
-      console.log("[SHARE] Status event:", event.payload);
+    const unlisten = listen<ShareStatusEvent>("share-status", async () => {
       // Refresh active shares when status changes
       try {
         const shares = await invoke<ActiveShare[]>("get_active_shares");
@@ -107,6 +115,28 @@ export function Sharing() {
       } catch (err) {
         console.error("[SHARE] Failed to refresh shares:", err);
       }
+    });
+
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Listen for share download events (real-time stats update)
+  useEffect(() => {
+    const unlisten = listen<ShareDownloadEvent>("share-download", (event) => {
+      // Update the specific share's stats without full refresh
+      setActiveShares((prev) =>
+        prev.map((share) =>
+          share.share_id === event.payload.share_id
+            ? {
+                ...share,
+                download_count: event.payload.download_count,
+                uploaded_bytes: event.payload.uploaded_bytes,
+              }
+            : share
+        )
+      );
     });
 
     return () => {
@@ -131,6 +161,13 @@ export function Sharing() {
       setActiveShares((prev) =>
         prev.filter((s) => s.share_id !== share.share_id)
       );
+      // Also remove from the store (match by package_path since IDs differ)
+      for (const [exportId, seed] of activeSeeds.entries()) {
+        if (seed.packagePath === share.package_path) {
+          removeSeed(exportId);
+          break;
+        }
+      }
     } catch (err) {
       console.error("[SHARE] Failed to stop share:", err);
     }
@@ -141,6 +178,10 @@ export function Sharing() {
     try {
       await invoke("stop_all_shares");
       setActiveShares([]);
+      // Clear all seeds from store
+      for (const exportId of activeSeeds.keys()) {
+        removeSeed(exportId);
+      }
     } catch (err) {
       console.error("[SHARE] Failed to stop all shares:", err);
     }
@@ -207,9 +248,21 @@ export function Sharing() {
                         </CardDescription>
                       </div>
                     </div>
-                    <Badge variant="secondary" className="bg-green-500/10 text-green-500">
-                      {t("sharing.seeding")}
-                    </Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className={
+                          share.provider === "cloudflare"
+                            ? "bg-blue-500/10 text-blue-500 border-blue-500/30"
+                            : "bg-orange-500/10 text-orange-500 border-orange-500/30"
+                        }
+                      >
+                        {share.provider === "cloudflare" ? "HTTPS" : "HTTP"}
+                      </Badge>
+                      <Badge variant="secondary" className="bg-green-500/10 text-green-500">
+                        {t("sharing.seeding")}
+                      </Badge>
+                    </div>
                   </div>
                 </CardHeader>
                 <CardContent>

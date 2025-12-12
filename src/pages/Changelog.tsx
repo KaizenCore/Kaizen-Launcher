@@ -23,7 +23,13 @@ import {
   Cpu,
   Share2,
   Download,
-  Package
+  Package,
+  Palette,
+  Camera,
+  Heart,
+  Upload,
+  Layout,
+  Network
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -40,6 +46,81 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.5.2",
+    date: "2024-12-12",
+    highlights: [
+      "Skin Manager",
+      "3D skin viewer with animations",
+      "Browse & favorite community skins",
+    ],
+    features: [
+      {
+        icon: <Palette className="h-5 w-5" />,
+        title: "Skin Manager",
+        description: "Complete skin customization system with interactive 3D viewer, pose animations (idle, walk, run, wave), and camera controls.",
+        tag: "new",
+      },
+      {
+        icon: <Globe className="h-5 w-5" />,
+        title: "Community Skins Browser",
+        description: "Browse trending skins from MineSkin gallery or search for player skins by Minecraft username. Preview any skin in 3D before applying.",
+        tag: "new",
+      },
+      {
+        icon: <Heart className="h-5 w-5" />,
+        title: "Favorites System",
+        description: "Save your favorite skins for quick access. Build your personal collection of skins you love.",
+        tag: "new",
+      },
+      {
+        icon: <Upload className="h-5 w-5" />,
+        title: "Custom Skin Upload",
+        description: "Upload your own skins from a local file or URL. Supports both Classic (Steve) and Slim (Alex) skin variants.",
+        tag: "new",
+      },
+      {
+        icon: <Camera className="h-5 w-5" />,
+        title: "Screenshot Capture",
+        description: "Take screenshots of your skin in the 3D viewer with your chosen pose. Save directly to your computer.",
+        tag: "new",
+      },
+      {
+        icon: <Layout className="h-5 w-5" />,
+        title: "Large Screen Support",
+        description: "Responsive grid layouts with support for up to 4K displays. More skins visible at once on larger monitors.",
+        tag: "improved",
+      },
+    ],
+  },
+  {
+    version: "0.5.0",
+    date: "2024-12-11",
+    highlights: [
+      "HTTP Tunnel Sharing",
+      "Improved update checker",
+    ],
+    features: [
+      {
+        icon: <Network className="h-5 w-5" />,
+        title: "HTTP Tunnel Sharing",
+        description: "Instance sharing now uses HTTP tunnels instead of WebTorrent P2P. More reliable transfers with better firewall compatibility.",
+        tag: "improved",
+      },
+      {
+        icon: <RefreshCw className="h-5 w-5" />,
+        title: "Manual Update Check",
+        description: "Check for updates manually from Settings. Now detects all version types including dev and patch releases.",
+        tag: "improved",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Update Notifications",
+        description: "Fixed issue where update notifications weren't showing for all version types.",
+        tag: "fix",
+      },
+    ],
+  },
   {
     version: "0.4.1",
     date: "2024-12-11",

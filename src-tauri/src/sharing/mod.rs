@@ -7,12 +7,5 @@ pub mod import;
 pub mod manifest;
 pub mod server;
 
-pub use manifest::{
-    ContentSection, ExportOptions, ExportableContent, ExportableSection, ExportableWorld,
-    FileInfo, InstanceInfo, ModFileInfo, ModMetadata, PreparedExport, SavesSection,
-    SharingManifest, SharingProgressEvent, WorldInfo, MANIFEST_VERSION,
-};
-
-pub use server::{
-    ActiveShare, RunningShares, ShareDownloadEvent, ShareSession, ShareStatusEvent,
-};
+// Re-export RunningShares for state initialization in lib.rs
+pub use server::RunningShares;

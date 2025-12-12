@@ -14,6 +14,7 @@ mod modloader;
 mod modpacks;
 mod modrinth;
 mod sharing;
+mod skins;
 mod state;
 mod tunnel;
 mod updater;
@@ -272,6 +273,32 @@ pub fn run() {
             sharing::commands::stop_all_shares,
             sharing::commands::download_and_import_share,
             sharing::commands::fetch_share_manifest,
+            // Skin manager commands
+            skins::commands::get_skin_profile,
+            skins::commands::apply_skin,
+            skins::commands::apply_skin_from_file,
+            skins::commands::reset_skin,
+            skins::commands::get_available_capes,
+            skins::commands::get_optifine_cape,
+            skins::commands::set_active_cape,
+            skins::commands::search_community_skins,
+            skins::commands::get_trending_skins,
+            skins::commands::get_recent_skins,
+            skins::commands::search_player_skin,
+            skins::commands::get_all_player_capes,
+            skins::commands::upload_skin_from_url,
+            skins::commands::upload_skin_from_file_mineskin,
+            skins::commands::get_cached_skins,
+            skins::commands::cache_skin,
+            skins::commands::delete_cached_skin,
+            skins::commands::get_skin_cache_size,
+            skins::commands::cleanup_skin_cache,
+            skins::commands::download_skin_image,
+            // Skin favorites commands
+            skins::commands::get_favorite_skins,
+            skins::commands::add_favorite_skin,
+            skins::commands::remove_favorite_skin,
+            skins::commands::is_skin_favorited,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

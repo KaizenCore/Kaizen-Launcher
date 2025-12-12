@@ -1,6 +1,6 @@
 [package]
 name = "kaizen-launcher"
-version = "0.5.0"
+version = "0.5.2"
 description = "A modern Minecraft launcher"
 authors = ["Kaizen"]
 edition = "2021"
@@ -26,7 +26,7 @@ tauri-plugin-process = "2"
 tokio = { version = "1", features = ["full"] }
 
 # HTTP client
-reqwest = { version = "0.12", features = ["json", "stream"] }
+reqwest = { version = "0.12", features = ["json", "stream", "multipart"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

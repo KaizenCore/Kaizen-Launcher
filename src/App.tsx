@@ -22,6 +22,7 @@ const Accounts = lazy(() => import("@/pages/Accounts").then(m => ({ default: m.A
 const Settings = lazy(() => import("@/pages/Settings").then(m => ({ default: m.Settings })))
 const Changelog = lazy(() => import("@/pages/Changelog"))
 const Sharing = lazy(() => import("@/pages/Sharing").then(m => ({ default: m.Sharing })))
+const Skins = lazy(() => import("@/pages/Skins").then(m => ({ default: m.Skins })))
 
 // Loading fallback for lazy components
 function PageLoader() {
@@ -74,6 +75,7 @@ function App() {
             <Route path="backups" element={<Suspense fallback={<PageLoader />}><Backups /></Suspense>} />
             <Route path="sharing" element={<Suspense fallback={<PageLoader />}><Sharing /></Suspense>} />
             <Route path="accounts" element={<Suspense fallback={<PageLoader />}><Accounts /></Suspense>} />
+            <Route path="skins" element={<Suspense fallback={<PageLoader />}><Skins /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
             <Route path="changelog" element={<Suspense fallback={<PageLoader />}><Changelog /></Suspense>} />
           </Route>

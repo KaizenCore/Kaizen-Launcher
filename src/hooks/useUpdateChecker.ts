@@ -91,11 +91,9 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
           isMajorUpdate: isMajor,
         });
 
-        // Auto-prompt only for major/minor version changes (0.4.x → 0.5.x)
+        // Auto-prompt only for major/minor version changes (0.4.x -> 0.5.x)
         // Dev builds (patch versions) can be installed manually via Settings
         setUpdateAvailable(isMajor);
-
-        console.log(`[Update] Current: ${currentVersion} → New: ${newVersion} | Major: ${isMajor} | Stable: ${isStableVer}`);
       } else {
         setUpdateAvailable(false);
         setUpdateInfo(null);
@@ -134,8 +132,6 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
 
         // Manual check shows ALL available updates (even patch/dev builds)
         setUpdateAvailable(true);
-
-        console.log(`[Update Manual] Current: ${currentVersion} → New: ${newVersion} | Showing: true`);
       } else {
         setUpdateAvailable(false);
         setUpdateInfo(null);

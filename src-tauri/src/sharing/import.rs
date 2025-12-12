@@ -161,12 +161,40 @@ fn extract_package(
             continue;
         }
 
-        // Security: prevent path traversal
+        // Security: robust path traversal prevention
+        // 1. Reject paths containing ".." anywhere
         if name.contains("..") {
+            tracing::warn!("[SECURITY] Blocked path with '..': {}", name);
             continue;
         }
 
+        // 2. Reject absolute paths
+        if name.starts_with('/') || name.starts_with('\\') {
+            tracing::warn!("[SECURITY] Blocked absolute path: {}", name);
+            continue;
+        }
+
+        // 3. Reject Windows-style paths (C:\, etc)
+        if name.len() >= 2 && name.chars().nth(1) == Some(':') {
+            tracing::warn!("[SECURITY] Blocked Windows absolute path: {}", name);
+            continue;
+        }
+
+        // 4. Build the output path and verify it stays within instance_dir
         let outpath = instance_dir.join(&name);
+
+        // 5. Canonicalize and verify the path is still under instance_dir
+        // Note: We can't canonicalize yet if it doesn't exist, so we check components
+        let normalized: PathBuf = outpath.components()
+            .filter(|c| !matches!(c, std::path::Component::ParentDir))
+            .collect();
+
+        if !normalized.starts_with(instance_dir) {
+            tracing::warn!("[SECURITY] Path escape attempt blocked: {} -> {}", name, normalized.display());
+            continue;
+        }
+
+        let outpath = normalized;
 
         // Update progress periodically
         if i % 20 == 0 {

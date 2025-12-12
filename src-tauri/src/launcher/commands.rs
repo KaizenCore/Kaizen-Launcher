@@ -1847,7 +1847,7 @@ pub async fn get_server_stats(
     state: State<'_, SharedState>,
     instance_id: String,
 ) -> AppResult<Option<ServerStats>> {
-    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System, UpdateKind};
+    use sysinfo::{Pid, ProcessRefreshKind, ProcessesToUpdate, System};
 
     let state_guard = state.read().await;
     let running = state_guard.running_instances.read().await;

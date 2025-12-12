@@ -16,22 +16,28 @@ import {
   X,
   Link,
   Download,
+  Shield,
+  Zap,
+  Lock,
 } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
 import { useTranslation } from "@/i18n"
 import { Button } from "@/components/ui/button"
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Label } from "@/components/ui/label"
 import { Progress } from "@/components/ui/progress"
+import { Input } from "@/components/ui/input"
 import { useSharingStore, type ExportableContent, type ExportOptions, type PreparedExport, type SharingProgress } from "@/stores/sharingStore"
+
+type SharingProvider = "bore" | "cloudflare"
 
 interface ActiveShare {
   share_id: string
@@ -43,6 +49,7 @@ interface ActiveShare {
   uploaded_bytes: number
   started_at: string
   file_size: number
+  provider: SharingProvider
 }
 
 interface ShareStatusEvent {
@@ -65,7 +72,14 @@ interface ExportInstanceDialogProps {
   instanceName: string
 }
 
-type ExportStep = "select" | "preparing" | "tunneling" | "ready"
+type ExportStep = "select" | "installing" | "preparing" | "tunneling" | "ready"
+
+interface AgentInfo {
+  provider: string
+  version: string | null
+  path: string
+  installed: boolean
+}
 
 function formatBytes(bytes: number): string {
   if (bytes === 0) return "0 B"
@@ -101,11 +115,44 @@ export function ExportInstanceDialog({
   const [includeResourcepacks, setIncludeResourcepacks] = useState(true)
   const [includeShaderpacks, setIncludeShaderpacks] = useState(true)
   const [selectedWorlds, setSelectedWorlds] = useState<string[]>([])
+  const [provider, setProvider] = useState<SharingProvider>("cloudflare")
+  const [cloudflareInstalled, setCloudflareInstalled] = useState<boolean | null>(null)
+  const [isInstallingCloudflare, setIsInstallingCloudflare] = useState(false)
+
+  // Password protection
+  const [enablePassword, setEnablePassword] = useState(false)
+  const [password, setPassword] = useState("")
+
+  // Check if cloudflared is installed
+  const checkCloudflareInstalled = useCallback(async () => {
+    try {
+      const result = await invoke<AgentInfo | null>("check_tunnel_agent", { provider: "cloudflare" })
+      setCloudflareInstalled(result !== null)
+    } catch (err) {
+      console.error("Failed to check cloudflare agent:", err)
+      setCloudflareInstalled(false)
+    }
+  }, [])
+
+  // Install cloudflared
+  const handleInstallCloudflare = async () => {
+    setIsInstallingCloudflare(true)
+    setError(null)
+    try {
+      await invoke<AgentInfo>("install_tunnel_agent", { provider: "cloudflare" })
+      setCloudflareInstalled(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setIsInstallingCloudflare(false)
+    }
+  }
 
   // Fetch exportable content when dialog opens
   useEffect(() => {
     if (open && instanceId) {
       fetchExportableContent()
+      checkCloudflareInstalled()
     }
     // Reset state when dialog closes
     if (!open) {
@@ -194,10 +241,12 @@ export function ExportInstanceDialog({
       setCurrentExport(result)
       setStep("tunneling")
 
-      // Start sharing via HTTP tunnel (Bore)
+      // Start sharing via HTTP tunnel (Bore or Cloudflare)
       const share = await invoke<ActiveShare>("start_share", {
         packagePath: result.package_path,
         instanceName,
+        provider,
+        password: enablePassword && password ? password : null,
       })
 
       setActiveShare(share)
@@ -429,6 +478,127 @@ export function ExportInstanceDialog({
               <span className="font-medium">{formatBytes(calculateSelectedSize())}</span>
             </div>
           </div>
+
+          {/* Provider selection */}
+          <div className="pt-4 border-t">
+            <Label className="text-sm font-medium mb-3 block">{t("sharing.provider")}</Label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setProvider("cloudflare")}
+                className={`p-3 rounded-lg border text-left transition-colors ${
+                  provider === "cloudflare"
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-muted-foreground/50"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Shield className="h-4 w-4 text-blue-500" />
+                  <span className="font-medium">Cloudflare</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  HTTPS • {t("sharing.providerSecure")}
+                </p>
+              </button>
+              <button
+                type="button"
+                onClick={() => setProvider("bore")}
+                className={`p-3 rounded-lg border text-left transition-colors ${
+                  provider === "bore"
+                    ? "border-primary bg-primary/10"
+                    : "border-border hover:border-muted-foreground/50"
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <Zap className="h-4 w-4 text-orange-500" />
+                  <span className="font-medium">Bore</span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  HTTP • {t("sharing.providerFast")}
+                </p>
+              </button>
+            </div>
+
+            {/* Cloudflare installation prompt */}
+            {provider === "cloudflare" && cloudflareInstalled === false && (
+              <div className="mt-3 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="h-4 w-4 text-amber-500" />
+                  <span className="text-sm font-medium text-amber-500">
+                    {t("sharing.cloudflareNotInstalled")}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mb-3">
+                  {t("sharing.cloudflareInstallDescription")}
+                </p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleInstallCloudflare}
+                  disabled={isInstallingCloudflare}
+                  className="w-full"
+                >
+                  {isInstallingCloudflare ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {t("sharing.installingCloudflare")}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4 mr-2" />
+                      {t("sharing.installCloudflare")}
+                    </>
+                  )}
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* Password protection */}
+          <div className="pt-4 border-t">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <Lock className="h-4 w-4 text-primary" />
+                <Label htmlFor="enable-password" className="text-sm font-medium cursor-pointer">
+                  {t("sharing.passwordProtection")}
+                </Label>
+              </div>
+              <Checkbox
+                id="enable-password"
+                checked={enablePassword}
+                onCheckedChange={(c) => setEnablePassword(c === true)}
+              />
+            </div>
+            {enablePassword && (
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder={t("sharing.passwordPlaceholder")}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-9"
+                />
+                <p className="text-xs text-muted-foreground">
+                  {t("sharing.passwordDescription")}
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* Security warning */}
+          <div className="mt-4 p-3 rounded-lg border border-blue-500/30 bg-blue-500/10">
+            <div className="flex items-start gap-2">
+              <Lock className="h-4 w-4 text-blue-500 mt-0.5 flex-shrink-0" />
+              <div className="text-xs space-y-1">
+                <p className="font-medium text-blue-500">{t("sharing.securityTitle")}</p>
+                <ul className="text-muted-foreground space-y-0.5 list-disc list-inside">
+                  <li>{t("sharing.securityToken")}</li>
+                  <li>{t("sharing.securityPrivate")}</li>
+                  <li>{t("sharing.securityExpires")}</li>
+                </ul>
+              </div>
+            </div>
+          </div>
         </div>
       )
     }
@@ -529,21 +699,23 @@ export function ExportInstanceDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px]">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <Sheet open={open} onOpenChange={handleClose}>
+      <SheetContent side="right" className="w-[450px] sm:w-[500px] flex flex-col">
+        <SheetHeader>
+          <SheetTitle className="flex items-center gap-2">
             <Package className="h-5 w-5" />
             {t("sharing.exportTitle")}
-          </DialogTitle>
-          <DialogDescription>
+          </SheetTitle>
+          <SheetDescription>
             {instanceName}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetDescription>
+        </SheetHeader>
 
-        {renderContent()}
+        <div className="flex-1 overflow-y-auto py-4">
+          {renderContent()}
+        </div>
 
-        <DialogFooter>
+        <SheetFooter className="flex-shrink-0 border-t pt-4">
           {step === "select" && (
             <>
               <Button variant="outline" onClick={() => onOpenChange(false)}>
@@ -551,7 +723,11 @@ export function ExportInstanceDialog({
               </Button>
               <Button
                 onClick={handleExport}
-                disabled={calculateSelectedSize() === 0}
+                disabled={
+                  calculateSelectedSize() === 0 ||
+                  (provider === "cloudflare" && cloudflareInstalled === false) ||
+                  isInstallingCloudflare
+                }
               >
                 <Package className="h-4 w-4 mr-2" />
                 {t("sharing.export")}
@@ -577,8 +753,8 @@ export function ExportInstanceDialog({
               </Button>
             </>
           )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   )
 }

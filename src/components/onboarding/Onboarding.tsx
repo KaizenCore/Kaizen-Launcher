@@ -417,21 +417,23 @@ export function Onboarding({ open, onComplete }: OnboardingProps) {
                     <h1 className="text-3xl font-bold">{t("onboarding.languageTitle")}</h1>
                     <p className="text-muted-foreground mt-2">{t("onboarding.languageSubtitle")}</p>
                   </div>
-                  <div className="flex justify-center gap-4">
-                    {(["en", "fr"] as Locale[]).map((lang) => (
+                  <div className="flex justify-center gap-4 flex-wrap">
+                    {(["en", "fr", "de", "nl"] as Locale[]).map((lang) => (
                       <motion.button
                         key={lang}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         onClick={() => setLocale(lang)}
                         className={cn(
-                          "px-8 py-4 rounded-xl border-2 transition-all",
+                          "px-6 py-4 rounded-xl border-2 transition-all",
                           locale === lang
                             ? "border-primary bg-primary/10"
                             : "border-border hover:border-primary/50"
                         )}
                       >
-                        <span className="text-2xl mb-2 block">{lang === "en" ? "🇬🇧" : "🇫🇷"}</span>
+                        <span className="text-2xl mb-2 block">
+                          {lang === "en" ? "🇬🇧" : lang === "fr" ? "🇫🇷" : lang === "de" ? "🇩🇪" : "🇳🇱"}
+                        </span>
                         <span className="font-medium">{localeNames[lang]}</span>
                       </motion.button>
                     ))}

@@ -3,14 +3,18 @@ import { persist } from "zustand/middleware";
 
 import frTranslations from "./locales/fr.json";
 import enTranslations from "./locales/en.json";
+import deTranslations from "./locales/de.json";
+import nlTranslations from "./locales/nl.json";
 
-export type Locale = "fr" | "en";
+export type Locale = "fr" | "en" | "de" | "nl";
 
 export type TranslationKeys = typeof frTranslations;
 
 const translations: Record<Locale, TranslationKeys> = {
   fr: frTranslations,
   en: enTranslations,
+  de: deTranslations as TranslationKeys,
+  nl: nlTranslations as TranslationKeys,
 };
 
 interface I18nState {
@@ -60,12 +64,14 @@ export function useTranslation() {
   const { locale, setLocale } = useI18nStore();
   const currentTranslations = translations[locale];
 
-  const t = (key: TranslationKey, params?: Record<string, string>): string => {
+  const t = (key: TranslationKey, params?: Record<string, string | number>): string => {
     let value = getNestedValue(currentTranslations, key);
 
     if (params) {
       Object.entries(params).forEach(([paramKey, paramValue]) => {
-        value = value.replace(`{${paramKey}}`, paramValue);
+        // Support both {param} and {{param}} syntax
+        value = value.replace(new RegExp(`\\{\\{${paramKey}\\}\\}`, 'g'), String(paramValue));
+        value = value.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(paramValue));
       });
     }
 
@@ -83,4 +89,6 @@ export function useTranslation() {
 export const localeNames: Record<Locale, string> = {
   fr: "Francais",
   en: "English",
+  de: "Deutsch",
+  nl: "Nederlands",
 };

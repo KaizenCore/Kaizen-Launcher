@@ -3,7 +3,7 @@
 use crate::db::instances::Instance;
 use crate::error::AppResult;
 use crate::sharing::manifest::{ExportOptions, ExportableContent, PreparedExport, SharingManifest};
-use crate::sharing::server::{self, ActiveShare, RunningShares};
+use crate::sharing::server::{self, ActiveShare, RunningShares, SharingProvider};
 use crate::sharing::{export, import};
 use crate::state::SharedState;
 use std::path::PathBuf;
@@ -90,14 +90,19 @@ pub async fn start_share(
     app: AppHandle,
     package_path: String,
     instance_name: String,
+    provider: Option<SharingProvider>,
+    password: Option<String>,
 ) -> AppResult<ActiveShare> {
     let state = state.read().await;
     let path = PathBuf::from(&package_path);
+    let provider = provider.unwrap_or_default();
 
     server::start_share(
         &state.data_dir,
         &path,
         &instance_name,
+        provider,
+        password,
         app,
         running_shares.inner().clone(),
     )
@@ -133,6 +138,7 @@ pub async fn download_and_import_share(
     app: AppHandle,
     share_url: String,
     new_name: Option<String>,
+    password: Option<String>,
 ) -> AppResult<Instance> {
     use crate::error::AppError;
 
@@ -151,12 +157,21 @@ pub async fn download_and_import_share(
     // Download the file
     tracing::info!("[SHARE] Downloading from {}...", share_url);
 
-    let response = state_guard
-        .http_client
-        .get(&share_url)
+    // Build request with optional password header
+    let mut request = state_guard.http_client.get(&share_url);
+    if let Some(pwd) = &password {
+        request = request.header("X-Share-Password", pwd);
+    }
+
+    let response = request
         .send()
         .await
         .map_err(|e| AppError::Network(format!("Failed to download: {}", e)))?;
+
+    // Check for password-required response
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err(AppError::Auth("PASSWORD_REQUIRED".to_string()));
+    }
 
     if !response.status().is_success() {
         return Err(AppError::Network(format!(
@@ -195,6 +210,7 @@ pub async fn download_and_import_share(
 pub async fn fetch_share_manifest(
     state: State<'_, SharedState>,
     share_url: String,
+    password: Option<String>,
 ) -> AppResult<SharingManifest> {
     use crate::error::AppError;
 
@@ -209,12 +225,21 @@ pub async fn fetch_share_manifest(
 
     tracing::info!("[SHARE] Fetching manifest from {}...", manifest_url);
 
-    let response = state_guard
-        .http_client
-        .get(&manifest_url)
+    // Build request with optional password header
+    let mut request = state_guard.http_client.get(&manifest_url);
+    if let Some(pwd) = &password {
+        request = request.header("X-Share-Password", pwd);
+    }
+
+    let response = request
         .send()
         .await
         .map_err(|e| AppError::Network(format!("Failed to fetch manifest: {}", e)))?;
+
+    // Check for password-required response
+    if response.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err(AppError::Auth("PASSWORD_REQUIRED".to_string()));
+    }
 
     if !response.status().is_success() {
         return Err(AppError::Network(format!(

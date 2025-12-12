@@ -16,6 +16,7 @@ import {
   AlertCircle,
   FolderOpen,
   Link2,
+  Lock,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 import { Button } from "@/components/ui/button"
@@ -65,6 +66,8 @@ export function ImportInstanceDialog({
   // Input state
   const [shareUrl, setShareUrl] = useState("")
   const [localFilePath, setLocalFilePath] = useState("")
+  const [password, setPassword] = useState("")
+  const [needsPassword, setNeedsPassword] = useState(false)
 
   // Preview state
   const [manifest, setManifest] = useState<SharingManifest | null>(null)
@@ -81,6 +84,8 @@ export function ImportInstanceDialog({
       setError(null)
       setShareUrl("")
       setLocalFilePath("")
+      setPassword("")
+      setNeedsPassword(false)
       setManifest(null)
       setNewName("")
       setDownloadedFilePath(null)
@@ -143,16 +148,30 @@ export function ImportInstanceDialog({
       // Fetch manifest from the share URL
       const manifest = await invoke<SharingManifest>("fetch_share_manifest", {
         shareUrl: shareUrl,
+        password: needsPassword && password ? password : null,
       })
 
       setManifest(manifest)
       setCurrentImport(manifest)
       setNewName(manifest.instance.name)
+      setNeedsPassword(false)
       setStep("preview")
     } catch (err) {
       console.error("Failed to fetch manifest:", err)
-      setError(err instanceof Error ? err.message : String(err))
-      setStep("input")
+      const errorMsg = err instanceof Error ? err.message : String(err)
+
+      // Check if password is required
+      if (errorMsg.includes("PASSWORD_REQUIRED")) {
+        setNeedsPassword(true)
+        setError(null)
+        setStep("input")
+      } else if (needsPassword && errorMsg.includes("Invalid password")) {
+        setError(t("sharing.invalidPassword"))
+        setStep("input")
+      } else {
+        setError(errorMsg)
+        setStep("input")
+      }
     }
   }
 
@@ -198,6 +217,7 @@ export function ImportInstanceDialog({
         await invoke("download_and_import_share", {
           shareUrl: downloadUrl,
           newName: newName !== manifest?.instance.name ? newName : null,
+          password: needsPassword && password ? password : null,
         })
       } else {
         // Import from local file
@@ -252,6 +272,26 @@ export function ImportInstanceDialog({
                   {t("sharing.shareLinkHelp")}
                 </p>
               </div>
+
+              {/* Password input when required */}
+              {needsPassword && (
+                <div className="space-y-2 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10">
+                  <div className="flex items-center gap-2 text-amber-500 mb-2">
+                    <Lock className="h-4 w-4" />
+                    <span className="text-sm font-medium">{t("sharing.passwordRequired")}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {t("sharing.passwordPrompt")}
+                  </p>
+                  <Input
+                    type="password"
+                    placeholder={t("sharing.enterPassword")}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="h-9"
+                  />
+                </div>
+              )}
             </TabsContent>
 
             <TabsContent value="file" className="space-y-4 mt-4">
@@ -427,7 +467,12 @@ export function ImportInstanceDialog({
 
   const canProceed = () => {
     if (inputMode === "url") {
-      return shareUrl.startsWith("http://") || shareUrl.startsWith("https://")
+      const hasValidUrl = shareUrl.startsWith("http://") || shareUrl.startsWith("https://")
+      // If password is required, also require password to be filled
+      if (needsPassword) {
+        return hasValidUrl && password.trim().length > 0
+      }
+      return hasValidUrl
     }
     return !!localFilePath
   }

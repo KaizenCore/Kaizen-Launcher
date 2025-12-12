@@ -47,6 +47,9 @@ pub enum AppError {
     #[error("Sharing error: {0}")]
     Sharing(String),
 
+    #[error("Skin error: {0}")]
+    Skin(String),
+
     #[error("{0}")]
     Custom(String),
 }

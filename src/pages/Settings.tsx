@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { Moon, Sun, Monitor, Globe, Download, Trash2, RefreshCw, Check, HardDrive, FolderOpen, Github, Database, Cpu, Info, Palette, Loader2, Sparkles, Cloud, MessageSquare } from "lucide-react"
+import { Moon, Sun, Monitor, Globe, Download, Trash2, RefreshCw, Check, HardDrive, FolderOpen, Github, Database, Cpu, Info, Palette, Loader2, Sparkles, Cloud, MessageSquare, Newspaper } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -912,6 +912,26 @@ export function Settings() {
                     {t("updater.upToDate")}
                   </span>
                 )}
+              </div>
+
+              <Separator />
+
+              {/* What's New in this version */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Newspaper className="h-4 w-4 text-primary" />
+                  <span className="text-sm font-medium">{t("settings.whatsNew")}</span>
+                </div>
+                <div className="space-y-2 text-xs text-muted-foreground">
+                  <p className="font-medium text-foreground">{t("settings.whatsNewSkinManager")}</p>
+                  <ul className="list-disc list-inside space-y-1 ml-2">
+                    <li>{t("settings.whatsNewSkin3D")}</li>
+                    <li>{t("settings.whatsNewSkinBrowse")}</li>
+                    <li>{t("settings.whatsNewSkinFavorites")}</li>
+                    <li>{t("settings.whatsNewSkinUpload")}</li>
+                  </ul>
+                  <p className="pt-1">{t("settings.whatsNewUI")}</p>
+                </div>
               </div>
 
               <Separator />

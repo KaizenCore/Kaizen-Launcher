@@ -10,6 +10,7 @@ import {
   Settings,
   Sparkles,
   Share2,
+  Palette,
   type LucideIcon
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
@@ -242,6 +243,7 @@ export function Sidebar() {
               }
             </TooltipContent>
           </Tooltip>
+          <NavItem to="/skins" icon={Palette} label={t("nav.skins")} exact />
           <NavItem to="/changelog" icon={Sparkles} label={t("nav.changelog")} exact />
           <NavItem to="/settings" icon={Settings} label={t("nav.settings")} exact />
         </nav>

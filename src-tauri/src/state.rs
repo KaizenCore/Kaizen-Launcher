@@ -351,6 +351,21 @@ impl AppState {
                 FOREIGN KEY (instance_id) REFERENCES instances(id) ON DELETE CASCADE
             );
 
+            -- Skin favorites
+            CREATE TABLE IF NOT EXISTS skin_favorites (
+                id TEXT PRIMARY KEY,
+                skin_id TEXT NOT NULL,
+                name TEXT NOT NULL,
+                url TEXT NOT NULL,
+                thumbnail_url TEXT NOT NULL,
+                variant TEXT NOT NULL DEFAULT 'classic',
+                source TEXT NOT NULL DEFAULT 'mineskin',
+                author TEXT,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_skin_favorites_created ON skin_favorites(created_at DESC);
+
             -- Index for instance_webhook_config.instance_id already covered by PRIMARY KEY
         "#,
         )

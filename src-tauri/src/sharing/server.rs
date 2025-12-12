@@ -2,10 +2,10 @@
 //! Serves the export ZIP file via a local HTTP server that can be tunneled
 
 use crate::error::{AppError, AppResult};
-use crate::sharing::manifest::SharingManifest;
 use crate::tunnel::agent::get_agent_binary_path;
 use crate::tunnel::TunnelProvider;
 use once_cell::sync::Lazy;
+use rand::Rng;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -13,6 +13,7 @@ use std::io::SeekFrom;
 use std::net::SocketAddr;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, AsyncSeekExt, AsyncWriteExt, BufReader};
@@ -32,6 +33,24 @@ static BORE_URL_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"listening at ([a-zA-Z0-9.-]+:\d+)").expect("Invalid bore URL regex"));
 static BORE_HOST_PORT_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"bore\.pub:\d+").expect("Invalid bore host:port regex"));
+// Pre-compiled regex for Cloudflare URL parsing
+static CLOUDFLARE_URL_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com").expect("Invalid cloudflare URL regex")
+});
+
+/// Provider for sharing tunnels
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum SharingProvider {
+    #[default]
+    Bore,
+    Cloudflare,
+}
+
+/// Security constants
+const AUTH_TOKEN_LENGTH: usize = 32; // 256-bit token
+const MAX_CONCURRENT_CONNECTIONS: usize = 10;
+const REQUEST_TIMEOUT_SECS: u64 = 300; // 5 minutes per request
 
 /// Information about an active share session
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -45,6 +64,15 @@ pub struct ActiveShare {
     pub uploaded_bytes: u64,
     pub started_at: String,
     pub file_size: u64,
+    pub provider: SharingProvider,
+    /// Whether this share requires a password
+    pub has_password: bool,
+    #[serde(skip_serializing)] // Never expose token to frontend
+    #[allow(dead_code)] // Stored for security validation, not directly read
+    pub auth_token: String,
+    #[serde(skip_serializing)] // Never expose password hash to frontend
+    #[allow(dead_code)]
+    pub password_hash: Option<String>,
 }
 
 /// Event emitted when share status changes
@@ -75,6 +103,43 @@ pub struct ShareSession {
     pub shutdown_tx: tokio::sync::broadcast::Sender<()>,
 }
 
+/// Generate a cryptographically secure auth token
+fn generate_auth_token() -> String {
+    let mut rng = rand::thread_rng();
+    let bytes: [u8; AUTH_TOKEN_LENGTH] = rng.gen();
+    // Use URL-safe base64 encoding (no padding)
+    bytes.iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>()
+}
+
+/// Validate auth token using constant-time comparison to prevent timing attacks
+fn validate_token(provided: &str, expected: &str) -> bool {
+    if provided.len() != expected.len() {
+        return false;
+    }
+    // Constant-time comparison
+    provided.bytes()
+        .zip(expected.bytes())
+        .fold(0u8, |acc, (a, b)| acc | (a ^ b)) == 0
+}
+
+/// Hash password using SHA-256 (with salt derived from share_id for uniqueness)
+fn hash_password(password: &str, share_id: &str) -> String {
+    use sha2::{Sha256, Digest};
+    let mut hasher = Sha256::new();
+    hasher.update(password.as_bytes());
+    hasher.update(share_id.as_bytes()); // Salt with share_id
+    let result = hasher.finalize();
+    result.iter().map(|b| format!("{:02x}", b)).collect()
+}
+
+/// Validate password against stored hash
+fn validate_password(provided: &str, share_id: &str, expected_hash: &str) -> bool {
+    let provided_hash = hash_password(provided, share_id);
+    validate_token(&provided_hash, expected_hash)
+}
+
 /// Find an available port
 async fn find_available_port() -> AppResult<u16> {
     // Try to bind to port 0 to get an available port
@@ -93,11 +158,13 @@ async fn find_available_port() -> AppResult<u16> {
     Ok(port)
 }
 
-/// Start the HTTP file server
+/// Start the HTTP file server with authentication and rate limiting
 async fn start_http_server(
     package_path: PathBuf,
     port: u16,
     share_id: String,
+    auth_token: String,
+    password_hash: Option<String>,
     app: AppHandle,
     mut shutdown_rx: tokio::sync::broadcast::Receiver<()>,
     download_count: Arc<RwLock<u32>>,
@@ -108,7 +175,10 @@ async fn start_http_server(
         .await
         .map_err(|e| AppError::Io(format!("Failed to bind HTTP server: {}", e)))?;
 
-    info!("[SHARE] HTTP server listening on port {}", port);
+    // Rate limiting: track active connections
+    let active_connections = Arc::new(AtomicUsize::new(0));
+
+    info!("[SHARE] HTTP server listening on port {} (token-protected)", port);
 
     loop {
         tokio::select! {
@@ -119,23 +189,49 @@ async fn start_http_server(
             result = listener.accept() => {
                 match result {
                     Ok((stream, peer_addr)) => {
-                        info!("[SHARE] Connection from {}", peer_addr);
+                        // Rate limiting: check concurrent connections
+                        let current = active_connections.load(Ordering::SeqCst);
+                        if current >= MAX_CONCURRENT_CONNECTIONS {
+                            warn!("[SECURITY] Rate limit reached ({} connections), rejecting {}", current, peer_addr);
+                            // Connection will be dropped
+                            continue;
+                        }
+
+                        active_connections.fetch_add(1, Ordering::SeqCst);
+                        debug!("[SHARE] Connection from {} (active: {})", peer_addr, current + 1);
+
                         let path = package_path.clone();
                         let share_id_clone = share_id.clone();
+                        let auth_token_clone = auth_token.clone();
+                        let password_hash_clone = password_hash.clone();
                         let app_clone = app.clone();
                         let download_count_clone = download_count.clone();
                         let uploaded_bytes_clone = uploaded_bytes.clone();
+                        let connections_clone = active_connections.clone();
 
                         tokio::spawn(async move {
-                            if let Err(e) = handle_connection(
-                                stream,
-                                &path,
-                                &share_id_clone,
-                                &app_clone,
-                                download_count_clone,
-                                uploaded_bytes_clone,
-                            ).await {
-                                error!("[SHARE] Connection error: {}", e);
+                            // Apply request timeout
+                            let result = tokio::time::timeout(
+                                std::time::Duration::from_secs(REQUEST_TIMEOUT_SECS),
+                                handle_connection(
+                                    stream,
+                                    &path,
+                                    &share_id_clone,
+                                    &auth_token_clone,
+                                    password_hash_clone.as_deref(),
+                                    &app_clone,
+                                    download_count_clone,
+                                    uploaded_bytes_clone,
+                                )
+                            ).await;
+
+                            // Decrement active connections
+                            connections_clone.fetch_sub(1, Ordering::SeqCst);
+
+                            match result {
+                                Ok(Ok(())) => {}
+                                Ok(Err(e)) => error!("[SHARE] Connection error: {}", e),
+                                Err(_) => warn!("[SECURITY] Request timeout from {}", peer_addr),
                             }
                         });
                     }
@@ -150,11 +246,13 @@ async fn start_http_server(
     Ok(())
 }
 
-/// Handle an HTTP connection
+/// Handle an HTTP connection with token validation
 async fn handle_connection(
     mut stream: TcpStream,
     package_path: &Path,
     share_id: &str,
+    expected_token: &str,
+    password_hash: Option<&str>,
     app: &AppHandle,
     download_count: Arc<RwLock<u32>>,
     uploaded_bytes: Arc<RwLock<u64>>,
@@ -178,7 +276,62 @@ async fn handle_connection(
     }
 
     let method = parts[0];
-    let path = parts[1];
+    let request_path = parts[1];
+
+    // Security: Parse and validate auth token from URL
+    // Expected formats: /{token}, /{token}/download, /{token}/manifest
+    let path_parts: Vec<&str> = request_path.trim_start_matches('/').splitn(2, '/').collect();
+
+    if path_parts.is_empty() {
+        warn!("[SECURITY] Empty path in request");
+        send_response(&mut stream, 403, "Forbidden", Some("Access denied")).await?;
+        return Ok(());
+    }
+
+    let provided_token = path_parts[0];
+
+    // Validate token using constant-time comparison
+    if !validate_token(provided_token, expected_token) {
+        warn!("[SECURITY] Invalid auth token attempted");
+        // Add delay to slow down brute force attempts
+        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+        send_response(&mut stream, 403, "Forbidden", Some("Invalid or missing access token")).await?;
+        return Ok(());
+    }
+
+    // Token is valid, determine the actual path (after the token)
+    let path = if path_parts.len() > 1 {
+        format!("/{}", path_parts[1])
+    } else {
+        "/".to_string()
+    };
+
+    // Password protection: check X-Share-Password header if password is required
+    if let Some(expected_hash) = password_hash {
+        let provided_password = request
+            .lines()
+            .find(|line| line.to_lowercase().starts_with("x-share-password:"))
+            .and_then(|line| line.split(':').nth(1))
+            .map(|s| s.trim());
+
+        match provided_password {
+            None => {
+                // Password required but not provided - return 401 with specific message
+                info!("[SHARE] Password required but not provided");
+                send_response(&mut stream, 401, "Unauthorized", Some("PASSWORD_REQUIRED")).await?;
+                return Ok(());
+            }
+            Some(password) => {
+                if !validate_password(password, share_id, expected_hash) {
+                    warn!("[SECURITY] Invalid password attempted");
+                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                    send_response(&mut stream, 403, "Forbidden", Some("Invalid password")).await?;
+                    return Ok(());
+                }
+                debug!("[SHARE] Password validated successfully");
+            }
+        }
+    }
 
     // Check if range request
     let range_header = request
@@ -187,7 +340,7 @@ async fn handle_connection(
         .and_then(|line| line.split(':').nth(1))
         .map(|s| s.trim().to_string());
 
-    match (method, path) {
+    match (method, path.as_str()) {
         ("GET", "/") | ("GET", "/download") | ("GET", "/instance.kaizen") => {
             serve_file(&mut stream, package_path, range_header, share_id, app, download_count, uploaded_bytes).await?;
         }
@@ -575,15 +728,168 @@ async fn start_bore_tunnel(
     Ok((pid, url_rx))
 }
 
+/// Start cloudflare tunnel for the HTTP server (HTTPS)
+async fn start_cloudflare_sharing_tunnel(
+    data_dir: &Path,
+    local_port: u16,
+    share_id: String,
+    app: AppHandle,
+) -> AppResult<(u32, tokio::sync::broadcast::Receiver<String>)> {
+    let binary_path = get_agent_binary_path(data_dir, TunnelProvider::Cloudflare);
+
+    if !binary_path.exists() {
+        return Err(AppError::Custom(
+            "Cloudflare agent not installed. Please install it from the Tunnel settings.".to_string(),
+        ));
+    }
+
+    info!("[SHARE] Starting Cloudflare tunnel for port {}...", local_port);
+
+    // Use HTTP URL for sharing (not TCP like for game servers)
+    let mut cmd = Command::new(&binary_path);
+    cmd.args(["tunnel", "--url", &format!("http://localhost:{}", local_port)])
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| AppError::Io(format!("Failed to start cloudflared: {}", e)))?;
+
+    let pid = child.id().unwrap_or(0);
+    info!("[SHARE] Cloudflare started with PID: {}", pid);
+
+    // Channel to send the public URL when found
+    let (url_tx, url_rx) = tokio::sync::broadcast::channel::<String>(1);
+
+    // Cloudflare outputs URL to stderr
+    if let Some(stderr) = child.stderr.take() {
+        let share_id_clone = share_id.clone();
+        let app_clone = app.clone();
+        let url_tx_clone = url_tx.clone();
+
+        tokio::spawn(async move {
+            let reader = BufReader::new(stderr);
+            let mut lines = reader.lines();
+
+            while let Ok(Some(line)) = lines.next_line().await {
+                tokio::task::yield_now().await;
+                debug!("[SHARE CLOUDFLARE] {}", line);
+
+                // Check for URL in the line
+                if let Some(captures) = CLOUDFLARE_URL_REGEX.find(&line) {
+                    let url = captures.as_str().to_string();
+                    info!("[SHARE] Cloudflare URL: {}", url);
+
+                    let _ = url_tx_clone.send(url.clone());
+
+                    let _ = app_clone.emit(
+                        "share-status",
+                        ShareStatusEvent {
+                            share_id: share_id_clone.clone(),
+                            status: "connected".to_string(),
+                            public_url: Some(url),
+                            error: None,
+                        },
+                    );
+                }
+
+                // Check for errors
+                if line.to_lowercase().contains("error") || line.to_lowercase().contains("failed") {
+                    warn!("[SHARE CLOUDFLARE] Error: {}", line);
+                    let _ = app_clone.emit(
+                        "share-status",
+                        ShareStatusEvent {
+                            share_id: share_id_clone.clone(),
+                            status: "error".to_string(),
+                            public_url: None,
+                            error: Some(line),
+                        },
+                    );
+                }
+            }
+        });
+    }
+
+    // Also capture stdout
+    if let Some(stdout) = child.stdout.take() {
+        let url_tx_clone = url_tx;
+        let share_id_clone = share_id.clone();
+        let app_clone = app.clone();
+
+        tokio::spawn(async move {
+            let reader = BufReader::new(stdout);
+            let mut lines = reader.lines();
+
+            while let Ok(Some(line)) = lines.next_line().await {
+                tokio::task::yield_now().await;
+                debug!("[SHARE CLOUDFLARE STDOUT] {}", line);
+
+                // Check for URL in stdout too (just in case)
+                if let Some(captures) = CLOUDFLARE_URL_REGEX.find(&line) {
+                    let url = captures.as_str().to_string();
+                    let _ = url_tx_clone.send(url.clone());
+
+                    let _ = app_clone.emit(
+                        "share-status",
+                        ShareStatusEvent {
+                            share_id: share_id_clone.clone(),
+                            status: "connected".to_string(),
+                            public_url: Some(url),
+                            error: None,
+                        },
+                    );
+                }
+            }
+        });
+    }
+
+    // Wait for process exit in background
+    let share_id_exit = share_id;
+    let app_exit = app;
+    tokio::spawn(async move {
+        let _ = child.wait().await;
+        info!("[SHARE] Cloudflare tunnel exited");
+
+        let _ = app_exit.emit(
+            "share-status",
+            ShareStatusEvent {
+                share_id: share_id_exit,
+                status: "disconnected".to_string(),
+                public_url: None,
+                error: None,
+            },
+        );
+    });
+
+    Ok((pid, url_rx))
+}
+
 /// Start sharing an instance package
 pub async fn start_share(
     data_dir: &Path,
     package_path: &Path,
     instance_name: &str,
+    provider: SharingProvider,
+    password: Option<String>,
     app: AppHandle,
     running_shares: RunningShares,
 ) -> AppResult<ActiveShare> {
     let share_id = uuid::Uuid::new_v4().to_string();
+
+    // Generate cryptographically secure auth token
+    let auth_token = generate_auth_token();
+    info!("[SHARE] Generated auth token for share {}", share_id);
+
+    // Hash password if provided
+    let password_hash = password.as_ref().map(|p| {
+        info!("[SHARE] Password protection enabled for share {}", share_id);
+        hash_password(p, &share_id)
+    });
 
     // Get file size
     let metadata = tokio::fs::metadata(package_path)
@@ -601,9 +907,11 @@ pub async fn start_share(
     let download_count = Arc::new(RwLock::new(0u32));
     let uploaded_bytes = Arc::new(RwLock::new(0u64));
 
-    // Start HTTP server
+    // Start HTTP server with auth token
     let server_path = package_path.to_path_buf();
     let server_share_id = share_id.clone();
+    let server_auth_token = auth_token.clone();
+    let server_password_hash = password_hash.clone();
     let server_app = app.clone();
     let server_download_count = download_count.clone();
     let server_uploaded_bytes = uploaded_bytes.clone();
@@ -613,6 +921,8 @@ pub async fn start_share(
             server_path,
             port,
             server_share_id,
+            server_auth_token,
+            server_password_hash,
             server_app,
             shutdown_rx,
             server_download_count,
@@ -624,19 +934,32 @@ pub async fn start_share(
         }
     });
 
-    // Start bore tunnel
-    let (tunnel_pid, mut url_rx) =
-        start_bore_tunnel(data_dir, port, share_id.clone(), app.clone()).await?;
+    // Start tunnel based on provider
+    info!("[SHARE] Starting {:?} tunnel...", provider);
+    let (tunnel_pid, mut url_rx) = match provider {
+        SharingProvider::Bore => {
+            start_bore_tunnel(data_dir, port, share_id.clone(), app.clone()).await?
+        }
+        SharingProvider::Cloudflare => {
+            start_cloudflare_sharing_tunnel(data_dir, port, share_id.clone(), app.clone()).await?
+        }
+    };
 
     // Wait for public URL (with timeout)
-    let public_url = tokio::time::timeout(std::time::Duration::from_secs(30), url_rx.recv())
+    let base_url = tokio::time::timeout(std::time::Duration::from_secs(30), url_rx.recv())
         .await
         .ok()
         .and_then(|r| r.ok());
 
-    if public_url.is_none() {
+    if base_url.is_none() {
         warn!("[SHARE] Timeout waiting for public URL, tunnel may still be connecting");
     }
+
+    // Append auth token to URL for security
+    // Format: {base_url}/{token} (e.g., https://xxx.trycloudflare.com/abc123...)
+    let public_url = base_url.map(|url| format!("{}/{}", url.trim_end_matches('/'), auth_token));
+
+    info!("[SHARE] Share URL generated with auth token");
 
     let info = ActiveShare {
         share_id: share_id.clone(),
@@ -648,6 +971,10 @@ pub async fn start_share(
         uploaded_bytes: 0,
         started_at: chrono::Utc::now().to_rfc3339(),
         file_size: metadata.len(),
+        provider,
+        has_password: password_hash.is_some(),
+        auth_token,
+        password_hash,
     };
 
     // Store session
