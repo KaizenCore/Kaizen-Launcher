@@ -1,9 +1,9 @@
 import { useTranslations } from '@/lib/i18n';
-import { useGitHubRelease } from '@/hooks/use-github-release';
+import { useGitHubRelease, useGitHubStars } from '@/hooks/use-github-release';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { motion } from '@/components/ui/motion';
-import { Download, Github, ChevronRight } from 'lucide-react';
+import { Download, Github, ChevronRight, Star } from 'lucide-react';
 import { useMemo } from 'react';
 
 const GITHUB_URL = 'https://github.com/KaizenCore/Kaizen-Launcher';
@@ -39,6 +39,7 @@ export function HeroSection() {
     const t = useTranslations();
     const os = useMemo(() => detectOS(), []);
     const { version } = useGitHubRelease();
+    const { formattedStars } = useGitHubStars();
 
     const scrollToDownload = () => {
         const element = document.getElementById('download');
@@ -131,15 +132,35 @@ export function HeroSection() {
                         </motion.div>
                     </motion.div>
 
-                    {/* Version info */}
-                    <motion.p
+                    {/* Version info + Star button */}
+                    <motion.div
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ duration: 0.6, delay: 0.6 }}
-                        className="mt-6 text-sm text-muted-foreground"
+                        className="mt-6 flex items-center justify-center gap-4"
                     >
-                        {version} • Open Source
-                    </motion.p>
+                        <span className="text-sm text-muted-foreground">
+                            {version} • Open Source
+                        </span>
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="gap-2 border-amber-500/30 bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 dark:text-amber-400"
+                                asChild
+                            >
+                                <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+                                    <Star className="h-4 w-4 fill-current" />
+                                    Star
+                                    {formattedStars && (
+                                        <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
+                                            {formattedStars}
+                                        </Badge>
+                                    )}
+                                </a>
+                            </Button>
+                        </motion.div>
+                    </motion.div>
                 </div>
             </div>
         </section>

@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 
 const GITHUB_API_URL = 'https://api.github.com/repos/KaizenCore/Kaizen-Launcher/releases';
+const GITHUB_REPO_API_URL = 'https://api.github.com/repos/KaizenCore/Kaizen-Launcher';
 const CACHE_KEY = 'kaizen-latest-release';
 const CACHE_KEY_ALL = 'kaizen-all-releases';
+const CACHE_KEY_STARS = 'kaizen-stars';
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 export interface ReleaseAsset {
@@ -314,4 +316,62 @@ export function useGitHubReleases() {
         loading,
         error,
     };
+}
+
+// Hook to fetch GitHub star count
+export function useGitHubStars() {
+    const [stars, setStars] = useState<number | null>(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        // Check cache first
+        try {
+            const cached = localStorage.getItem(CACHE_KEY_STARS);
+            if (cached) {
+                const { data, timestamp } = JSON.parse(cached);
+                if (Date.now() - timestamp < CACHE_DURATION) {
+                    setStars(data);
+                    setLoading(false);
+                    return;
+                }
+            }
+        } catch {
+            // Ignore cache errors
+        }
+
+        fetch(GITHUB_REPO_API_URL)
+            .then((res) => {
+                if (!res.ok) throw new Error('Failed to fetch repo info');
+                return res.json();
+            })
+            .then((data) => {
+                const starCount = data.stargazers_count;
+                setStars(starCount);
+
+                // Cache the result
+                try {
+                    localStorage.setItem(CACHE_KEY_STARS, JSON.stringify({
+                        data: starCount,
+                        timestamp: Date.now(),
+                    }));
+                } catch {
+                    // Ignore cache errors
+                }
+            })
+            .catch(() => {
+                // Silently fail - stars are optional
+            })
+            .finally(() => {
+                setLoading(false);
+            });
+    }, []);
+
+    // Format star count (e.g., 1.2k)
+    const formattedStars = stars !== null
+        ? stars >= 1000
+            ? `${(stars / 1000).toFixed(1)}k`
+            : String(stars)
+        : null;
+
+    return { stars, formattedStars, loading };
 }
