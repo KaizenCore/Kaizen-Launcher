@@ -10,6 +10,7 @@ import { useTranslation, TranslationKey } from "@/i18n"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
+import { Skeleton } from "@/components/ui/skeleton"
 import { CreateInstanceDialog } from "@/components/dialogs/CreateInstanceDialog"
 import { DeleteInstanceDialog } from "@/components/dialogs/DeleteInstanceDialog"
 import { ImportInstanceDialog } from "@/components/sharing/ImportInstanceDialog"
@@ -136,6 +137,7 @@ const InstanceCard = memo(function InstanceCard({
           variant="ghost"
           size="icon"
           className="h-8 w-8 shrink-0"
+          aria-label={isFavorite ? t("skins.removeFromFavorites") : t("skins.addToFavorites")}
           onClick={(e) => {
             e.stopPropagation()
             onToggleFavorite(instance.id)
@@ -202,7 +204,7 @@ const InstanceCard = memo(function InstanceCard({
               {isInstalling ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
             </Button>
           )}
-          <Button size="sm" variant="outline" onClick={() => onDelete(instance)} disabled={isInstalling || isLaunching || isRunning}>
+          <Button size="sm" variant="outline" onClick={() => onDelete(instance)} disabled={isInstalling || isLaunching || isRunning} aria-label={t("instances.delete")}>
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
@@ -222,6 +224,7 @@ const InstanceCard = memo(function InstanceCard({
         {/* Favorite */}
         <button
           className="shrink-0"
+          aria-label={isFavorite ? t("skins.removeFromFavorites") : t("skins.addToFavorites")}
           onClick={(e) => {
             e.stopPropagation()
             onToggleFavorite(instance.id)
@@ -341,6 +344,7 @@ const InstanceCard = memo(function InstanceCard({
               isFavorite && "opacity-100",
               "hover:bg-background/50"
             )}
+            aria-label={isFavorite ? t("skins.removeFromFavorites") : t("skins.addToFavorites")}
             onClick={(e) => {
               e.stopPropagation()
               onToggleFavorite(instance.id)
@@ -457,6 +461,7 @@ const InstanceCard = memo(function InstanceCard({
             className="h-9 w-9 p-0 rounded-lg border-border/50 hover:border-destructive hover:text-destructive"
             onClick={() => onDelete(instance)}
             disabled={isInstalling || isLaunching || isRunning}
+            aria-label={t("instances.delete")}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -1070,11 +1075,29 @@ export function Instances() {
 
         {/* Instances */}
         {isLoading ? (
-          <Card>
-            <CardContent className="flex items-center justify-center py-16">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <Card key={i} className="overflow-hidden">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <Skeleton className="h-14 w-14 rounded-xl" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <Skeleton className="h-5 w-3/4" />
+                    <div className="flex gap-2">
+                      <Skeleton className="h-5 w-16 rounded-md" />
+                      <Skeleton className="h-5 w-14 rounded-md" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Skeleton className="h-9 flex-1 rounded-lg" />
+                    <Skeleton className="h-9 w-9 rounded-lg" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         ) : filteredInstances.length === 0 ? (
           /* Empty state */
           <Card className="border-dashed">

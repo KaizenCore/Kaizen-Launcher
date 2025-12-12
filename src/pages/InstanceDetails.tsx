@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { useInstallationStore } from "@/stores/installationStore"
 import { useTourStore, TourStep } from "@/stores/tourStore"
 import { ArrowLeft, Settings, Package, Save, Loader2, FolderOpen, FileText, RefreshCw, ChevronDown, Search, ArrowUpDown, Filter, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, ArrowUp, Trash2, ChevronLeft, ChevronRight, Share2 } from "lucide-react"
+import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -17,6 +18,22 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Checkbox } from "@/components/ui/checkbox"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
 import { useTranslation } from "@/i18n"
 import { Wrench, Terminal, Server, Globe } from "lucide-react"
 
@@ -210,6 +227,7 @@ export function InstanceDetails() {
   const [modSearchQuery, setModSearchQuery] = useState("")
   const [selectedMods, setSelectedMods] = useState<Set<string>>(new Set())
   const [isDeletingSelected, setIsDeletingSelected] = useState(false)
+  const [modToDelete, setModToDelete] = useState<string | null>(null)
 
   // Settings form state
   const [name, setName] = useState("")
@@ -303,18 +321,20 @@ export function InstanceDetails() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instanceId, loadMods])
 
-  const handleDeleteMod = useCallback(async (filename: string) => {
-    if (!instanceId) return
+  const confirmDeleteMod = useCallback(async () => {
+    if (!instanceId || !modToDelete) return
     try {
-      await invoke("delete_mod", { instanceId, filename })
+      await invoke("delete_mod", { instanceId, filename: modToDelete })
       toast.success(t("notifications.modDeleted"))
       loadMods()
     } catch (err) {
       toast.error(t("instanceDetails.modDeleteError"))
-      console.error("Failed to toggle mod:", err)
+      console.error("Failed to delete mod:", err)
+    } finally {
+      setModToDelete(null)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instanceId, loadMods])
+  }, [instanceId, modToDelete, loadMods])
 
   const handleOpenModsFolder = useCallback(async () => {
     if (!instanceId) return
@@ -1080,7 +1100,7 @@ export function InstanceDetails() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/instances")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/instances")} aria-label={t("common.back")}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="flex items-center gap-3">
@@ -1116,6 +1136,7 @@ export function InstanceDetails() {
             size="icon"
             onClick={handleOpenInstanceFolder}
             title={t("common.openFolder")}
+            aria-label={t("common.openFolder")}
           >
             <FolderOpen className="h-5 w-5" />
           </Button>
@@ -1126,15 +1147,25 @@ export function InstanceDetails() {
             size="icon"
             onClick={() => setShowExportDialog(true)}
             title={t("sharing.share")}
+            aria-label={t("sharing.share")}
           >
             <Share2 className="h-5 w-5" />
           </Button>
 
           {launchError && (
-            <div className="flex items-center gap-2 text-destructive text-sm">
-              <AlertCircle className="h-4 w-4" />
-              <span className="max-w-[200px] truncate">{launchError}</span>
-            </div>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div className="flex items-center gap-2 text-destructive text-sm cursor-help">
+                    <AlertCircle className="h-4 w-4 shrink-0" />
+                    <span className="max-w-[200px] truncate">{launchError}</span>
+                  </div>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="max-w-[400px]">
+                  <p className="break-words">{launchError}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
           {isRunning ? (
             <>
@@ -1279,6 +1310,7 @@ export function InstanceDetails() {
                         variant="ghost"
                         size="icon"
                         className="h-6 w-6"
+                        aria-label={t("tunnel.addressCopied")}
                         onClick={() => {
                           navigator.clipboard.writeText("localhost:25565")
                             .then(() => {
@@ -1307,6 +1339,7 @@ export function InstanceDetails() {
                           variant="ghost"
                           size="icon"
                           className="h-6 w-6"
+                          aria-label={t("tunnel.addressCopied")}
                           onClick={() => {
                             navigator.clipboard.writeText(tunnelUrl)
                               .then(() => {
@@ -1406,7 +1439,7 @@ export function InstanceDetails() {
                       <Input
                         value={iconInputUrl}
                         onChange={(e) => setIconInputUrl(e.target.value)}
-                        placeholder="URL de l'image..."
+                        placeholder={t("instanceDetails.imageUrlPlaceholder")}
                         className="pl-8 h-9 text-sm"
                         disabled={isUpdatingIcon}
                       />
@@ -1428,7 +1461,7 @@ export function InstanceDetails() {
                       className="h-9 gap-1.5"
                     >
                       <ImageIcon className="h-3.5 w-3.5" />
-                      Fichier
+                      {t("instanceDetails.file")}
                     </Button>
                     {instance?.icon_path && (
                       <Button
@@ -1779,8 +1812,9 @@ export function InstanceDetails() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                onClick={() => handleDeleteMod(mod.filename)}
+                                onClick={() => setModToDelete(mod.filename)}
                                 className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                aria-label={t("instanceDetails.confirmDeleteMod")}
                               >
                                 <Trash2 className="h-4 w-4" />
                               </Button>
@@ -1803,6 +1837,7 @@ export function InstanceDetails() {
                           onClick={() => setModsPage(p => Math.max(1, p - 1))}
                           disabled={modsPage === 1}
                           className="h-8 w-8"
+                          aria-label={t("common.previous")}
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
@@ -1812,6 +1847,7 @@ export function InstanceDetails() {
                           onClick={() => setModsPage(p => Math.min(totalModsPages, p + 1))}
                           disabled={modsPage === totalModsPages}
                           className="h-8 w-8"
+                          aria-label={t("common.next")}
                         >
                           <ChevronRight className="h-4 w-4" />
                         </Button>
@@ -1828,27 +1864,31 @@ export function InstanceDetails() {
         {/* Browse Content Tab (Modrinth with tabs for different content types) */}
         {contentType !== "none" && (
         <TabsContent value="content" className="mt-4">
-          <Suspense fallback={<ComponentLoader />}>
-            <ModrinthBrowser
-              instanceId={instanceId!}
-              mcVersion={instance.mc_version}
-              loader={instance.loader}
-              isServer={instance.is_server}
-              onModInstalled={handleContentChanged}
-              showContentTabs={!instance.is_server && !instance.is_proxy}
-            />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<ComponentLoader />}>
+              <ModrinthBrowser
+                instanceId={instanceId!}
+                mcVersion={instance.mc_version}
+                loader={instance.loader}
+                isServer={instance.is_server}
+                onModInstalled={handleContentChanged}
+                showContentTabs={!instance.is_server && !instance.is_proxy}
+              />
+            </Suspense>
+          </ErrorBoundary>
         </TabsContent>
         )}
 
         {/* Worlds Tab */}
         <TabsContent value="worlds" className="mt-4 flex flex-col flex-1 min-h-0">
-          <Suspense fallback={<ComponentLoader />}>
-            <WorldsTab
-              instanceId={instanceId!}
-              isServer={instance?.is_server || instance?.is_proxy || false}
-            />
-          </Suspense>
+          <ErrorBoundary>
+            <Suspense fallback={<ComponentLoader />}>
+              <WorldsTab
+                instanceId={instanceId!}
+                isServer={instance?.is_server || instance?.is_proxy || false}
+              />
+            </Suspense>
+          </ErrorBoundary>
         </TabsContent>
 
         {/* Logs Tab */}
@@ -2116,6 +2156,27 @@ export function InstanceDetails() {
           />
         </Suspense>
       )}
+
+      {/* Delete Mod Confirmation Dialog */}
+      <AlertDialog open={!!modToDelete} onOpenChange={(open) => !open && setModToDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("instanceDetails.confirmDeleteMod")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("instanceDetails.confirmDeleteModDesc", { name: modToDelete || "" })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDeleteMod}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {t("common.delete")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

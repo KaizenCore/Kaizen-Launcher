@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
+import { Skeleton } from "@/components/ui/skeleton"
 import { AddAccountDialog } from "@/components/dialogs/AddAccountDialog"
 import { DeleteAccountDialog } from "@/components/dialogs/DeleteAccountDialog"
 
@@ -97,11 +98,25 @@ export function Accounts() {
 
       {/* Accounts list */}
       {isLoading ? (
-        <Card>
-          <CardContent className="flex items-center justify-center py-16">
-            <p className="text-muted-foreground">{t("common.loading")}</p>
-          </CardContent>
-        </Card>
+        <div className="space-y-3">
+          {[1, 2].map((i) => (
+            <Card key={i}>
+              <CardContent className="flex items-center justify-between py-4">
+                <div className="flex items-center gap-4">
+                  <Skeleton className="h-12 w-12 rounded-full" />
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-8 w-24" />
+                  <Skeleton className="h-8 w-8" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       ) : accounts.length === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
@@ -169,6 +184,7 @@ export function Accounts() {
                     size="sm"
                     variant="ghost"
                     onClick={() => openDeleteDialog(account)}
+                    aria-label={t("accounts.delete")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>

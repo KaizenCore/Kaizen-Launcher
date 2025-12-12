@@ -38,7 +38,10 @@ pub async fn on_server_started(
         return;
     }
 
-    let webhook_url = config.webhook_url.as_ref().unwrap();
+    // Safe: we already checked webhook_url.is_none() above
+    let Some(webhook_url) = config.webhook_url.as_ref() else {
+        return;
+    };
     let event = WebhookEvent::ServerStarted {
         instance_name: instance_name.to_string(),
         mc_version: mc_version.to_string(),
@@ -67,7 +70,10 @@ pub async fn on_server_stopped(db: &SqlitePool, instance_name: &str, uptime_seco
         return;
     }
 
-    let webhook_url = config.webhook_url.as_ref().unwrap();
+    // Safe: we already checked webhook_url.is_none() above
+    let Some(webhook_url) = config.webhook_url.as_ref() else {
+        return;
+    };
     let event = WebhookEvent::ServerStopped {
         instance_name: instance_name.to_string(),
         uptime_seconds,
@@ -103,7 +109,10 @@ pub async fn on_player_joined(db: &SqlitePool, instance_name: &str, player_name:
         return;
     }
 
-    let webhook_url = config.webhook_url.as_ref().unwrap();
+    // Safe: we already checked webhook_url.is_none() above
+    let Some(webhook_url) = config.webhook_url.as_ref() else {
+        return;
+    };
     debug!("Sending player join webhook to: {}", webhook_url);
     let event = WebhookEvent::PlayerJoined {
         instance_name: instance_name.to_string(),
@@ -142,7 +151,10 @@ pub async fn on_player_left(db: &SqlitePool, instance_name: &str, player_name: &
         return;
     }
 
-    let webhook_url = config.webhook_url.as_ref().unwrap();
+    // Safe: we already checked webhook_url.is_none() above
+    let Some(webhook_url) = config.webhook_url.as_ref() else {
+        return;
+    };
     debug!("Sending player leave webhook to: {}", webhook_url);
     let event = WebhookEvent::PlayerLeft {
         instance_name: instance_name.to_string(),
@@ -178,7 +190,10 @@ pub async fn on_backup_created(
         return;
     }
 
-    let webhook_url = config.webhook_url.as_ref().unwrap();
+    // Safe: we already checked webhook_url.is_none() above
+    let Some(webhook_url) = config.webhook_url.as_ref() else {
+        return;
+    };
     let event = WebhookEvent::BackupCreated {
         instance_name: instance_name.to_string(),
         world_name: world_name.to_string(),

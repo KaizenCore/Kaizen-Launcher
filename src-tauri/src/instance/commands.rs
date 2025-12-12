@@ -162,10 +162,20 @@ pub async fn create_instance(
     let is_proxy = is_proxy.unwrap_or(false);
 
     // Validate the instance name
-    if name.trim().is_empty() {
+    let trimmed_name = name.trim();
+    if trimmed_name.is_empty() {
         return Err(AppError::Instance(
             "Instance name cannot be empty".to_string(),
         ));
+    }
+
+    // Maximum length validation to prevent excessively long names
+    const MAX_INSTANCE_NAME_LENGTH: usize = 64;
+    if trimmed_name.len() > MAX_INSTANCE_NAME_LENGTH {
+        return Err(AppError::Instance(format!(
+            "Instance name is too long (max {} characters)",
+            MAX_INSTANCE_NAME_LENGTH
+        )));
     }
 
     // For proxies, mc_version is optional
@@ -176,8 +186,7 @@ pub async fn create_instance(
     };
 
     // Create a safe directory name from the instance name
-    let safe_name = name
-        .trim()
+    let safe_name = trimmed_name
         .to_lowercase()
         .chars()
         .map(|c| {
@@ -1622,24 +1631,23 @@ pub struct InstanceStorageInfo {
     pub last_played: Option<String>,
 }
 
-/// Calculate directory size recursively
+/// Calculate directory size recursively using walkdir for better performance
+/// Uses spawn_blocking to avoid blocking the async runtime
 async fn get_dir_size(path: &std::path::Path) -> u64 {
-    let mut size: u64 = 0;
+    let path = path.to_path_buf();
 
-    if let Ok(mut entries) = fs::read_dir(path).await {
-        while let Ok(Some(entry)) = entries.next_entry().await {
-            let entry_path = entry.path();
-            if let Ok(metadata) = entry.metadata().await {
-                if metadata.is_dir() {
-                    size += Box::pin(get_dir_size(&entry_path)).await;
-                } else {
-                    size += metadata.len();
-                }
-            }
-        }
-    }
-
-    size
+    // Use spawn_blocking with walkdir for efficient synchronous directory traversal
+    tokio::task::spawn_blocking(move || {
+        walkdir::WalkDir::new(&path)
+            .into_iter()
+            .filter_map(|entry| entry.ok())
+            .filter_map(|entry| entry.metadata().ok())
+            .filter(|metadata| metadata.is_file())
+            .map(|metadata| metadata.len())
+            .sum()
+    })
+    .await
+    .unwrap_or(0)
 }
 
 /// Get storage information for the launcher

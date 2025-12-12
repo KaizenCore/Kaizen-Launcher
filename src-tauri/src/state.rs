@@ -84,9 +84,11 @@ impl AppState {
         // Run migrations manually
         Self::run_migrations(&db).await?;
 
-        // Create HTTP client
+        // Create HTTP client with timeouts to prevent hanging requests
         let http_client = reqwest::Client::builder()
-            .user_agent("KaizenLauncher/0.1.0")
+            .user_agent("KaizenLauncher/0.5.4")
+            .timeout(std::time::Duration::from_secs(30))
+            .connect_timeout(std::time::Duration::from_secs(10))
             .build()?;
 
         Ok(Self {

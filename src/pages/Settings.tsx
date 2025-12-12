@@ -431,6 +431,7 @@ export function Settings() {
                   size="icon"
                   onClick={loadJavaData}
                   disabled={loadingJava}
+                  aria-label={t("common.refresh")}
                 >
                   <RefreshCw className={cn("h-4 w-4", loadingJava && "animate-spin")} />
                 </Button>
@@ -476,6 +477,7 @@ export function Settings() {
                             className="text-destructive hover:text-destructive"
                             onClick={() => handleUninstallJava(java.major_version)}
                             disabled={uninstallingVersion === java.major_version}
+                            aria-label={t("common.delete")}
                           >
                             {uninstallingVersion === java.major_version ? (
                               <RefreshCw className="h-4 w-4 animate-spin" />
@@ -533,9 +535,30 @@ export function Settings() {
 
               {/* Memory settings */}
               <div className="space-y-4">
-                <div className="flex items-center gap-2">
-                  <HardDrive className="h-4 w-4" />
-                  <label className="text-sm font-medium">{t("settings.defaultMemory")}</label>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <HardDrive className="h-4 w-4" />
+                    <label className="text-sm font-medium">{t("settings.defaultMemory")}</label>
+                  </div>
+                  {systemMemory && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setMinMemory(systemMemory.recommended_min_mb)
+                        setMaxMemory(systemMemory.recommended_max_mb)
+                        localStorage.setItem("java_min_memory", systemMemory.recommended_min_mb.toString())
+                        localStorage.setItem("java_max_memory", systemMemory.recommended_max_mb.toString())
+                        toast.success(t("settings.resetToDefault"))
+                      }}
+                      disabled={
+                        minMemory === systemMemory.recommended_min_mb &&
+                        maxMemory === systemMemory.recommended_max_mb
+                      }
+                    >
+                      {t("settings.resetToDefault")}
+                    </Button>
+                  )}
                 </div>
 
                 {systemMemory && (
@@ -622,6 +645,7 @@ export function Settings() {
                     size="icon"
                     onClick={loadStorageData}
                     disabled={loadingStorage}
+                    aria-label={t("common.refresh")}
                   >
                     <RefreshCw className={cn("h-4 w-4", loadingStorage && "animate-spin")} />
                   </Button>

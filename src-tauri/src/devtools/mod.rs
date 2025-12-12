@@ -34,7 +34,9 @@ pub struct AppMetrics {
 
 #[tauri::command]
 pub async fn get_app_metrics() -> AppResult<AppMetrics> {
-    let mut sys = SYSTEM.lock().unwrap();
+    let mut sys = SYSTEM
+        .lock()
+        .map_err(|e| crate::error::AppError::Custom(format!("Failed to acquire system lock: {}", e)))?;
 
     // Refresh only what we need
     sys.refresh_cpu_all();

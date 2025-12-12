@@ -297,12 +297,15 @@ export function CreateInstanceDialog({
 
           {/* Instance Name */}
           <div className="grid gap-2">
-            <Label htmlFor="name">{t("createInstance.name")}</Label>
+            <Label htmlFor="name">
+              {t("createInstance.name")} <span className="text-destructive">*</span>
+            </Label>
             <Input
               id="name"
               placeholder={t("createInstance.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
+              required
             />
           </div>
 
@@ -310,7 +313,9 @@ export function CreateInstanceDialog({
           {mode !== "proxy" && (
             <div className="grid gap-2">
               <div className="flex items-center justify-between">
-                <Label htmlFor="version">{t("createInstance.minecraftVersion")}</Label>
+                <Label htmlFor="version">
+                  {t("createInstance.minecraftVersion")} <span className="text-destructive">*</span>
+                </Label>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="ghost"
@@ -318,6 +323,7 @@ export function CreateInstanceDialog({
                     className="h-6 w-6"
                     onClick={fetchVersions}
                     disabled={isLoadingVersions}
+                    aria-label={t("common.refresh")}
                   >
                     <RefreshCw className={`h-3 w-3 ${isLoadingVersions ? "animate-spin" : ""}`} />
                   </Button>
@@ -382,6 +388,7 @@ export function CreateInstanceDialog({
                     className="h-6 w-6"
                     onClick={fetchLoaderVersions}
                     disabled={isLoadingLoaderVersions}
+                    aria-label={t("common.refresh")}
                   >
                     <RefreshCw className={`h-3 w-3 ${isLoadingLoaderVersions ? "animate-spin" : ""}`} />
                   </Button>
