@@ -11,6 +11,10 @@ import {
     Cloud,
     User,
     Share2,
+    Clock,
+    MessageSquare,
+    Map,
+    Languages,
 } from 'lucide-react';
 
 const features = [
@@ -39,6 +43,12 @@ const features = [
         bgColor: 'bg-sky-500/10',
     },
     {
+        key: 'autoBackup',
+        icon: Clock,
+        color: 'text-amber-500',
+        bgColor: 'bg-amber-500/10',
+    },
+    {
         key: 'skinManager',
         icon: User,
         color: 'text-pink-500',
@@ -49,6 +59,24 @@ const features = [
         icon: Share2,
         color: 'text-violet-500',
         bgColor: 'bg-violet-500/10',
+    },
+    {
+        key: 'worldManagement',
+        icon: Map,
+        color: 'text-lime-500',
+        bgColor: 'bg-lime-500/10',
+    },
+    {
+        key: 'discord',
+        icon: MessageSquare,
+        color: 'text-indigo-500',
+        bgColor: 'bg-indigo-500/10',
+    },
+    {
+        key: 'i18n',
+        icon: Languages,
+        color: 'text-rose-500',
+        bgColor: 'bg-rose-500/10',
     },
     {
         key: 'auth',

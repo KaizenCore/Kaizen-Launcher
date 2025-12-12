@@ -30,8 +30,12 @@ interface Translations {
         servers: FeatureTranslation;
         modrinth: FeatureTranslation;
         cloudBackup: FeatureTranslation;
+        autoBackup: FeatureTranslation;
         skinManager: FeatureTranslation;
         instanceSharing: FeatureTranslation;
+        worldManagement: FeatureTranslation;
+        discord: FeatureTranslation;
+        i18n: FeatureTranslation;
         auth: FeatureTranslation;
         java: FeatureTranslation;
         tunneling: FeatureTranslation;
@@ -100,6 +104,10 @@ const translations: Record<Locale, Translations> = {
                 title: 'Cloud Backup',
                 desc: 'Save your worlds to Google Drive, Dropbox, Amazon S3, or Nextcloud automatically.',
             },
+            autoBackup: {
+                title: 'Auto Backup',
+                desc: 'Schedule automatic backups of your instances and worlds with customizable intervals.',
+            },
             skinManager: {
                 title: 'Skin Manager',
                 desc: 'Complete skin customization with 3D viewer, skin library, and search functionality.',
@@ -107,6 +115,18 @@ const translations: Record<Locale, Translations> = {
             instanceSharing: {
                 title: 'Instance Sharing',
                 desc: 'Securely share instances with friends via encrypted download links.',
+            },
+            worldManagement: {
+                title: 'World Management',
+                desc: 'Organize, duplicate, and manage your Minecraft worlds with an intuitive interface.',
+            },
+            discord: {
+                title: 'Discord Integration',
+                desc: 'Rich Presence status and webhook notifications for game events and server alerts.',
+            },
+            i18n: {
+                title: 'Multi-Language',
+                desc: 'Full localization support with English, French, Dutch, and German translations.',
             },
             auth: {
                 title: 'Microsoft Authentication',
@@ -183,6 +203,10 @@ const translations: Record<Locale, Translations> = {
                 title: 'Sauvegarde Cloud',
                 desc: 'Sauvegardez vos mondes sur Google Drive, Dropbox, Amazon S3 ou Nextcloud automatiquement.',
             },
+            autoBackup: {
+                title: 'Sauvegarde Auto',
+                desc: 'Planifiez des sauvegardes automatiques de vos instances et mondes avec des intervalles personnalisables.',
+            },
             skinManager: {
                 title: 'Gestionnaire de Skins',
                 desc: 'Personnalisation complète avec visualiseur 3D, bibliothèque de skins et recherche.',
@@ -190,6 +214,18 @@ const translations: Record<Locale, Translations> = {
             instanceSharing: {
                 title: 'Partage d\'Instances',
                 desc: 'Partagez vos instances avec vos amis via des liens de téléchargement sécurisés.',
+            },
+            worldManagement: {
+                title: 'Gestion des Mondes',
+                desc: 'Organisez, dupliquez et gérez vos mondes Minecraft avec une interface intuitive.',
+            },
+            discord: {
+                title: 'Intégration Discord',
+                desc: 'Statut Rich Presence et notifications webhook pour les événements de jeu et alertes serveur.',
+            },
+            i18n: {
+                title: 'Multi-Langue',
+                desc: 'Support complet de localisation avec traductions en anglais, français, néerlandais et allemand.',
             },
             auth: {
                 title: 'Authentification Microsoft',
