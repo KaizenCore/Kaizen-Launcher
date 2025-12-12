@@ -5,6 +5,7 @@ import { useAppearance } from '@/hooks/use-appearance';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Download, Github, History, Layers, Menu, Moon, Sun, X } from 'lucide-react';
 import { useState } from 'react';
+import { router, Link } from '@inertiajs/react';
 
 const GITHUB_URL = 'https://github.com/KaizenCore/Kaizen-Launcher';
 const DISCORD_URL = 'https://discord.gg/eRKRSeBxrZ';
@@ -23,6 +24,18 @@ export function Navbar() {
         if (element) {
             element.scrollIntoView({ behavior: 'smooth' });
             setMobileMenuOpen(false);
+        } else {
+            // Not on home page, navigate to home then scroll
+            router.visit(`/#${id}`, {
+                onFinish: () => {
+                    setTimeout(() => {
+                        const el = document.getElementById(id);
+                        if (el) {
+                            el.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }, 100);
+                },
+            });
         }
     };
 
@@ -36,11 +49,9 @@ export function Navbar() {
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
-                    <motion.a
+                    <Link
                         href="/"
-                        className="flex items-center gap-3"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
+                        className="flex items-center gap-3 transition-transform hover:scale-[1.02] active:scale-[0.98]"
                     >
                         <img
                             src="/Kaizen.svg"
@@ -48,7 +59,7 @@ export function Navbar() {
                             className="h-9 w-9"
                         />
                         <span className="text-lg font-semibold">Kaizen Launcher</span>
-                    </motion.a>
+                    </Link>
 
                     {/* Desktop Navigation */}
                     <div className="hidden items-center gap-1 md:flex">
@@ -71,10 +82,10 @@ export function Navbar() {
                             {t.nav.download}
                         </Button>
                         <Button variant="ghost" size="sm" className="transition-colors duration-200" asChild>
-                            <a href="/changelog">
+                            <Link href="/changelog">
                                 <History className="mr-2 h-4 w-4" />
                                 {t.nav.changelog}
-                            </a>
+                            </Link>
                         </Button>
                         <Button variant="ghost" size="sm" className="transition-colors duration-200" asChild>
                             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
@@ -151,10 +162,10 @@ export function Navbar() {
                                 {t.nav.download}
                             </Button>
                             <Button variant="ghost" className="w-full justify-start" asChild>
-                                <a href="/changelog" onClick={() => setMobileMenuOpen(false)}>
+                                <Link href="/changelog" onClick={() => setMobileMenuOpen(false)}>
                                     <History className="mr-2 h-4 w-4" />
                                     {t.nav.changelog}
-                                </a>
+                                </Link>
                             </Button>
                             <Button variant="ghost" className="w-full justify-start" asChild>
                                 <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
