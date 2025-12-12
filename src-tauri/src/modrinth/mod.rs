@@ -3,9 +3,27 @@
 
 pub mod commands;
 
+use reqwest::Url;
 use serde::{Deserialize, Serialize};
 
 const MODRINTH_API_BASE: &str = "https://api.modrinth.com/v2";
+
+/// Allowed download domains for security (prevent malicious redirects)
+const ALLOWED_DOWNLOAD_DOMAINS: &[&str] = &[
+    "cdn.modrinth.com",
+    "cdn-raw.modrinth.com",
+    "github.com",
+    "raw.githubusercontent.com",
+    "objects.githubusercontent.com",
+    "mediafilez.forgecdn.net",
+    "edge.forgecdn.net",
+    "maven.fabricmc.net",
+    "maven.minecraftforge.net",
+    "maven.neoforged.net",
+    "maven.quiltmc.org",
+    "papermc.io",
+    "api.papermc.io",
+];
 
 /// Search response from Modrinth
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -338,6 +356,25 @@ impl<'a> ModrinthClient<'a> {
         file: &VersionFile,
         dest_path: &std::path::Path,
     ) -> Result<(), ModrinthError> {
+        // Security: Validate download URL domain
+        let url = Url::parse(&file.url)
+            .map_err(|e| ModrinthError::Network(format!("Invalid URL: {}", e)))?;
+
+        let host = url.host_str().ok_or_else(|| {
+            ModrinthError::Network("Download URL has no host".to_string())
+        })?;
+
+        let is_allowed = ALLOWED_DOWNLOAD_DOMAINS
+            .iter()
+            .any(|domain| host == *domain || host.ends_with(&format!(".{}", domain)));
+
+        if !is_allowed {
+            return Err(ModrinthError::Network(format!(
+                "Download blocked: untrusted domain '{}'",
+                host
+            )));
+        }
+
         let response = self
             .http_client
             .get(&file.url)

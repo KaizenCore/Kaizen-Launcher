@@ -847,9 +847,31 @@ pub async fn open_instance_folder(
         .await
         .join(&instance.game_dir);
 
-    // If subfolder is specified, append it to the path
+    // If subfolder is specified, append it to the path with path traversal protection
     if let Some(ref sub) = subfolder {
-        target_dir = target_dir.join(sub);
+        let new_target = target_dir.join(sub);
+        // Canonicalize to resolve any ../ sequences and verify it's still within instance dir
+        let base_canonical = target_dir
+            .canonicalize()
+            .map_err(|e| AppError::Instance(format!("Failed to resolve instance path: {}", e)))?;
+
+        // Create the target directory first if needed (canonicalize requires existing path)
+        if !new_target.exists() {
+            fs::create_dir_all(&new_target)
+                .await
+                .map_err(|e| AppError::Io(format!("Failed to create directory: {}", e)))?;
+        }
+
+        let target_canonical = new_target
+            .canonicalize()
+            .map_err(|e| AppError::Instance(format!("Failed to resolve subfolder path: {}", e)))?;
+
+        // Security check: ensure the resolved path is still within the instance directory
+        if !target_canonical.starts_with(&base_canonical) {
+            return Err(AppError::Instance("Invalid subfolder: path traversal detected".to_string()));
+        }
+
+        target_dir = target_canonical;
     }
 
     // Create the directory if it doesn't exist

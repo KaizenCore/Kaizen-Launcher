@@ -43,6 +43,16 @@ function ComponentLoader() {
   )
 }
 
+// Escape HTML to prevent XSS in log display
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;')
+}
+
 type LogLevel = "ERROR" | "WARN" | "INFO" | "DEBUG" | "FATAL" | "TRACE" | "ALL"
 type SortOption = "date-desc" | "date-asc" | "name-asc" | "name-desc" | "size-desc" | "size-asc"
 
@@ -2020,11 +2030,12 @@ export function InstanceDetails() {
                             const colorClass = level ? LOG_LEVEL_COLORS[level] || "" : ""
                             const bgClass = level ? LOG_LEVEL_BG[level] || "" : ""
 
-                            // Highlight search term
-                            let displayLine = line
+                            // Escape HTML first to prevent XSS, then highlight search term
+                            let displayLine = escapeHtml(line)
                             if (logSearch.trim()) {
-                              const regex = new RegExp(`(${logSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi')
-                              displayLine = line.replace(regex, '<mark class="bg-yellow-500/50 text-white rounded px-0.5">$1</mark>')
+                              const escapedSearch = escapeHtml(logSearch).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+                              const regex = new RegExp(`(${escapedSearch})`, 'gi')
+                              displayLine = displayLine.replace(regex, '<mark class="bg-yellow-500/50 text-white rounded px-0.5">$1</mark>')
                             }
 
                             return (

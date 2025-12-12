@@ -1,3 +1,4 @@
+use crate::crypto;
 use crate::error::AppResult;
 use crate::state::SharedState;
 use crate::tunnel::{agent, manager, AgentInfo, TunnelConfig, TunnelProvider, TunnelStatus};
@@ -62,14 +63,31 @@ pub async fn get_tunnel_config(
             target_port,
             tunnel_url,
         )| {
+            // Decrypt secrets if they are encrypted
+            let decrypted_playit = playit_secret_key.and_then(|s| {
+                if crypto::is_encrypted(&s) {
+                    crypto::decrypt(&state.encryption_key, &s).ok()
+                } else {
+                    Some(s)
+                }
+            });
+
+            let decrypted_ngrok = ngrok_authtoken.and_then(|s| {
+                if crypto::is_encrypted(&s) {
+                    crypto::decrypt(&state.encryption_key, &s).ok()
+                } else {
+                    Some(s)
+                }
+            });
+
             TunnelConfig {
                 id,
                 instance_id,
                 provider: provider.parse().unwrap_or(TunnelProvider::Cloudflare),
                 enabled: enabled != 0,
                 auto_start: auto_start != 0,
-                playit_secret_key,
-                ngrok_authtoken,
+                playit_secret_key: decrypted_playit,
+                ngrok_authtoken: decrypted_ngrok,
                 target_port: target_port as i32,
                 tunnel_url,
             }
@@ -84,6 +102,17 @@ pub async fn save_tunnel_config(
     config: TunnelConfig,
 ) -> AppResult<()> {
     let state = state.read().await;
+
+    // Encrypt secrets before storing
+    let encrypted_playit = match &config.playit_secret_key {
+        Some(s) => Some(crypto::encrypt(&state.encryption_key, s)?),
+        None => None,
+    };
+
+    let encrypted_ngrok = match &config.ngrok_authtoken {
+        Some(s) => Some(crypto::encrypt(&state.encryption_key, s)?),
+        None => None,
+    };
 
     sqlx::query(
         r#"
@@ -104,8 +133,8 @@ pub async fn save_tunnel_config(
     .bind(config.provider.to_string())
     .bind(config.enabled as i64)
     .bind(config.auto_start as i64)
-    .bind(&config.playit_secret_key)
-    .bind(&config.ngrok_authtoken)
+    .bind(&encrypted_playit)
+    .bind(&encrypted_ngrok)
     .bind(config.target_port as i64)
     .bind(&config.tunnel_url)
     .execute(&state.db)
@@ -123,6 +152,9 @@ pub async fn update_playit_secret(
 ) -> AppResult<()> {
     let state = state.read().await;
 
+    // Encrypt the secret before storing
+    let encrypted_secret = crypto::encrypt(&state.encryption_key, &secret_key)?;
+
     sqlx::query(
         r#"
         UPDATE tunnel_configs
@@ -130,7 +162,7 @@ pub async fn update_playit_secret(
         WHERE instance_id = ?
         "#,
     )
-    .bind(&secret_key)
+    .bind(&encrypted_secret)
     .bind(&instance_id)
     .execute(&state.db)
     .await?;

@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
+import DOMPurify from "dompurify"
 import { useParams, useNavigate } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
 import { toast } from "sonner"
@@ -460,7 +461,7 @@ export function ModpackDetails() {
               <Separator className="mb-4" />
               <div
                 className="prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: project.body }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(project.body) }}
               />
             </CardContent>
           </Card>
