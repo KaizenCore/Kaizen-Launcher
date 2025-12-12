@@ -47,11 +47,7 @@ pub async fn init_cache(data_dir: &Path) -> AppResult<()> {
 }
 
 /// Cache a skin's image data
-pub async fn cache_skin(
-    data_dir: &Path,
-    skin: &Skin,
-    image_data: &[u8],
-) -> AppResult<PathBuf> {
+pub async fn cache_skin(data_dir: &Path, skin: &Skin, image_data: &[u8]) -> AppResult<PathBuf> {
     init_cache(data_dir).await?;
 
     let cache_dir = get_cache_dir(data_dir);

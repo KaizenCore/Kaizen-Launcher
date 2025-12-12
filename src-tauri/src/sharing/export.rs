@@ -261,8 +261,7 @@ async fn create_export_package(
     if options.include_mods {
         let mods_dir = instance_dir.join(content_folder);
         if mods_dir.exists() {
-            let (files, section) =
-                collect_directory_files(&mods_dir, content_folder, true).await?;
+            let (files, section) = collect_directory_files(&mods_dir, content_folder, true).await?;
             files_to_add.extend(files);
             manifest_contents.mods = section;
         }
@@ -282,8 +281,7 @@ async fn create_export_package(
     if options.include_resourcepacks && !instance.is_server {
         let rp_dir = instance_dir.join("resourcepacks");
         if rp_dir.exists() {
-            let (files, section) =
-                collect_directory_files(&rp_dir, "resourcepacks", false).await?;
+            let (files, section) = collect_directory_files(&rp_dir, "resourcepacks", false).await?;
             files_to_add.extend(files);
             manifest_contents.resourcepacks = section;
         }
@@ -430,8 +428,7 @@ fn create_zip_file(
         .compression_level(Some(6));
 
     // Write manifest
-    let manifest_json =
-        serde_json::to_string_pretty(manifest).map_err(|e| AppError::Json(e))?;
+    let manifest_json = serde_json::to_string_pretty(manifest).map_err(|e| AppError::Json(e))?;
 
     zip.start_file("kaizen-manifest.json", options)
         .map_err(|e| AppError::Io(format!("Failed to start manifest file: {}", e)))?;

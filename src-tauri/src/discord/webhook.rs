@@ -71,10 +71,7 @@ pub async fn send_event(client: &Client, webhook_url: &str, event: &WebhookEvent
             let uptime = format_duration(*uptime_seconds);
             (
                 "🔴 Server Stopped".to_string(),
-                format!(
-                    "**Instance:** {}\n**Uptime:** {}",
-                    instance_name, uptime
-                ),
+                format!("**Instance:** {}\n**Uptime:** {}", instance_name, uptime),
                 COLOR_RED,
             )
         }

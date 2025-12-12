@@ -43,8 +43,8 @@ fn read_manifest_from_zip(package_path: &Path) -> AppResult<SharingManifest> {
     let file = File::open(package_path)
         .map_err(|e| AppError::Io(format!("Failed to open package: {}", e)))?;
 
-    let mut archive = ZipArchive::new(file)
-        .map_err(|e| AppError::Io(format!("Invalid ZIP archive: {}", e)))?;
+    let mut archive =
+        ZipArchive::new(file).map_err(|e| AppError::Io(format!("Invalid ZIP archive: {}", e)))?;
 
     // Find and read manifest
     let mut manifest_file = archive
@@ -144,8 +144,8 @@ fn extract_package(
     let file = File::open(package_path)
         .map_err(|e| AppError::Io(format!("Failed to open package: {}", e)))?;
 
-    let mut archive = ZipArchive::new(file)
-        .map_err(|e| AppError::Io(format!("Invalid ZIP archive: {}", e)))?;
+    let mut archive =
+        ZipArchive::new(file).map_err(|e| AppError::Io(format!("Invalid ZIP archive: {}", e)))?;
 
     let total_files = archive.len();
 
@@ -185,12 +185,17 @@ fn extract_package(
 
         // 5. Canonicalize and verify the path is still under instance_dir
         // Note: We can't canonicalize yet if it doesn't exist, so we check components
-        let normalized: PathBuf = outpath.components()
+        let normalized: PathBuf = outpath
+            .components()
             .filter(|c| !matches!(c, std::path::Component::ParentDir))
             .collect();
 
         if !normalized.starts_with(instance_dir) {
-            tracing::warn!("[SECURITY] Path escape attempt blocked: {} -> {}", name, normalized.display());
+            tracing::warn!(
+                "[SECURITY] Path escape attempt blocked: {} -> {}",
+                name,
+                normalized.display()
+            );
             continue;
         }
 

@@ -141,7 +141,9 @@ pub async fn stop_share(
 
 /// Get all active shares
 #[tauri::command]
-pub async fn get_active_shares(running_shares: State<'_, RunningShares>) -> AppResult<Vec<ActiveShare>> {
+pub async fn get_active_shares(
+    running_shares: State<'_, RunningShares>,
+) -> AppResult<Vec<ActiveShare>> {
     Ok(server::get_active_shares(running_shares.inner().clone()).await)
 }
 
@@ -235,7 +237,9 @@ pub async fn download_and_import_share(
     tracing::info!("[SHARE] Download complete, importing...");
 
     // Import the instance
-    let instance = import::import_instance(&app, &state_guard.db, &instances_dir, &temp_file, new_name).await?;
+    let instance =
+        import::import_instance(&app, &state_guard.db, &instances_dir, &temp_file, new_name)
+            .await?;
 
     // Cleanup temp file
     let _ = tokio::fs::remove_file(&temp_file).await;
@@ -285,7 +289,9 @@ pub async fn fetch_share_manifest(
         if body.contains("INVALID_PASSWORD") {
             return Err(AppError::Auth("INVALID_PASSWORD".to_string()));
         }
-        return Err(AppError::Network("Manifest fetch failed: access denied".to_string()));
+        return Err(AppError::Network(
+            "Manifest fetch failed: access denied".to_string(),
+        ));
     }
 
     if !response.status().is_success() {
@@ -363,7 +369,8 @@ pub async fn restore_shares(
 
                 // Update the database with the new share_id
                 // First delete the old entry, then save the new one
-                let _ = crate::db::shares::delete_share(&state_guard.db, &persistent.share_id).await;
+                let _ =
+                    crate::db::shares::delete_share(&state_guard.db, &persistent.share_id).await;
                 let _ = crate::db::shares::save_share(
                     &state_guard.db,
                     &share.share_id,

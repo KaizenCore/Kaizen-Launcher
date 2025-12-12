@@ -69,7 +69,10 @@ async fn fetch_page(client: &reqwest::Client, url: &str) -> AppResult<String> {
 
     // Handle rate limiting / blocking gracefully - return empty results instead of error
     if !response.status().is_success() {
-        log::warn!("NameMC returned status {}, returning empty results", response.status());
+        log::warn!(
+            "NameMC returned status {}, returning empty results",
+            response.status()
+        );
         return Ok(String::new());
     }
 

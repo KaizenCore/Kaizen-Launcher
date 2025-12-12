@@ -39,7 +39,10 @@ pub async fn start_bore_tunnel(
         return Err(AppError::Custom("bore agent not installed".to_string()));
     }
 
-    info!("[BORE] Starting TCP tunnel for port {}...", config.target_port);
+    info!(
+        "[BORE] Starting TCP tunnel for port {}...",
+        config.target_port
+    );
 
     // Start bore tunnel
     // bore local <PORT> --to bore.pub
@@ -142,12 +145,18 @@ pub async fn start_bore_tunnel(
                     };
                     let instance_id_for_save = instance_id.clone();
                     let url_for_save = minecraft_addr;
-                    let _ = sqlx::query("UPDATE tunnel_configs SET tunnel_url = ? WHERE instance_id = ?")
-                        .bind(&url_for_save)
-                        .bind(&instance_id_for_save)
-                        .execute(&db)
-                        .await;
-                    tracing::info!("Saved tunnel URL {} for instance {}", url_for_save, instance_id_for_save);
+                    let _ = sqlx::query(
+                        "UPDATE tunnel_configs SET tunnel_url = ? WHERE instance_id = ?",
+                    )
+                    .bind(&url_for_save)
+                    .bind(&instance_id_for_save)
+                    .execute(&db)
+                    .await;
+                    tracing::info!(
+                        "Saved tunnel URL {} for instance {}",
+                        url_for_save,
+                        instance_id_for_save
+                    );
                 }
 
                 // Check for errors

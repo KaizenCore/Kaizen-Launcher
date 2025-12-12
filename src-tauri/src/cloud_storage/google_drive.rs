@@ -92,10 +92,7 @@ pub async fn request_device_code(
 ) -> AppResult<DeviceCodeResponse> {
     let response = client
         .post(GOOGLE_DEVICE_AUTH)
-        .form(&[
-            ("client_id", client_id),
-            ("scope", GOOGLE_DRIVE_SCOPE),
-        ])
+        .form(&[("client_id", client_id), ("scope", GOOGLE_DRIVE_SCOPE)])
         .send()
         .await
         .map_err(|e| AppError::CloudStorage(format!("Failed to request device code: {}", e)))?;
@@ -108,10 +105,9 @@ pub async fn request_device_code(
         )));
     }
 
-    let google_response: GoogleDeviceCodeResponse = response
-        .json()
-        .await
-        .map_err(|e| AppError::CloudStorage(format!("Failed to parse device code response: {}", e)))?;
+    let google_response: GoogleDeviceCodeResponse = response.json().await.map_err(|e| {
+        AppError::CloudStorage(format!("Failed to parse device code response: {}", e))
+    })?;
 
     Ok(DeviceCodeResponse {
         device_code: google_response.device_code,
@@ -195,7 +191,6 @@ pub async fn poll_for_token(
     }
 }
 
-
 /// Test connection to Google Drive
 pub async fn test_connection(
     client: &reqwest::Client,
@@ -261,10 +256,11 @@ pub async fn get_or_create_folder(
         .map_err(|e| AppError::CloudStorage(format!("Failed to search for folder: {}", e)))?;
 
     if response.status().is_success() {
-        let list: DriveFilesListResponse = response.json().await.unwrap_or(DriveFilesListResponse {
-            files: vec![],
-            next_page_token: None,
-        });
+        let list: DriveFilesListResponse =
+            response.json().await.unwrap_or(DriveFilesListResponse {
+                files: vec![],
+                next_page_token: None,
+            });
 
         if let Some(folder) = list.files.first() {
             return Ok(folder.id.clone());
@@ -448,4 +444,3 @@ pub async fn list_backups(
 
     Ok(backups)
 }
-

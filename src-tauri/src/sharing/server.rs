@@ -112,7 +112,8 @@ fn generate_auth_token() -> String {
     let mut rng = rand::thread_rng();
     let bytes: [u8; AUTH_TOKEN_LENGTH] = rng.gen();
     // Use URL-safe base64 encoding (no padding)
-    bytes.iter()
+    bytes
+        .iter()
         .map(|b| format!("{:02x}", b))
         .collect::<String>()
 }
@@ -123,14 +124,16 @@ fn validate_token(provided: &str, expected: &str) -> bool {
         return false;
     }
     // Constant-time comparison
-    provided.bytes()
+    provided
+        .bytes()
         .zip(expected.bytes())
-        .fold(0u8, |acc, (a, b)| acc | (a ^ b)) == 0
+        .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+        == 0
 }
 
 /// Hash password using SHA-256 (with salt derived from share_id for uniqueness)
 fn hash_password(password: &str, share_id: &str) -> String {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(password.as_bytes());
     hasher.update(share_id.as_bytes()); // Salt with share_id
@@ -182,7 +185,10 @@ async fn start_http_server(
     // Rate limiting: track active connections
     let active_connections = Arc::new(AtomicUsize::new(0));
 
-    info!("[SHARE] HTTP server listening on port {} (token-protected)", port);
+    info!(
+        "[SHARE] HTTP server listening on port {} (token-protected)",
+        port
+    );
 
     loop {
         tokio::select! {
@@ -284,7 +290,10 @@ async fn handle_connection(
 
     // Security: Parse and validate auth token from URL
     // Expected formats: /{token}, /{token}/download, /{token}/manifest
-    let path_parts: Vec<&str> = request_path.trim_start_matches('/').splitn(2, '/').collect();
+    let path_parts: Vec<&str> = request_path
+        .trim_start_matches('/')
+        .splitn(2, '/')
+        .collect();
 
     if path_parts.is_empty() {
         warn!("[SECURITY] Empty path in request");
@@ -299,7 +308,13 @@ async fn handle_connection(
         warn!("[SECURITY] Invalid auth token attempted");
         // Add delay to slow down brute force attempts
         tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-        send_response(&mut stream, 403, "Forbidden", Some("Invalid or missing access token")).await?;
+        send_response(
+            &mut stream,
+            403,
+            "Forbidden",
+            Some("Invalid or missing access token"),
+        )
+        .await?;
         return Ok(());
     }
 
@@ -346,7 +361,16 @@ async fn handle_connection(
 
     match (method, path.as_str()) {
         ("GET", "/") | ("GET", "/download") | ("GET", "/instance.kaizen") => {
-            serve_file(&mut stream, package_path, range_header, share_id, app, download_count, uploaded_bytes).await?;
+            serve_file(
+                &mut stream,
+                package_path,
+                range_header,
+                share_id,
+                app,
+                download_count,
+                uploaded_bytes,
+            )
+            .await?;
         }
         ("GET", "/manifest") => {
             serve_manifest(&mut stream, package_path).await?;
@@ -512,7 +536,10 @@ async fn serve_file(
             },
         );
 
-        info!("[SHARE] Download #{} completed ({} bytes)", *count, total_sent);
+        info!(
+            "[SHARE] Download #{} completed ({} bytes)",
+            *count, total_sent
+        );
     } else {
         // For partial downloads, still emit final stats
         let _ = app.emit(
@@ -669,7 +696,9 @@ async fn start_bore_tunnel(
                 let found_url = if let Some(captures) = BORE_URL_REGEX.captures(&line) {
                     captures.get(1).map(|m| m.as_str().to_string())
                 } else {
-                    BORE_HOST_PORT_REGEX.find(&line).map(|m| m.as_str().to_string())
+                    BORE_HOST_PORT_REGEX
+                        .find(&line)
+                        .map(|m| m.as_str().to_string())
                 };
 
                 if let Some(host_port) = found_url {
@@ -724,7 +753,9 @@ async fn start_bore_tunnel(
                 let found_url = if let Some(captures) = BORE_URL_REGEX.captures(&line) {
                     captures.get(1).map(|m| m.as_str().to_string())
                 } else {
-                    BORE_HOST_PORT_REGEX.find(&line).map(|m| m.as_str().to_string())
+                    BORE_HOST_PORT_REGEX
+                        .find(&line)
+                        .map(|m| m.as_str().to_string())
                 };
 
                 if let Some(host_port) = found_url {
@@ -777,17 +808,25 @@ async fn start_cloudflare_sharing_tunnel(
 
     if !binary_path.exists() {
         return Err(AppError::Custom(
-            "Cloudflare agent not installed. Please install it from the Tunnel settings.".to_string(),
+            "Cloudflare agent not installed. Please install it from the Tunnel settings."
+                .to_string(),
         ));
     }
 
-    info!("[SHARE] Starting Cloudflare tunnel for port {}...", local_port);
+    info!(
+        "[SHARE] Starting Cloudflare tunnel for port {}...",
+        local_port
+    );
 
     // Use HTTP URL for sharing (not TCP like for game servers)
     let mut cmd = Command::new(&binary_path);
-    cmd.args(["tunnel", "--url", &format!("http://localhost:{}", local_port)])
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
+    cmd.args([
+        "tunnel",
+        "--url",
+        &format!("http://localhost:{}", local_port),
+    ])
+    .stdout(Stdio::piped())
+    .stderr(Stdio::piped());
 
     #[cfg(target_os = "windows")]
     {
@@ -1065,7 +1104,10 @@ pub async fn start_share_with_password_hash(
 
     // Generate new auth token (URL will be different)
     let auth_token = generate_auth_token();
-    info!("[SHARE] Generated auth token for restored share {}", share_id);
+    info!(
+        "[SHARE] Generated auth token for restored share {}",
+        share_id
+    );
 
     if password_hash.is_some() {
         info!("[SHARE] Restoring password-protected share {}", share_id);
@@ -1078,7 +1120,10 @@ pub async fn start_share_with_password_hash(
 
     // Find available port
     let port = find_available_port().await?;
-    info!("[SHARE] Using port {} for restored share {}", port, share_id);
+    info!(
+        "[SHARE] Using port {} for restored share {}",
+        port, share_id
+    );
 
     // Create shutdown channel
     let (shutdown_tx, shutdown_rx) = tokio::sync::broadcast::channel(1);
@@ -1115,7 +1160,10 @@ pub async fn start_share_with_password_hash(
     });
 
     // Start tunnel based on provider
-    info!("[SHARE] Starting {:?} tunnel for restored share...", provider);
+    info!(
+        "[SHARE] Starting {:?} tunnel for restored share...",
+        provider
+    );
     let (tunnel_pid, mut url_rx) = match provider {
         SharingProvider::Bore => {
             start_bore_tunnel(data_dir, port, share_id.clone(), app.clone()).await?
@@ -1209,7 +1257,9 @@ pub async fn stop_share(share_id: &str, running_shares: RunningShares) -> AppRes
             #[cfg(unix)]
             {
                 use std::process::Command;
-                let _ = Command::new("kill").args(["-TERM", &pid.to_string()]).status();
+                let _ = Command::new("kill")
+                    .args(["-TERM", &pid.to_string()])
+                    .status();
             }
 
             #[cfg(windows)]

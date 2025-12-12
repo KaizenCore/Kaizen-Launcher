@@ -129,7 +129,6 @@ pub async fn exchange_code(
     Ok(tokens)
 }
 
-
 /// Test connection to Dropbox
 pub async fn test_connection(
     client: &reqwest::Client,
@@ -385,4 +384,3 @@ pub async fn list_backups(
 
     Ok(backups)
 }
-

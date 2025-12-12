@@ -15,8 +15,7 @@ const DISCORD_APP_ID: &str = "1448675122536911013";
 
 /// Global persistent Discord RPC connection
 /// The connection MUST stay open for the activity to persist
-static DISCORD_CONNECTION: Lazy<Mutex<Option<DiscordConnection>>> =
-    Lazy::new(|| Mutex::new(None));
+static DISCORD_CONNECTION: Lazy<Mutex<Option<DiscordConnection>>> = Lazy::new(|| Mutex::new(None));
 
 #[cfg(unix)]
 struct DiscordConnection {
@@ -82,9 +81,11 @@ pub fn connect() -> AppResult<()> {
             .map_err(|e| AppError::Discord(format!("Failed to connect to Discord: {}", e)))?;
 
         // Set read/write timeouts to prevent infinite hangs
-        stream.set_read_timeout(Some(std::time::Duration::from_secs(5)))
+        stream
+            .set_read_timeout(Some(std::time::Duration::from_secs(5)))
             .map_err(|e| AppError::Discord(format!("Failed to set read timeout: {}", e)))?;
-        stream.set_write_timeout(Some(std::time::Duration::from_secs(5)))
+        stream
+            .set_write_timeout(Some(std::time::Duration::from_secs(5)))
             .map_err(|e| AppError::Discord(format!("Failed to set write timeout: {}", e)))?;
 
         // Send handshake (opcode 0)

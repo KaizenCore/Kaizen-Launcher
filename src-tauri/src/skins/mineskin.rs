@@ -116,10 +116,7 @@ pub async fn generate_from_file(
 }
 
 /// Get skin by UUID from MineSkin
-pub async fn get_skin(
-    client: &reqwest::Client,
-    uuid: &str,
-) -> AppResult<MineSkinResult> {
+pub async fn get_skin(client: &reqwest::Client, uuid: &str) -> AppResult<MineSkinResult> {
     let response = client
         .get(format!("{}/get/uuid/{}", MINESKIN_API, uuid))
         .header("User-Agent", "KaizenLauncher/1.0")
@@ -146,7 +143,10 @@ pub async fn get_skin(
     Ok(MineSkinResult {
         uuid: mineskin.uuid,
         texture_url: mineskin.texture.url,
-        skin_url: format!("https://textures.minecraft.net/texture/{}", mineskin.texture.data.value),
+        skin_url: format!(
+            "https://textures.minecraft.net/texture/{}",
+            mineskin.texture.data.value
+        ),
         variant,
     })
 }
@@ -159,17 +159,16 @@ async fn parse_mineskin_response(
     let status = response.status();
 
     if status.as_u16() == 429 {
-        return Err(AppError::Skin("Rate limited. Please wait before trying again.".to_string()));
+        return Err(AppError::Skin(
+            "Rate limited. Please wait before trying again.".to_string(),
+        ));
     }
 
     if !status.is_success() {
-        let error: MineSkinErrorResponse = response
-            .json()
-            .await
-            .unwrap_or(MineSkinErrorResponse {
-                error: Some("Unknown error".to_string()),
-                error_code: None,
-            });
+        let error: MineSkinErrorResponse = response.json().await.unwrap_or(MineSkinErrorResponse {
+            error: Some("Unknown error".to_string()),
+            error_code: None,
+        });
         return Err(AppError::Skin(format!(
             "MineSkin error: {}",
             error.error.unwrap_or_else(|| "Unknown error".to_string())
@@ -262,7 +261,9 @@ pub async fn list_skins(
             CommunitySkin {
                 id: item.uuid.clone(),
                 name: item.name.unwrap_or_else(|| {
-                    item.short_id.clone().unwrap_or_else(|| format!("Skin {}", &item.uuid[..8.min(item.uuid.len())]))
+                    item.short_id
+                        .clone()
+                        .unwrap_or_else(|| format!("Skin {}", &item.uuid[..8.min(item.uuid.len())]))
                 }),
                 url: texture_url,
                 thumbnail_url,
@@ -278,7 +279,8 @@ pub async fn list_skins(
         })
         .collect();
 
-    let has_more = list.pagination
+    let has_more = list
+        .pagination
         .and_then(|p| p.next)
         .and_then(|n| n.after)
         .is_some();

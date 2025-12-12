@@ -225,8 +225,11 @@ pub async fn get_worlds_for_client(
             // Calculate size with timeout protection
             let size_bytes = tokio::time::timeout(
                 std::time::Duration::from_secs(5),
-                get_directory_size(&world_path)
-            ).await.unwrap_or(Ok(0)).unwrap_or(0);
+                get_directory_size(&world_path),
+            )
+            .await
+            .unwrap_or(Ok(0))
+            .unwrap_or(0);
 
             let last_modified = get_last_modified(&world_path)
                 .await
@@ -321,7 +324,11 @@ pub async fn create_backup(
 
     // Generate backup filename with timestamp
     let timestamp = Local::now();
-    let filename = format!("{}_{}.zip", world_name, timestamp.format("%Y-%m-%d_%H-%M-%S"));
+    let filename = format!(
+        "{}_{}.zip",
+        world_name,
+        timestamp.format("%Y-%m-%d_%H-%M-%S")
+    );
     let backup_path = backups_dir.join(&filename);
 
     // Emit progress
@@ -520,7 +527,8 @@ pub async fn restore_backup(
     is_server: bool,
     app: Option<&AppHandle>,
 ) -> AppResult<()> {
-    let backup_path = get_world_backups_dir(data_dir, instance_id, world_name).join(backup_filename);
+    let backup_path =
+        get_world_backups_dir(data_dir, instance_id, world_name).join(backup_filename);
 
     if !backup_path.exists() {
         return Err(AppError::Instance("Backup file not found".to_string()));
@@ -807,7 +815,8 @@ pub async fn delete_backup(
     world_name: &str,
     backup_filename: &str,
 ) -> AppResult<()> {
-    let backup_path = get_world_backups_dir(data_dir, instance_id, world_name).join(backup_filename);
+    let backup_path =
+        get_world_backups_dir(data_dir, instance_id, world_name).join(backup_filename);
 
     if !backup_path.exists() {
         return Err(AppError::Instance("Backup not found".to_string()));
@@ -893,7 +902,12 @@ pub async fn list_all_backups(
             .iter()
             .find(|(id, _, _)| id == &instance_id)
             .map(|(_, name, is_server)| (name.clone(), *is_server))
-            .unwrap_or_else(|| (format!("Unknown ({})", &instance_id[..8.min(instance_id.len())]), false));
+            .unwrap_or_else(|| {
+                (
+                    format!("Unknown ({})", &instance_id[..8.min(instance_id.len())]),
+                    false,
+                )
+            });
 
         // Iterate through world directories within this instance
         let mut world_dirs = match fs::read_dir(&instance_path).await {
@@ -942,8 +956,12 @@ pub async fn list_all_backups(
                         if s.len() >= 19 {
                             format!(
                                 "{}-{}-{}T{}:{}:{}",
-                                &s[0..4], &s[5..7], &s[8..10],
-                                &s[11..13], &s[14..16], &s[17..19]
+                                &s[0..4],
+                                &s[5..7],
+                                &s[8..10],
+                                &s[11..13],
+                                &s[14..16],
+                                &s[17..19]
                             )
                         } else {
                             s.to_string()
@@ -1060,7 +1078,8 @@ pub async fn restore_backup_to_instance(
     target_is_server: bool,
     app: Option<&AppHandle>,
 ) -> AppResult<()> {
-    let backup_path = get_world_backups_dir(data_dir, source_instance_id, world_name).join(backup_filename);
+    let backup_path =
+        get_world_backups_dir(data_dir, source_instance_id, world_name).join(backup_filename);
 
     if !backup_path.exists() {
         return Err(AppError::Instance("Backup file not found".to_string()));

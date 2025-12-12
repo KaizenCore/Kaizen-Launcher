@@ -1762,7 +1762,9 @@ pub struct InstancesDirectoryInfo {
 }
 
 #[tauri::command]
-pub async fn get_instances_directory(state: State<'_, SharedState>) -> AppResult<InstancesDirectoryInfo> {
+pub async fn get_instances_directory(
+    state: State<'_, SharedState>,
+) -> AppResult<InstancesDirectoryInfo> {
     let state_guard = state.read().await;
     let default_path = state_guard.get_default_instances_dir();
     let current_path = state_guard.get_instances_dir().await;
@@ -2118,13 +2120,12 @@ pub async fn get_instance_auto_backup(
 ) -> AppResult<bool> {
     let state_guard = state.read().await;
 
-    let result = sqlx::query_scalar::<_, i64>(
-        "SELECT auto_backup_worlds FROM instances WHERE id = ?",
-    )
-    .bind(&instance_id)
-    .fetch_optional(&state_guard.db)
-    .await
-    .map_err(AppError::from)?;
+    let result =
+        sqlx::query_scalar::<_, i64>("SELECT auto_backup_worlds FROM instances WHERE id = ?")
+            .bind(&instance_id)
+            .fetch_optional(&state_guard.db)
+            .await
+            .map_err(AppError::from)?;
 
     Ok(result.unwrap_or(0) == 1)
 }

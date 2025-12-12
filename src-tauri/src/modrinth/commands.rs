@@ -969,10 +969,7 @@ pub async fn install_modrinth_modpack(
                             match tokio::fs::write(&icon_full_path, &bytes).await {
                                 Ok(_) => {
                                     saved_icon_path = Some(icon_filename.clone());
-                                    debug!(
-                                        "Saved modpack icon to {:?}",
-                                        icon_full_path
-                                    );
+                                    debug!("Saved modpack icon to {:?}", icon_full_path);
                                 }
                                 Err(e) => debug!("Failed to write icon: {}", e),
                             }
@@ -980,10 +977,7 @@ pub async fn install_modrinth_modpack(
                         Err(e) => debug!("Failed to read icon bytes: {}", e),
                     }
                 } else {
-                    debug!(
-                        "Icon download failed with status: {}",
-                        response.status()
-                    );
+                    debug!("Icon download failed with status: {}", response.status());
                 }
             }
             Err(e) => debug!("Failed to download icon: {}", e),

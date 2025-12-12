@@ -31,10 +31,7 @@ pub async fn get_minecraft_versions(
         }
         Err(e) => {
             // Try to use cached version
-            warn!(
-                "Failed to fetch version manifest: {}. Trying cache...",
-                e
-            );
+            warn!("Failed to fetch version manifest: {}. Trying cache...", e);
             versions::load_cached_manifest(&state.data_dir)
                 .await?
                 .ok_or_else(|| {

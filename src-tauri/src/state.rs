@@ -1,6 +1,6 @@
 use crate::crypto;
 use crate::tunnel::RunningTunnel;
-use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions, SqliteSynchronous, SqliteJournalMode};
+use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions, SqliteSynchronous};
 use sqlx::SqlitePool;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -33,7 +33,9 @@ impl AppState {
     /// and the query is simple. No caching needed as the DB query is fast.
     pub async fn get_instances_dir(&self) -> std::path::PathBuf {
         // Check for custom instances directory in settings
-        if let Ok(Some(custom_dir)) = crate::db::settings::get_setting(&self.db, "instances_dir").await {
+        if let Ok(Some(custom_dir)) =
+            crate::db::settings::get_setting(&self.db, "instances_dir").await
+        {
             let path = std::path::PathBuf::from(&custom_dir);
             if path.exists() || std::fs::create_dir_all(&path).is_ok() {
                 return path;
@@ -63,18 +65,19 @@ impl AppState {
         let db_path = data_dir.join("kaizen.db");
 
         // Configure SQLite with WAL mode for better concurrency
-        let connect_options = SqliteConnectOptions::from_str(&format!("sqlite:{}", db_path.display()))?
-            .create_if_missing(true)
-            .journal_mode(SqliteJournalMode::Wal)        // WAL mode for concurrent reads
-            .synchronous(SqliteSynchronous::Normal)     // Faster than FULL, still safe with WAL
-            .busy_timeout(std::time::Duration::from_secs(30)); // Wait up to 30s if locked
+        let connect_options =
+            SqliteConnectOptions::from_str(&format!("sqlite:{}", db_path.display()))?
+                .create_if_missing(true)
+                .journal_mode(SqliteJournalMode::Wal) // WAL mode for concurrent reads
+                .synchronous(SqliteSynchronous::Normal) // Faster than FULL, still safe with WAL
+                .busy_timeout(std::time::Duration::from_secs(30)); // Wait up to 30s if locked
 
         // Create pool with more connections for better concurrency
         // Set slow_statement_threshold to reduce warning spam in logs
         let db = SqlitePoolOptions::new()
-            .max_connections(50)          // Increased from 20 to handle parallel UI calls
-            .min_connections(5)           // Keep more connections ready
-            .acquire_timeout(std::time::Duration::from_secs(60))  // Longer timeout
+            .max_connections(50) // Increased from 20 to handle parallel UI calls
+            .min_connections(5) // Keep more connections ready
+            .acquire_timeout(std::time::Duration::from_secs(60)) // Longer timeout
             .connect_with(connect_options)
             .await?;
 
@@ -219,9 +222,10 @@ impl AppState {
             .await;
 
         // Migration: Add auto_backup_worlds column to instances
-        let _ = sqlx::query("ALTER TABLE instances ADD COLUMN auto_backup_worlds INTEGER DEFAULT 0")
-            .execute(db)
-            .await;
+        let _ =
+            sqlx::query("ALTER TABLE instances ADD COLUMN auto_backup_worlds INTEGER DEFAULT 0")
+                .execute(db)
+                .await;
 
         // Migration: Tunnel configurations table
         sqlx::query(

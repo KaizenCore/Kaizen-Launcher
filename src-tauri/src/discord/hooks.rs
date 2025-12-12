@@ -52,11 +52,7 @@ pub async fn on_server_started(
 }
 
 /// Send a webhook notification for server stop
-pub async fn on_server_stopped(
-    db: &SqlitePool,
-    instance_name: &str,
-    uptime_seconds: i64,
-) {
+pub async fn on_server_stopped(db: &SqlitePool, instance_name: &str, uptime_seconds: i64) {
     let http_client = &*HTTP_CLIENT;
     let config = match db::get_discord_config(db).await {
         Ok(Some(c)) => c,
@@ -83,12 +79,11 @@ pub async fn on_server_stopped(
 }
 
 /// Send a webhook notification for player join
-pub async fn on_player_joined(
-    db: &SqlitePool,
-    instance_name: &str,
-    player_name: &str,
-) {
-    debug!("on_player_joined called: {} on {}", player_name, instance_name);
+pub async fn on_player_joined(db: &SqlitePool, instance_name: &str, player_name: &str) {
+    debug!(
+        "on_player_joined called: {} on {}",
+        player_name, instance_name
+    );
     let http_client = &*HTTP_CLIENT;
     let config = match db::get_discord_config(db).await {
         Ok(Some(c)) => c,
@@ -123,12 +118,11 @@ pub async fn on_player_joined(
 }
 
 /// Send a webhook notification for player leave
-pub async fn on_player_left(
-    db: &SqlitePool,
-    instance_name: &str,
-    player_name: &str,
-) {
-    debug!("on_player_left called: {} on {}", player_name, instance_name);
+pub async fn on_player_left(db: &SqlitePool, instance_name: &str, player_name: &str) {
+    debug!(
+        "on_player_left called: {} on {}",
+        player_name, instance_name
+    );
     let http_client = &*HTTP_CLIENT;
     let config = match db::get_discord_config(db).await {
         Ok(Some(c)) => c,
@@ -223,7 +217,8 @@ pub async fn set_idle_activity(db: &SqlitePool) {
     let result = tokio::task::spawn_blocking(|| {
         rpc::connect()?;
         rpc::set_activity(&DiscordActivity::Idle)
-    }).await;
+    })
+    .await;
 
     match result {
         Ok(Ok(_)) => debug!("Idle activity set successfully"),
@@ -282,7 +277,8 @@ pub async fn set_playing_activity(
     let result = tokio::task::spawn_blocking(move || {
         rpc::connect()?;
         rpc::set_activity(&activity)
-    }).await;
+    })
+    .await;
 
     match result {
         Ok(Ok(_)) => debug!("Activity set successfully"),
@@ -329,7 +325,8 @@ pub async fn set_hosting_activity(
     let _ = tokio::task::spawn_blocking(move || {
         rpc::connect()?;
         rpc::set_activity(&activity)
-    }).await;
+    })
+    .await;
 }
 
 /// Clear Discord Rich Presence and return to Idle state
@@ -347,9 +344,7 @@ pub async fn clear_activity(db: &SqlitePool) {
     // Instead of clearing, return to Idle state
     if rpc::is_connected() {
         // Run blocking IPC operations in spawn_blocking to prevent blocking the async runtime
-        let _ = tokio::task::spawn_blocking(|| {
-            rpc::set_activity(&DiscordActivity::Idle)
-        }).await;
+        let _ = tokio::task::spawn_blocking(|| rpc::set_activity(&DiscordActivity::Idle)).await;
         debug!("Returned to Idle state");
     }
 }
@@ -365,7 +360,7 @@ fn strip_ansi_codes(s: &str) -> String {
             // Start of escape sequence
             if chars.peek() == Some(&'[') {
                 chars.next(); // consume '['
-                // Skip until we find a letter (the command)
+                              // Skip until we find a letter (the command)
                 while let Some(&next) = chars.peek() {
                     chars.next();
                     if next.is_ascii_alphabetic() {

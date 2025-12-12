@@ -73,8 +73,7 @@ pub async fn get_skin_profile(
 
     // Also check for OptiFine cape
     let mut all_capes = available_capes;
-    if let Ok(Some(optifine_cape)) =
-        optifine::get_cape(&state.http_client, &account.username).await
+    if let Ok(Some(optifine_cape)) = optifine::get_cape(&state.http_client, &account.username).await
     {
         all_capes.push(optifine_cape);
     }
@@ -166,10 +165,7 @@ pub async fn apply_skin_from_file(
 
 /// Reset skin to default
 #[tauri::command]
-pub async fn reset_skin(
-    state: tauri::State<'_, SharedState>,
-    account_id: String,
-) -> AppResult<()> {
+pub async fn reset_skin(state: tauri::State<'_, SharedState>, account_id: String) -> AppResult<()> {
     let state = state.read().await;
 
     // Get account
@@ -224,7 +220,8 @@ pub async fn get_available_capes(
         .map_err(|e| AppError::Skin(format!("Failed to decrypt token: {}", e)))?;
 
     // Get Mojang capes
-    let (_, mut capes, _) = match mojang::get_profile_skins(&state.http_client, &access_token).await {
+    let (_, mut capes, _) = match mojang::get_profile_skins(&state.http_client, &access_token).await
+    {
         Ok(result) => result,
         Err(_) => (None, vec![], None),
     };
@@ -290,7 +287,10 @@ pub async fn search_community_skins(
     let state = state.read().await;
 
     // If query looks like a username, search for player skin
-    if !query.is_empty() && query.len() <= 16 && query.chars().all(|c| c.is_alphanumeric() || c == '_') {
+    if !query.is_empty()
+        && query.len() <= 16
+        && query.chars().all(|c| c.is_alphanumeric() || c == '_')
+    {
         // Try to find player skin first
         if let Ok(result) = sources::search_player_skins(&state.http_client, &query).await {
             if !result.skins.is_empty() {
@@ -458,7 +458,9 @@ pub struct FavoriteSkin {
 
 /// Get all favorite skins
 #[tauri::command]
-pub async fn get_favorite_skins(state: tauri::State<'_, SharedState>) -> AppResult<Vec<FavoriteSkin>> {
+pub async fn get_favorite_skins(
+    state: tauri::State<'_, SharedState>,
+) -> AppResult<Vec<FavoriteSkin>> {
     let state = state.read().await;
 
     let favorites = sqlx::query_as::<_, FavoriteSkin>(
@@ -466,7 +468,7 @@ pub async fn get_favorite_skins(state: tauri::State<'_, SharedState>) -> AppResu
         SELECT id, skin_id, name, url, thumbnail_url, variant, source, author, created_at
         FROM skin_favorites
         ORDER BY created_at DESC
-        "#
+        "#,
     )
     .fetch_all(&state.db)
     .await
@@ -496,7 +498,7 @@ pub async fn add_favorite_skin(
         r#"
         INSERT INTO skin_favorites (id, skin_id, name, url, thumbnail_url, variant, source, author)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        "#
+        "#,
     )
     .bind(&id)
     .bind(&skin_id)
@@ -538,13 +540,12 @@ pub async fn is_skin_favorited(
 ) -> AppResult<Option<String>> {
     let state = state.read().await;
 
-    let result: Option<(String,)> = sqlx::query_as(
-        "SELECT id FROM skin_favorites WHERE skin_id = ?"
-    )
-    .bind(&skin_id)
-    .fetch_optional(&state.db)
-    .await
-    .map_err(|e| AppError::Skin(format!("Database error: {}", e)))?;
+    let result: Option<(String,)> =
+        sqlx::query_as("SELECT id FROM skin_favorites WHERE skin_id = ?")
+            .bind(&skin_id)
+            .fetch_optional(&state.db)
+            .await
+            .map_err(|e| AppError::Skin(format!("Database error: {}", e)))?;
 
     Ok(result.map(|(id,)| id))
 }
@@ -595,10 +596,7 @@ pub async fn get_cached_skins(state: tauri::State<'_, SharedState>) -> AppResult
 
 /// Cache a skin
 #[tauri::command]
-pub async fn cache_skin(
-    state: tauri::State<'_, SharedState>,
-    skin: Skin,
-) -> AppResult<PathBuf> {
+pub async fn cache_skin(state: tauri::State<'_, SharedState>, skin: Skin) -> AppResult<PathBuf> {
     let state_guard = state.read().await;
 
     // Download the skin image

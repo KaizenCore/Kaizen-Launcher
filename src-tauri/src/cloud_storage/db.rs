@@ -129,7 +129,6 @@ pub async fn delete_config(db: &SqlitePool) -> AppResult<()> {
     Ok(())
 }
 
-
 // ============ Cloud Backup Sync Operations ============
 
 /// Get sync status for a specific backup
@@ -263,7 +262,6 @@ pub async fn upsert_backup_sync(db: &SqlitePool, sync: &CloudBackupSync) -> AppR
     .await?;
     Ok(())
 }
-
 
 /// Delete a backup sync record
 pub async fn delete_backup_sync(db: &SqlitePool, id: &str) -> AppResult<()> {

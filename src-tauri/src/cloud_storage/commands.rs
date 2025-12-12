@@ -1,7 +1,7 @@
 //! Tauri commands for cloud storage operations
 
-use std::path::PathBuf;
 use serde::Serialize;
+use std::path::PathBuf;
 use tauri::{AppHandle, State};
 
 use crate::crypto;
@@ -82,9 +82,9 @@ pub async fn test_cloud_connection(
 ) -> AppResult<ConnectionTestResult> {
     let state = state.read().await;
 
-    let config = db::get_config(&state.db).await?.ok_or_else(|| {
-        AppError::CloudStorage("No cloud storage configured".to_string())
-    })?;
+    let config = db::get_config(&state.db)
+        .await?
+        .ok_or_else(|| AppError::CloudStorage("No cloud storage configured".to_string()))?;
 
     manager::test_connection(&state.http_client, &config, &state.encryption_key).await
 }
@@ -95,7 +95,9 @@ pub async fn cloud_oauth_start_google(
     state: State<'_, SharedState>,
 ) -> AppResult<DeviceCodeResponse> {
     let (client_id, _) = credentials::get_google_credentials().ok_or_else(|| {
-        AppError::CloudStorage("Google Drive OAuth credentials not configured in this build".to_string())
+        AppError::CloudStorage(
+            "Google Drive OAuth credentials not configured in this build".to_string(),
+        )
     })?;
 
     let state = state.read().await;
@@ -111,7 +113,9 @@ pub async fn cloud_oauth_complete_google(
     expires_in: u64,
 ) -> AppResult<()> {
     let (client_id, client_secret) = credentials::get_google_credentials().ok_or_else(|| {
-        AppError::CloudStorage("Google Drive OAuth credentials not configured in this build".to_string())
+        AppError::CloudStorage(
+            "Google Drive OAuth credentials not configured in this build".to_string(),
+        )
     })?;
 
     let state = state.read().await;
@@ -128,9 +132,12 @@ pub async fn cloud_oauth_complete_google(
     .await?;
 
     // Create or get Kaizen Backups folder
-    let folder_id =
-        google_drive::get_or_create_folder(&state.http_client, &tokens.access_token, "Kaizen Backups")
-            .await?;
+    let folder_id = google_drive::get_or_create_folder(
+        &state.http_client,
+        &tokens.access_token,
+        "Kaizen Backups",
+    )
+    .await?;
 
     // Encrypt tokens
     let encrypted_access = crypto::encrypt(&state.encryption_key, &tokens.access_token)?;
@@ -141,8 +148,7 @@ pub async fn cloud_oauth_complete_google(
         .transpose()?;
 
     // Calculate expiry time
-    let expires_at = chrono::Utc::now()
-        + chrono::Duration::seconds(tokens.expires_in as i64);
+    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(tokens.expires_in as i64);
 
     // Update or create config
     let mut config = db::get_config(&state.db)
@@ -184,13 +190,9 @@ pub async fn cloud_oauth_complete_dropbox(
     let state = state.read().await;
 
     // Exchange code for tokens
-    let tokens = super::dropbox::exchange_code(
-        &state.http_client,
-        app_key,
-        app_secret,
-        &authorization_code,
-    )
-    .await?;
+    let tokens =
+        super::dropbox::exchange_code(&state.http_client, app_key, app_secret, &authorization_code)
+            .await?;
 
     // Encrypt tokens
     let encrypted_access = crypto::encrypt(&state.encryption_key, &tokens.access_token)?;
@@ -201,8 +203,7 @@ pub async fn cloud_oauth_complete_dropbox(
         .transpose()?;
 
     // Calculate expiry time
-    let expires_at = chrono::Utc::now()
-        + chrono::Duration::seconds(tokens.expires_in as i64);
+    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(tokens.expires_in as i64);
 
     // Update or create config
     let mut config = db::get_config(&state.db)
@@ -229,12 +230,14 @@ pub async fn upload_backup_to_cloud(
     let state_guard = state.read().await;
 
     // Get cloud config
-    let config = db::get_config(&state_guard.db).await?.ok_or_else(|| {
-        AppError::CloudStorage("No cloud storage configured".to_string())
-    })?;
+    let config = db::get_config(&state_guard.db)
+        .await?
+        .ok_or_else(|| AppError::CloudStorage("No cloud storage configured".to_string()))?;
 
     if !config.enabled {
-        return Err(AppError::CloudStorage("Cloud storage is not enabled".to_string()));
+        return Err(AppError::CloudStorage(
+            "Cloud storage is not enabled".to_string(),
+        ));
     }
 
     // Build local backup path
@@ -310,12 +313,14 @@ pub async fn upload_all_pending_backups(
 ) -> AppResult<Vec<CloudBackupSync>> {
     let state_guard = state.read().await;
 
-    let config = db::get_config(&state_guard.db).await?.ok_or_else(|| {
-        AppError::CloudStorage("No cloud storage configured".to_string())
-    })?;
+    let config = db::get_config(&state_guard.db)
+        .await?
+        .ok_or_else(|| AppError::CloudStorage("No cloud storage configured".to_string()))?;
 
     if !config.enabled {
-        return Err(AppError::CloudStorage("Cloud storage is not enabled".to_string()));
+        return Err(AppError::CloudStorage(
+            "Cloud storage is not enabled".to_string(),
+        ));
     }
 
     let pending = db::get_pending_backups(&state_guard.db).await?;
@@ -394,19 +399,16 @@ pub async fn list_remote_backups(
 ) -> AppResult<Vec<RemoteBackupInfo>> {
     let state = state.read().await;
 
-    let config = db::get_config(&state.db).await?.ok_or_else(|| {
-        AppError::CloudStorage("No cloud storage configured".to_string())
-    })?;
+    let config = db::get_config(&state.db)
+        .await?
+        .ok_or_else(|| AppError::CloudStorage("No cloud storage configured".to_string()))?;
 
     manager::list_remote_backups(&state.http_client, &config, &state.encryption_key).await
 }
 
 /// Delete a backup sync record (does not delete remote file)
 #[tauri::command]
-pub async fn delete_backup_sync_record(
-    state: State<'_, SharedState>,
-    id: String,
-) -> AppResult<()> {
+pub async fn delete_backup_sync_record(state: State<'_, SharedState>, id: String) -> AppResult<()> {
     let state = state.read().await;
     db::delete_backup_sync(&state.db, &id).await
 }

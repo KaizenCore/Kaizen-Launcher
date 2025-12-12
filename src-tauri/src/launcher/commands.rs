@@ -1662,12 +1662,16 @@ pub async fn launch_instance(
         // Decrypt tokens if they're encrypted (not offline accounts)
         if account.access_token != "offline" {
             if crypto::is_encrypted(&account.access_token) {
-                account.access_token = crypto::decrypt(&state_guard.encryption_key, &account.access_token)
-                    .map_err(|e| AppError::Encryption(format!("Failed to decrypt access token: {}", e)))?;
+                account.access_token =
+                    crypto::decrypt(&state_guard.encryption_key, &account.access_token).map_err(
+                        |e| AppError::Encryption(format!("Failed to decrypt access token: {}", e)),
+                    )?;
             }
             if crypto::is_encrypted(&account.refresh_token) {
-                account.refresh_token = crypto::decrypt(&state_guard.encryption_key, &account.refresh_token)
-                    .map_err(|e| AppError::Encryption(format!("Failed to decrypt refresh token: {}", e)))?;
+                account.refresh_token =
+                    crypto::decrypt(&state_guard.encryption_key, &account.refresh_token).map_err(
+                        |e| AppError::Encryption(format!("Failed to decrypt refresh token: {}", e)),
+                    )?;
             }
         }
 
@@ -1858,9 +1862,7 @@ pub async fn get_server_stats(
         let pid = Pid::from_u32(pid_u32);
 
         // Lightweight refresh - only what we need
-        let refresh_kind = ProcessRefreshKind::new()
-            .with_cpu()
-            .with_memory();
+        let refresh_kind = ProcessRefreshKind::new().with_cpu().with_memory();
 
         // Single refresh is sufficient when called periodically from frontend
         // Frontend should call this every 3+ seconds minimum
@@ -2024,9 +2026,7 @@ pub async fn send_server_command(
 
 /// Batch check which instances are running (returns list of running instance IDs)
 #[tauri::command]
-pub async fn get_running_instances(
-    state: State<'_, SharedState>,
-) -> AppResult<Vec<String>> {
+pub async fn get_running_instances(state: State<'_, SharedState>) -> AppResult<Vec<String>> {
     let state_guard = state.read().await;
     let running = state_guard.running_instances.read().await;
     Ok(running.keys().cloned().collect())

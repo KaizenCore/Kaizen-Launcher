@@ -5,10 +5,7 @@ const OPTIFINE_CAPES_URL: &str = "http://s.optifine.net/capes";
 
 /// Get OptiFine cape for a player by username
 /// Returns None if the player has no OptiFine cape
-pub async fn get_cape(
-    client: &reqwest::Client,
-    username: &str,
-) -> AppResult<Option<Cape>> {
+pub async fn get_cape(client: &reqwest::Client, username: &str) -> AppResult<Option<Cape>> {
     let url = format!("{}/{}.png", OPTIFINE_CAPES_URL, username);
 
     let response = client

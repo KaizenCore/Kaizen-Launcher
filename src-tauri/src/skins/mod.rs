@@ -1,9 +1,9 @@
-pub mod commands;
-pub mod mojang;
-pub mod optifine;
-pub mod mineskin;
-pub mod namemc;
 pub mod cache;
+pub mod commands;
+pub mod mineskin;
+pub mod mojang;
+pub mod namemc;
+pub mod optifine;
 pub mod sources;
 
 use serde::{Deserialize, Serialize};

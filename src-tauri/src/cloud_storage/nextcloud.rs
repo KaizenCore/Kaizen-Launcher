@@ -38,17 +38,22 @@ pub async fn test_connection(
 
     // Use PROPFIND to check if we can access the root folder
     let response = client
-        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &webdav_url)
+        .request(
+            reqwest::Method::from_bytes(b"PROPFIND").unwrap(),
+            &webdav_url,
+        )
         .header(AUTHORIZATION, &auth)
         .header("Depth", "0")
         .header(CONTENT_TYPE, "application/xml")
-        .body(r#"<?xml version="1.0"?>
+        .body(
+            r#"<?xml version="1.0"?>
             <d:propfind xmlns:d="DAV:" xmlns:oc="http://owncloud.org/ns">
                 <d:prop>
                     <d:quota-used-bytes/>
                     <d:quota-available-bytes/>
                 </d:prop>
-            </d:propfind>"#)
+            </d:propfind>"#,
+        )
         .send()
         .await
         .map_err(|e| AppError::CloudStorage(format!("Failed to connect to Nextcloud: {}", e)))?;
@@ -84,10 +89,9 @@ pub async fn test_connection(
 /// Parse quota information from PROPFIND response
 fn parse_quota_from_propfind(xml: &str) -> (Option<u64>, Option<u64>) {
     // Simple extraction - a proper XML parser would be better but this works for our needs
-    let used = extract_xml_value(xml, "quota-used-bytes")
-        .and_then(|s| s.parse().ok());
-    let available = extract_xml_value(xml, "quota-available-bytes")
-        .and_then(|s| s.parse::<u64>().ok());
+    let used = extract_xml_value(xml, "quota-used-bytes").and_then(|s| s.parse().ok());
+    let available =
+        extract_xml_value(xml, "quota-available-bytes").and_then(|s| s.parse::<u64>().ok());
 
     let total = match (used, available) {
         (Some(u), Some(a)) if a > 0 => Some(u + a),
@@ -155,7 +159,9 @@ pub async fn create_folder(
             .map_err(|e| AppError::CloudStorage(format!("Failed to create folder: {}", e)))?;
 
         // 201 = created, 405 = already exists (which is fine)
-        if !response.status().is_success() && response.status() != reqwest::StatusCode::METHOD_NOT_ALLOWED {
+        if !response.status().is_success()
+            && response.status() != reqwest::StatusCode::METHOD_NOT_ALLOWED
+        {
             // Check if it's a 409 Conflict (parent doesn't exist) - shouldn't happen with our approach
             if response.status() != reqwest::StatusCode::CONFLICT {
                 return Err(AppError::CloudStorage(format!(
@@ -249,18 +255,23 @@ pub async fn list_backups(
     let folder_url = build_webdav_url(url, username, folder_path);
 
     let response = client
-        .request(reqwest::Method::from_bytes(b"PROPFIND").unwrap(), &folder_url)
+        .request(
+            reqwest::Method::from_bytes(b"PROPFIND").unwrap(),
+            &folder_url,
+        )
         .header(AUTHORIZATION, &auth)
         .header("Depth", "infinity") // Get all files recursively
         .header(CONTENT_TYPE, "application/xml")
-        .body(r#"<?xml version="1.0"?>
+        .body(
+            r#"<?xml version="1.0"?>
             <d:propfind xmlns:d="DAV:">
                 <d:prop>
                     <d:getcontentlength/>
                     <d:getlastmodified/>
                     <d:resourcetype/>
                 </d:prop>
-            </d:propfind>"#)
+            </d:propfind>"#,
+        )
         .send()
         .await
         .map_err(|e| AppError::CloudStorage(format!("Failed to list files: {}", e)))?;
@@ -293,8 +304,8 @@ fn parse_propfind_response(xml: &str, _base_path: &str) -> Vec<RemoteBackupInfo>
         }
 
         // Extract href (path)
-        let href = extract_xml_value(response, "href")
-            .or_else(|| extract_xml_value(response, "d:href"));
+        let href =
+            extract_xml_value(response, "href").or_else(|| extract_xml_value(response, "d:href"));
 
         // Only include .zip files
         if let Some(ref path) = href {

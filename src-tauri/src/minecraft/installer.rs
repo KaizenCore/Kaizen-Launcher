@@ -117,13 +117,7 @@ pub async fn install_instance(
 
     // 3. Extract natives (30% - 35% of total)
     let natives_dir = instance_dir.join("natives");
-    emit_progress(
-        app,
-        "installing",
-        30,
-        100,
-        "Extraction des natives...",
-    );
+    emit_progress(app, "installing", 30, 100, "Extraction des natives...");
     info!("Step 3/4: Extracting natives...");
     extract_natives(&libraries_dir, &natives_dir, version).await?;
     emit_progress(app, "installing", 35, 100, "Natives extraites!");
@@ -142,10 +136,7 @@ pub async fn install_instance(
         .await
         .map_err(|e| AppError::Io(format!("Failed to write installed marker: {}", e)))?;
 
-    info!(
-        "Installation complete for version: {}",
-        version.id
-    );
+    info!("Installation complete for version: {}", version.id);
     Ok(())
 }
 
@@ -224,10 +215,7 @@ async fn download_libraries_to_instance_with_progress(
 ) -> AppResult<()> {
     let mut downloads = Vec::new();
 
-    debug!(
-        "Processing {} libraries...",
-        version.libraries.len()
-    );
+    debug!("Processing {} libraries...", version.libraries.len());
 
     for lib in &version.libraries {
         // Check if library should be included based on rules
@@ -324,10 +312,7 @@ async fn download_assets_to_instance_with_progress(
 
     // Prepare downloads
     let mut downloads = Vec::new();
-    debug!(
-        "Processing {} assets...",
-        asset_index.objects.len()
-    );
+    debug!("Processing {} assets...", asset_index.objects.len());
 
     for object in asset_index.objects.values() {
         let hash_prefix = &object.hash[..2];
@@ -465,10 +450,7 @@ async fn extract_natives(
             let native_jar = libraries_dir.join(&path);
             if native_jar.exists() {
                 if let Err(e) = extract_native_jar(&native_jar, natives_dir).await {
-                    debug!(
-                        "Warning: Failed to extract natives from {}: {}",
-                        path, e
-                    );
+                    debug!("Warning: Failed to extract natives from {}: {}", path, e);
                 } else {
                     debug!("Extracted natives from: {}", path);
                 }
@@ -494,9 +476,9 @@ async fn extract_native_jar(jar_path: &Path, natives_dir: &Path) -> AppResult<()
     // Extract in blocking context since zip crate is sync
     tokio::task::spawn_blocking(move || {
         for i in 0..archive.len() {
-            let mut file = archive.by_index(i).map_err(|e| {
-                AppError::Io(format!("Failed to read zip entry: {}", e))
-            })?;
+            let mut file = archive
+                .by_index(i)
+                .map_err(|e| AppError::Io(format!("Failed to read zip entry: {}", e)))?;
 
             let name = file.name().to_string();
 
@@ -636,10 +618,7 @@ pub fn get_instance_classpath(
                     classpath.push(path);
                     found += 1;
                 } else {
-                    debug!(
-                        "MISSING (downloads): {} -> {:?}",
-                        lib.name, path
-                    );
+                    debug!("MISSING (downloads): {} -> {:?}", lib.name, path);
                     missing += 1;
                 }
             }

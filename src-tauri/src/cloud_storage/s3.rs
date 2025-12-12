@@ -112,7 +112,12 @@ fn build_url(config: &S3Config, key: &str) -> String {
     if key.is_empty() {
         format!("{}/{}", endpoint, config.bucket)
     } else {
-        format!("{}/{}/{}", endpoint, config.bucket, key.trim_start_matches('/'))
+        format!(
+            "{}/{}/{}",
+            endpoint,
+            config.bucket,
+            key.trim_start_matches('/')
+        )
     }
 }
 
@@ -323,4 +328,3 @@ fn extract_xml_tag(xml: &str, tag: &str) -> Option<String> {
 
     Some(xml[content_start..content_start + end_idx].to_string())
 }
-

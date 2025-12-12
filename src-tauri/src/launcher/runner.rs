@@ -41,9 +41,9 @@ pub struct ServerLogEvent {
 #[derive(Clone, Serialize)]
 pub struct LaunchProgressEvent {
     pub instance_id: String,
-    pub step: String,     // "preparing", "checking_java", "building_args", "starting"
-    pub step_index: u8,   // 1-4
-    pub total_steps: u8,  // 4
+    pub step: String,    // "preparing", "checking_java", "building_args", "starting"
+    pub step_index: u8,  // 1-4
+    pub total_steps: u8, // 4
 }
 
 /// Launch Minecraft for the given instance
@@ -760,10 +760,7 @@ pub async fn launch_server(
                 args.push("--nogui".to_string());
             }
 
-            debug!(
-                "Modern Forge/NeoForge server detected, args: {:?}",
-                args
-            );
+            debug!("Modern Forge/NeoForge server detected, args: {:?}", args);
         } else {
             return Err(AppError::Instance(
                 "Modern Forge/NeoForge server detected but run script not found".to_string(),
@@ -909,16 +906,20 @@ pub async fn launch_server(
                 // and line contains "the game" (common to both join/leave)
                 if discord_enabled && line.contains("the game") {
                     // Check for player join/leave events
-                    if let Some((event_type, player_name)) = discord_hooks::parse_player_event(&line) {
+                    if let Some((event_type, player_name)) =
+                        discord_hooks::parse_player_event(&line)
+                    {
                         debug!("Detected player {} event: {}", event_type, player_name);
                         let db_clone = db_stdout.clone();
                         let instance_name = instance_name_stdout.clone();
                         let player = player_name.clone();
                         tokio::spawn(async move {
                             if event_type == "join" {
-                                discord_hooks::on_player_joined(&db_clone, &instance_name, &player).await;
+                                discord_hooks::on_player_joined(&db_clone, &instance_name, &player)
+                                    .await;
                             } else {
-                                discord_hooks::on_player_left(&db_clone, &instance_name, &player).await;
+                                discord_hooks::on_player_left(&db_clone, &instance_name, &player)
+                                    .await;
                             }
                         });
                     }

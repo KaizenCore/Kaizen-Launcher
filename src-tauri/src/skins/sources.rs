@@ -101,7 +101,8 @@ pub async fn fetch_mineskin_gallery(
             CommunitySkin {
                 id: skin.uuid.clone(),
                 name: skin.name.unwrap_or_else(|| {
-                    skin.short_id.unwrap_or_else(|| skin.uuid[..8.min(skin.uuid.len())].to_string())
+                    skin.short_id
+                        .unwrap_or_else(|| skin.uuid[..8.min(skin.uuid.len())].to_string())
                 }),
                 url: texture_url,
                 thumbnail_url,
@@ -228,15 +229,27 @@ pub async fn search_player_skins(
 // ==================== Popular Players (for trending) ====================
 
 /// Get skins from popular Minecraft players/content creators
-pub async fn get_popular_player_skins(
-    client: &reqwest::Client,
-) -> AppResult<SearchSkinsResponse> {
+pub async fn get_popular_player_skins(client: &reqwest::Client) -> AppResult<SearchSkinsResponse> {
     // List of popular Minecraft players/content creators
     let popular_players = [
-        "Dream", "Technoblade", "TommyInnit", "GeorgeNotFound", "Sapnap",
-        "Tubbo", "Ranboo", "Wilbur", "Philza", "BadBoyHalo",
-        "Skeppy", "Quackity", "Karl", "Punz",
-        "CaptainSparklez", "DanTDM", "Stampy", "SSundee",
+        "Dream",
+        "Technoblade",
+        "TommyInnit",
+        "GeorgeNotFound",
+        "Sapnap",
+        "Tubbo",
+        "Ranboo",
+        "Wilbur",
+        "Philza",
+        "BadBoyHalo",
+        "Skeppy",
+        "Quackity",
+        "Karl",
+        "Punz",
+        "CaptainSparklez",
+        "DanTDM",
+        "Stampy",
+        "SSundee",
     ];
 
     let mut skins = Vec::new();

@@ -45,7 +45,10 @@ pub async fn get_profile_skins(
 
     if !response.status().is_success() {
         let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::Skin(format!("Profile fetch failed: {}", error_text)));
+        return Err(AppError::Skin(format!(
+            "Profile fetch failed: {}",
+            error_text
+        )));
     }
 
     let profile: ProfileResponse = response
@@ -55,22 +58,19 @@ pub async fn get_profile_skins(
 
     // Find active skin
     let current_skin = profile.skins.as_ref().and_then(|skins| {
-        skins
-            .iter()
-            .find(|s| s.state == "ACTIVE")
-            .map(|s| Skin {
-                id: s.id.clone(),
-                name: profile.name.clone(),
-                url: s.url.clone(),
-                variant: if s.variant.to_lowercase() == "slim" {
-                    SkinVariant::Slim
-                } else {
-                    SkinVariant::Classic
-                },
-                source: SkinSource::Mojang,
-                author: None,
-                thumbnail_url: None,
-            })
+        skins.iter().find(|s| s.state == "ACTIVE").map(|s| Skin {
+            id: s.id.clone(),
+            name: profile.name.clone(),
+            url: s.url.clone(),
+            variant: if s.variant.to_lowercase() == "slim" {
+                SkinVariant::Slim
+            } else {
+                SkinVariant::Classic
+            },
+            source: SkinSource::Mojang,
+            author: None,
+            thumbnail_url: None,
+        })
     });
 
     // Get all capes
@@ -92,15 +92,12 @@ pub async fn get_profile_skins(
 
     // Find active cape
     let current_cape = profile.capes.as_ref().and_then(|capes| {
-        capes
-            .iter()
-            .find(|c| c.state == "ACTIVE")
-            .map(|c| Cape {
-                id: c.id.clone(),
-                name: cape_alias_to_name(&c.alias),
-                url: c.url.clone(),
-                source: CapeSource::Mojang,
-            })
+        capes.iter().find(|c| c.state == "ACTIVE").map(|c| Cape {
+            id: c.id.clone(),
+            name: cape_alias_to_name(&c.alias),
+            url: c.url.clone(),
+            source: CapeSource::Mojang,
+        })
     });
 
     Ok((current_skin, available_capes, current_cape))
@@ -124,7 +121,10 @@ pub async fn upload_skin(
         .text("variant", variant.to_string());
 
     let response = client
-        .post(format!("{}/minecraft/profile/skins", MINECRAFT_SERVICES_API))
+        .post(format!(
+            "{}/minecraft/profile/skins",
+            MINECRAFT_SERVICES_API
+        ))
         .header("Authorization", format!("Bearer {}", access_token))
         .header("User-Agent", "KaizenLauncher/1.0")
         .multipart(form)
@@ -134,7 +134,10 @@ pub async fn upload_skin(
 
     if !response.status().is_success() {
         let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::Skin(format!("Skin upload failed: {}", error_text)));
+        return Err(AppError::Skin(format!(
+            "Skin upload failed: {}",
+            error_text
+        )));
     }
 
     Ok(())
@@ -159,7 +162,10 @@ pub async fn upload_skin_from_url(
     };
 
     let response = client
-        .post(format!("{}/minecraft/profile/skins", MINECRAFT_SERVICES_API))
+        .post(format!(
+            "{}/minecraft/profile/skins",
+            MINECRAFT_SERVICES_API
+        ))
         .header("Authorization", format!("Bearer {}", access_token))
         .header("User-Agent", "KaizenLauncher/1.0")
         .header("Content-Type", "application/json")
@@ -170,19 +176,22 @@ pub async fn upload_skin_from_url(
 
     if !response.status().is_success() {
         let error_text = response.text().await.unwrap_or_default();
-        return Err(AppError::Skin(format!("Skin upload failed: {}", error_text)));
+        return Err(AppError::Skin(format!(
+            "Skin upload failed: {}",
+            error_text
+        )));
     }
 
     Ok(())
 }
 
 /// Reset skin to default (Steve)
-pub async fn reset_skin(
-    client: &reqwest::Client,
-    access_token: &str,
-) -> AppResult<()> {
+pub async fn reset_skin(client: &reqwest::Client, access_token: &str) -> AppResult<()> {
     let response = client
-        .delete(format!("{}/minecraft/profile/skins/active", MINECRAFT_SERVICES_API))
+        .delete(format!(
+            "{}/minecraft/profile/skins/active",
+            MINECRAFT_SERVICES_API
+        ))
         .header("Authorization", format!("Bearer {}", access_token))
         .header("User-Agent", "KaizenLauncher/1.0")
         .send()
@@ -216,7 +225,10 @@ pub async fn set_active_cape(
             };
 
             let response = client
-                .put(format!("{}/minecraft/profile/capes/active", MINECRAFT_SERVICES_API))
+                .put(format!(
+                    "{}/minecraft/profile/capes/active",
+                    MINECRAFT_SERVICES_API
+                ))
                 .header("Authorization", format!("Bearer {}", access_token))
                 .header("User-Agent", "KaizenLauncher/1.0")
                 .header("Content-Type", "application/json")
@@ -233,7 +245,10 @@ pub async fn set_active_cape(
         None => {
             // Hide cape
             let response = client
-                .delete(format!("{}/minecraft/profile/capes/active", MINECRAFT_SERVICES_API))
+                .delete(format!(
+                    "{}/minecraft/profile/capes/active",
+                    MINECRAFT_SERVICES_API
+                ))
                 .header("Authorization", format!("Bearer {}", access_token))
                 .header("User-Agent", "KaizenLauncher/1.0")
                 .send()
