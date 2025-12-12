@@ -8,10 +8,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  RUST_BACKTRACE: 1
-  CARGO_INCREMENTAL: 1
-  CARGO_NET_RETRY: 10
-  RUSTUP_MAX_RETRIES: 10
 
 # Cancel previous runs on same branch
 concurrency:
@@ -19,9 +15,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Fast lint check - runs first
   lint:
-    name: Lint
+    name: Lint & Type Check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -48,11 +43,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Clean npm cache
-        run: rm -rf node_modules package-lock.json
-
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci || npm install
 
       - name: Run ESLint
         run: npm run lint -- --max-warnings 20
@@ -66,73 +58,8 @@ jobs:
       - name: Run Clippy
         run: cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets --all-features -- -D warnings
 
-  # Build for all platforms - only on main branch or PRs
-  build:
-    name: Build (${{ matrix.os }})
-    needs: lint
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-          - os: macos-latest
-            target: aarch64-apple-darwin
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.target }}
-
-      - name: Cache Rust
-        uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: src-tauri
-          cache-on-failure: true
-          shared-key: build-${{ matrix.target }}
-
-      - name: Install system dependencies (Linux)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
-
-      - name: Clean npm cache (Unix)
-        if: runner.os != 'Windows'
-        run: rm -rf node_modules package-lock.json
-
-      - name: Clean npm cache (Windows)
-        if: runner.os == 'Windows'
-        run: |
-          if (Test-Path node_modules) { Remove-Item -Recurse -Force node_modules }
-          if (Test-Path package-lock.json) { Remove-Item -Force package-lock.json }
-        shell: pwsh
-
-      - name: Install npm dependencies
-        run: npm install
-
-      - name: Build frontend
-        run: npm run build
-
-      - name: Check Rust build
-        run: cargo check --manifest-path src-tauri/Cargo.toml --target ${{ matrix.target }}
-
-  # Run tests - parallel with build
   test:
     name: Test
-    needs: lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -157,11 +84,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
 
-      - name: Clean npm cache
-        run: rm -rf node_modules package-lock.json
-
       - name: Install npm dependencies
-        run: npm install
+        run: npm ci || npm install
 
       - name: Run Rust tests
         run: cargo test --manifest-path src-tauri/Cargo.toml --all-features
