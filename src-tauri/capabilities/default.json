@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Capability for the main window",
+  "description": "Capability for the main window - provides necessary permissions for Minecraft launcher operations",
   "windows": ["main"],
   "permissions": [
     "core:default",

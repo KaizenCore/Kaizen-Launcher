@@ -50,6 +50,9 @@ pub enum AppError {
     #[error("Skin error: {0}")]
     Skin(String),
 
+    #[error("Security error: {0}")]
+    Security(String),
+
     #[error("{0}")]
     Custom(String),
 }

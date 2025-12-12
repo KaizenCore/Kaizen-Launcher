@@ -1339,6 +1339,11 @@ pub async fn update_instance_icon(
     let saved_icon_path: String;
 
     if is_url {
+        // SSRF Protection: Validate URL before making request
+        // Use non-strict mode to allow any public domain, but block private IPs and localhost
+        let validated_url = crate::utils::url_validation::validate_url_for_ssrf(&icon_source, false)
+            .map_err(|e| AppError::Security(format!("Invalid icon URL: {}", e)))?;
+
         // Download icon from URL
         let http_client = reqwest::Client::builder()
             .user_agent("KaizenLauncher/1.0")
@@ -1360,7 +1365,7 @@ pub async fn update_instance_icon(
         let icon_full_path = instance_dir.join(&icon_filename);
 
         let response = http_client
-            .get(&icon_source)
+            .get(validated_url.as_str())
             .send()
             .await
             .map_err(|e| AppError::Io(format!("Failed to download icon: {}", e)))?;
