@@ -1,2 +1,12 @@
+# Kaizen Launcher - robots.txt
 User-agent: *
-Disallow:
+Allow: /
+
+# Sitemap
+Sitemap: https://kaizen-launcher.com/sitemap.xml
+
+# Disallow admin/auth routes
+Disallow: /login
+Disallow: /register
+Disallow: /dashboard
+Disallow: /settings
