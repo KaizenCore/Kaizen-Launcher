@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import { useTranslations } from '@/lib/i18n';
 import { MotionDiv, motion } from '@/components/ui/motion';
 import { Github, Heart } from 'lucide-react';
@@ -30,7 +31,7 @@ export function Footer() {
                     </div>
 
                     {/* Links */}
-                    <div className="flex items-center gap-6">
+                    <div className="flex flex-wrap items-center justify-center gap-6">
                         <motion.a
                             href={GITHUB_URL}
                             target="_blank"
@@ -53,6 +54,19 @@ export function Footer() {
                             <DiscordIcon className="h-4 w-4" />
                             Discord
                         </motion.a>
+                        <span className="hidden sm:inline text-muted-foreground/30">|</span>
+                        <Link
+                            href="/terms"
+                            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            {t.footer.terms}
+                        </Link>
+                        <Link
+                            href="/privacy"
+                            className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                            {t.footer.privacy}
+                        </Link>
                     </div>
 
                     {/* Made with love */}

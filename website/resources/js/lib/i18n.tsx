@@ -60,6 +60,8 @@ interface Translations {
     footer: {
         copyright: string;
         madeWith: string;
+        terms: string;
+        privacy: string;
     };
     common: {
         learnMore: string;
@@ -161,6 +163,8 @@ const translations: Record<Locale, Translations> = {
         footer: {
             copyright: '© 2025 Kaizen Launcher. Open source under MIT license.',
             madeWith: 'Made with',
+            terms: 'Terms of Service',
+            privacy: 'Privacy Policy',
         },
         common: {
             learnMore: 'Learn more',
@@ -260,6 +264,8 @@ const translations: Record<Locale, Translations> = {
         footer: {
             copyright: '© 2025 Kaizen Launcher. Open source sous licence MIT.',
             madeWith: 'Fait avec',
+            terms: 'Conditions d\'utilisation',
+            privacy: 'Politique de confidentialité',
         },
         common: {
             learnMore: 'En savoir plus',

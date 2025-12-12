@@ -14,6 +14,14 @@ Route::get('/changelog', function () {
     return Inertia::render('changelog');
 })->name('changelog');
 
+Route::get('/terms', function () {
+    return Inertia::render('terms');
+})->name('terms');
+
+Route::get('/privacy', function () {
+    return Inertia::render('privacy');
+})->name('privacy');
+
 // SEO: Dynamic sitemap.xml
 Route::get('/sitemap.xml', function () {
     $url = config('app.url');
@@ -33,6 +41,18 @@ Route::get('/sitemap.xml', function () {
     <lastmod>{$lastmod}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
+  </url>
+  <url>
+    <loc>{$url}/terms</loc>
+    <lastmod>{$lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+  </url>
+  <url>
+    <loc>{$url}/privacy</loc>
+    <lastmod>{$lastmod}</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
   </url>
 </urlset>
 XML;
