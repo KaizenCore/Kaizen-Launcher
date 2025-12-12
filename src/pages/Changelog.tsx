@@ -47,6 +47,35 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.5.4",
+    date: "2025-12-12",
+    highlights: [
+      "AppImage Linux Builds",
+      "CI/CD Improvements",
+      "Code Quality Fixes",
+    ],
+    features: [
+      {
+        icon: <Package className="h-5 w-5" />,
+        title: "AppImage Linux Builds",
+        description: "Re-enabled AppImage format for Linux users. Provides portable, self-contained application bundles.",
+        tag: "new",
+      },
+      {
+        icon: <Wrench className="h-5 w-5" />,
+        title: "CI/CD Pipeline Improvements",
+        description: "Simplified workflows, added concurrency controls, and prevented duplicate releases during deployment.",
+        tag: "improved",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Clippy & Code Quality",
+        description: "Resolved all Clippy warnings across Rust modules. Fixed npm rollup issue in CI environments.",
+        tag: "fix",
+      },
+    ],
+  },
+  {
     version: "0.5.3",
     date: "2025-12-12",
     highlights: [

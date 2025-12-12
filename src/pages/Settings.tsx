@@ -924,11 +924,9 @@ export function Settings() {
                 </div>
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <ul className="list-disc list-inside space-y-1">
-                    <li>{t("settings.whatsNewI18nCheck")}</li>
-                    <li>{t("settings.whatsNew4K")}</li>
-                    <li>{t("settings.whatsNewBadgeFix")}</li>
-                    <li>{t("settings.whatsNewTranslations")}</li>
-                    <li>{t("settings.whatsNewHardcoded")}</li>
+                    <li>{t("settings.whatsNewAppImage")}</li>
+                    <li>{t("settings.whatsNewCICD")}</li>
+                    <li>{t("settings.whatsNewClippy")}</li>
                   </ul>
                 </div>
               </div>

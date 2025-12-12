@@ -427,12 +427,10 @@
     "restartOnboardingButton": "Neustart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Was ist neu in v0.5.3",
-    "whatsNewI18nCheck": "i18n Integritaetspruefung Script",
-    "whatsNew4K": "Verbesserte 4K-Bildschirmunterstuetzung",
-    "whatsNewBadgeFix": "Sidebar-Badge Fix beim Loeschen von Shares",
-    "whatsNewTranslations": "Vollstaendige niederlaendische und deutsche Uebersetzungen",
-    "whatsNewHardcoded": "Hardcodierte Strings in 10+ Komponenten behoben"
+    "whatsNew": "Was ist neu in v0.5.4",
+    "whatsNewAppImage": "AppImage Builds für Linux-Benutzer",
+    "whatsNewCICD": "Verbesserte CI/CD Pipeline-Zuverlässigkeit",
+    "whatsNewClippy": "Code-Qualitätsfixes und Optimierungen"
   },
   "discord": {
     "loadFailed": "Discord-Konfiguration konnte nicht geladen werden",

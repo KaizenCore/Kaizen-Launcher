@@ -2,6 +2,22 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.5.4] - 2025-12-12
+
+### Added
+- **AppImage Linux Builds** - Re-enabled AppImage format for Linux users
+- Improved CI/CD pipeline reliability
+
+### Fixed
+- Resolved Clippy warnings across all Rust modules
+- Fixed npm rollup issue in CI (optional dependencies bug)
+- Prevented duplicate GitHub releases during deployment
+
+### Technical
+- Simplified CI workflows (removed redundant build jobs)
+- Added concurrency controls to prevent race conditions in releases
+- Code style improvements from `cargo clippy --fix`
+
 ## [0.5.3] - 2025-12-12
 
 ### Added
