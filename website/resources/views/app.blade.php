@@ -77,20 +77,20 @@
         {{-- JSON-LD Structured Data --}}
         <script type="application/ld+json">
         {
-            "@context": "https://schema.org",
-            "@type": "SoftwareApplication",
+            "@@context": "https://schema.org",
+            "@@type": "SoftwareApplication",
             "name": "Kaizen Launcher",
             "description": "A modern, open-source Minecraft launcher with modpack support, server management, and a beautiful interface.",
             "url": "{{ config('app.url') }}",
             "applicationCategory": "GameApplication",
             "operatingSystem": "Windows, macOS, Linux",
             "offers": {
-                "@type": "Offer",
+                "@@type": "Offer",
                 "price": "0",
                 "priceCurrency": "USD"
             },
             "author": {
-                "@type": "Organization",
+                "@@type": "Organization",
                 "name": "Kaizen",
                 "url": "{{ config('app.url') }}"
             },
