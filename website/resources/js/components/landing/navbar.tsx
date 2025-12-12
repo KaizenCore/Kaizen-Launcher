@@ -2,7 +2,8 @@ import { useTranslations } from '@/lib/i18n';
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { Button } from '@/components/ui/button';
 import { useAppearance } from '@/hooks/use-appearance';
-import { Github, Menu, Moon, Sun, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Download, Github, History, Layers, Menu, Moon, Sun, X } from 'lucide-react';
 import { useState } from 'react';
 
 const GITHUB_URL = 'https://github.com/KaizenCore/Kaizen-Launcher';
@@ -26,40 +27,62 @@ export function Navbar() {
     };
 
     return (
-        <nav className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md">
+        <motion.nav
+            initial={{ y: -100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.5, ease: [0.25, 0.4, 0.25, 1] }}
+            className="fixed top-0 z-50 w-full border-b border-border/40 bg-background/80 backdrop-blur-md"
+        >
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="flex h-16 items-center justify-between">
                     {/* Logo */}
-                    <div className="flex items-center gap-3">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
-                            <span className="text-lg font-bold text-primary-foreground">K</span>
-                        </div>
+                    <motion.a
+                        href="/"
+                        className="flex items-center gap-3"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                    >
+                        <img
+                            src="/Kaizen.svg"
+                            alt="Kaizen Launcher"
+                            className="h-9 w-9"
+                        />
                         <span className="text-lg font-semibold">Kaizen Launcher</span>
-                    </div>
+                    </motion.a>
 
                     {/* Desktop Navigation */}
                     <div className="hidden items-center gap-1 md:flex">
                         <Button
                             variant="ghost"
                             size="sm"
+                            className="transition-colors duration-200"
                             onClick={() => scrollTo('features')}
                         >
+                            <Layers className="mr-2 h-4 w-4" />
                             {t.nav.features}
                         </Button>
                         <Button
                             variant="ghost"
                             size="sm"
+                            className="transition-colors duration-200"
                             onClick={() => scrollTo('download')}
                         >
+                            <Download className="mr-2 h-4 w-4" />
                             {t.nav.download}
                         </Button>
-                        <Button variant="ghost" size="sm" asChild>
+                        <Button variant="ghost" size="sm" className="transition-colors duration-200" asChild>
+                            <a href="/changelog">
+                                <History className="mr-2 h-4 w-4" />
+                                {t.nav.changelog}
+                            </a>
+                        </Button>
+                        <Button variant="ghost" size="sm" className="transition-colors duration-200" asChild>
                             <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
                                 <Github className="mr-2 h-4 w-4" />
                                 {t.nav.github}
                             </a>
                         </Button>
-                        <Button variant="ghost" size="sm" asChild>
+                        <Button variant="ghost" size="sm" className="transition-colors duration-200" asChild>
                             <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
                                 <DiscordIcon className="mr-2 h-4 w-4" />
                                 {t.nav.discord}
@@ -70,7 +93,7 @@ export function Navbar() {
                     {/* Right side controls */}
                     <div className="flex items-center gap-2">
                         <LanguageSwitcher />
-                        <Button variant="ghost" size="icon" onClick={toggleTheme}>
+                        <Button variant="ghost" size="icon" className="transition-colors duration-200" onClick={toggleTheme}>
                             {appearance === 'dark' ? (
                                 <Sun className="h-4 w-4" />
                             ) : (
@@ -82,7 +105,7 @@ export function Navbar() {
                         <Button
                             variant="ghost"
                             size="icon"
-                            className="md:hidden"
+                            className="transition-colors duration-200 md:hidden"
                             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                         >
                             {mobileMenuOpen ? (
@@ -96,39 +119,60 @@ export function Navbar() {
             </div>
 
             {/* Mobile menu */}
-            {mobileMenuOpen && (
-                <div className="border-t border-border/40 bg-background md:hidden">
-                    <div className="space-y-1 px-4 py-3">
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start"
-                            onClick={() => scrollTo('features')}
+            <AnimatePresence>
+                {mobileMenuOpen && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden border-t border-border/40 bg-background md:hidden"
+                    >
+                        <motion.div
+                            initial={{ opacity: 0, y: -10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.1, duration: 0.2 }}
+                            className="space-y-1 px-4 py-3"
                         >
-                            {t.nav.features}
-                        </Button>
-                        <Button
-                            variant="ghost"
-                            className="w-full justify-start"
-                            onClick={() => scrollTo('download')}
-                        >
-                            {t.nav.download}
-                        </Button>
-                        <Button variant="ghost" className="w-full justify-start" asChild>
-                            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-                                <Github className="mr-2 h-4 w-4" />
-                                {t.nav.github}
-                            </a>
-                        </Button>
-                        <Button variant="ghost" className="w-full justify-start" asChild>
-                            <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
-                                <DiscordIcon className="mr-2 h-4 w-4" />
-                                {t.nav.discord}
-                            </a>
-                        </Button>
-                    </div>
-                </div>
-            )}
-        </nav>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start"
+                                onClick={() => scrollTo('features')}
+                            >
+                                <Layers className="mr-2 h-4 w-4" />
+                                {t.nav.features}
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                className="w-full justify-start"
+                                onClick={() => scrollTo('download')}
+                            >
+                                <Download className="mr-2 h-4 w-4" />
+                                {t.nav.download}
+                            </Button>
+                            <Button variant="ghost" className="w-full justify-start" asChild>
+                                <a href="/changelog" onClick={() => setMobileMenuOpen(false)}>
+                                    <History className="mr-2 h-4 w-4" />
+                                    {t.nav.changelog}
+                                </a>
+                            </Button>
+                            <Button variant="ghost" className="w-full justify-start" asChild>
+                                <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+                                    <Github className="mr-2 h-4 w-4" />
+                                    {t.nav.github}
+                                </a>
+                            </Button>
+                            <Button variant="ghost" className="w-full justify-start" asChild>
+                                <a href={DISCORD_URL} target="_blank" rel="noopener noreferrer">
+                                    <DiscordIcon className="mr-2 h-4 w-4" />
+                                    {t.nav.discord}
+                                </a>
+                            </Button>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </motion.nav>
     );
 }
 

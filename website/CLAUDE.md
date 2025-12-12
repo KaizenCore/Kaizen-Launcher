@@ -4,13 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Kaizen Launcher website - a Laravel 12 + Inertia v2 + React 19 application serving as the web presence for the Kaizen Minecraft launcher. Built with TypeScript, Tailwind CSS v4, and modern tooling.
+Kaizen Launcher website - a Laravel 12 + Inertia v2 + React 19 application serving as the landing page and web presence for the Kaizen Minecraft launcher. Built with TypeScript, Tailwind CSS v4, and Framer Motion for animations.
 
 ## Development Commands
 
 ```bash
+# Initial setup (installs deps, creates .env, runs migrations, builds)
+composer run setup
+
 # Full development stack (server, queue, logs, Vite) - recommended
 composer run dev
+
+# With SSR support
+npm run build:ssr && composer run dev:ssr
 
 # Individual services
 npm run dev           # Vite dev server only
@@ -18,6 +24,7 @@ php artisan serve     # Laravel server only
 
 # Build
 npm run build         # Production build
+npm run build:ssr     # Production build with SSR
 
 # Code quality
 npm run lint          # ESLint with auto-fix
@@ -54,7 +61,31 @@ php artisan wayfinder:generate
 ### Key Integrations
 - **Wayfinder**: Type-safe route helpers - import from `@/actions/` or `@/routes/`
 - **Inertia v2**: Use `<Form>` component with Wayfinder's `.form()` method
-- **Tailwind v4**: CSS-first config via `@theme` directive, no config.js
+- **Tailwind v4**: CSS-first config via `@theme` directive in `resources/css/app.css`, uses OKLCH color space
+- **Framer Motion**: Animations via `@/components/ui/motion.tsx` wrapper
+
+### Landing Page Structure
+The public-facing landing page (`resources/js/pages/welcome.tsx`) is composed of:
+- `landing/navbar.tsx` - Navigation with language switcher
+- `landing/hero-section.tsx` - Main hero with download buttons
+- `landing/preview-section.tsx` - Interactive app preview (uses `preview/` components)
+- `landing/features-section.tsx` - Feature grid
+- `landing/download-section.tsx` - Platform download cards
+- `landing/footer.tsx` - Footer links
+
+### Internationalization
+Custom React Context-based i18n (`resources/js/lib/i18n.tsx`):
+- Supports `en` and `fr` locales
+- Type-safe translations via `Translations` interface
+- Uses `useI18n()` hook for locale switching, `useTranslations()` for accessing strings
+- Persists locale preference in localStorage
+- Auto-detects browser language on first visit
+
+### GitHub Releases Integration
+The site fetches release data from GitHub API (`resources/js/hooks/use-github-release.ts`):
+- `useGitHubRelease()` - Latest release info for download buttons
+- `useChangelog()` - All releases for `/changelog` page
+- Results cached in localStorage for 5 minutes
 
 ## Conventions
 
@@ -87,3 +118,13 @@ import { Link } from '@inertiajs/react'
 - SQLite database at `database/database.sqlite`
 - Two-Factor Authentication columns on users table
 - Run migrations: `php artisan migrate`
+
+## Routes
+
+Public routes (no auth):
+- `/` - Landing page (welcome.tsx)
+- `/changelog` - Release changelog from GitHub
+
+Authenticated routes:
+- `/dashboard` - User dashboard
+- `/settings/*` - User settings (profile, password, appearance, two-factor)

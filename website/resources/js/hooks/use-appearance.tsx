@@ -19,12 +19,22 @@ const setCookie = (name: string, value: string, days = 365) => {
     document.cookie = `${name}=${value};path=/;max-age=${maxAge};SameSite=Lax`;
 };
 
-const applyTheme = (appearance: Appearance) => {
+const applyTheme = (appearance: Appearance, withTransition = false) => {
     const isDark =
         appearance === 'dark' || (appearance === 'system' && prefersDark());
 
+    if (withTransition) {
+        document.documentElement.classList.add('theme-transition');
+    }
+
     document.documentElement.classList.toggle('dark', isDark);
     document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+
+    if (withTransition) {
+        setTimeout(() => {
+            document.documentElement.classList.remove('theme-transition');
+        }, 300);
+    }
 };
 
 const mediaQuery = () => {
@@ -53,7 +63,7 @@ export function initializeTheme() {
 export function useAppearance() {
     const [appearance, setAppearance] = useState<Appearance>('system');
 
-    const updateAppearance = useCallback((mode: Appearance) => {
+    const updateAppearance = useCallback((mode: Appearance, animate = true) => {
         setAppearance(mode);
 
         // Store in localStorage for client-side persistence...
@@ -62,7 +72,7 @@ export function useAppearance() {
         // Store in cookie for SSR...
         setCookie('appearance', mode);
 
-        applyTheme(mode);
+        applyTheme(mode, animate);
     }, []);
 
     useEffect(() => {
@@ -70,8 +80,9 @@ export function useAppearance() {
             'appearance',
         ) as Appearance | null;
 
+        // Don't animate on initial load
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        updateAppearance(savedAppearance || 'system');
+        updateAppearance(savedAppearance || 'system', false);
 
         return () =>
             mediaQuery()?.removeEventListener(

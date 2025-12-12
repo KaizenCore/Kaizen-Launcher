@@ -10,6 +10,10 @@ Route::get('/', function () {
     ]);
 })->name('home');
 
+Route::get('/changelog', function () {
+    return Inertia::render('changelog');
+})->name('changelog');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard', function () {
         return Inertia::render('dashboard');

@@ -11,6 +11,7 @@ interface Translations {
     nav: {
         features: string;
         download: string;
+        changelog: string;
         github: string;
         discord: string;
     };
@@ -64,6 +65,7 @@ const translations: Record<Locale, Translations> = {
         nav: {
             features: 'Features',
             download: 'Download',
+            changelog: 'Changelog',
             github: 'GitHub',
             discord: 'Discord',
         },
@@ -73,7 +75,7 @@ const translations: Record<Locale, Translations> = {
                 'A powerful, feature-rich launcher for Minecraft with support for multiple modloaders, servers, and seamless mod management.',
             downloadFor: 'Download for',
             viewGithub: 'View on GitHub',
-            version: 'v0.3.6 • Open Source',
+            version: 'v0.4.0 • Open Source',
             beta: 'Early Beta',
         },
         features: {
@@ -134,6 +136,7 @@ const translations: Record<Locale, Translations> = {
         nav: {
             features: 'Fonctionnalités',
             download: 'Télécharger',
+            changelog: 'Changelog',
             github: 'GitHub',
             discord: 'Discord',
         },
@@ -143,7 +146,7 @@ const translations: Record<Locale, Translations> = {
                 'Un launcher puissant et complet pour Minecraft avec support multi-modloaders, serveurs et gestion simplifiée des mods.',
             downloadFor: 'Télécharger pour',
             viewGithub: 'Voir sur GitHub',
-            version: 'v0.3.6 • Open Source',
+            version: 'v0.4.0 • Open Source',
             beta: 'Bêta',
         },
         features: {

@@ -1,4 +1,5 @@
 import { useTranslations } from '@/lib/i18n';
+import { MotionDiv, motion } from '@/components/ui/motion';
 import { Github, Heart } from 'lucide-react';
 
 const GITHUB_URL = 'https://github.com/KaizenCore/Kaizen-Launcher';
@@ -10,15 +11,19 @@ export function Footer() {
     return (
         <footer className="border-t border-border/40 bg-background">
             <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-                <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
+                <MotionDiv
+                    className="flex flex-col items-center justify-between gap-6 md:flex-row"
+                    delay={0.1}
+                >
                     {/* Logo and copyright */}
                     <div className="flex flex-col items-center gap-2 md:items-start">
-                        <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary">
-                                <span className="font-bold text-primary-foreground">K</span>
-                            </div>
+                        <motion.div
+                            className="flex items-center gap-3"
+                            whileHover={{ scale: 1.02 }}
+                        >
+                            <img src="/Kaizen.svg" alt="Kaizen" className="h-8 w-8" />
                             <span className="font-semibold">Kaizen Launcher</span>
-                        </div>
+                        </motion.div>
                         <p className="text-sm text-muted-foreground">
                             {t.footer.copyright}
                         </p>
@@ -26,32 +31,47 @@ export function Footer() {
 
                     {/* Links */}
                     <div className="flex items-center gap-6">
-                        <a
+                        <motion.a
                             href={GITHUB_URL}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                         >
                             <Github className="h-4 w-4" />
                             GitHub
-                        </a>
-                        <a
+                        </motion.a>
+                        <motion.a
                             href={DISCORD_URL}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="flex items-center gap-2 text-sm text-muted-foreground transition-colors hover:text-foreground"
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
                         >
                             <DiscordIcon className="h-4 w-4" />
                             Discord
-                        </a>
+                        </motion.a>
                     </div>
 
                     {/* Made with love */}
                     <div className="flex items-center gap-1 text-sm text-muted-foreground">
                         {t.footer.madeWith}
-                        <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+                        <motion.div
+                            animate={{
+                                scale: [1, 1.2, 1],
+                            }}
+                            transition={{
+                                duration: 1.5,
+                                repeat: Infinity,
+                                ease: 'easeInOut',
+                            }}
+                        >
+                            <Heart className="h-4 w-4 fill-red-500 text-red-500" />
+                        </motion.div>
                     </div>
-                </div>
+                </MotionDiv>
             </div>
         </footer>
     );

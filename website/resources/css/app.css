@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@plugin "@tailwindcss/typography";
 
 @import "tw-animate-css";
 
@@ -139,5 +140,13 @@
 
     body {
         @apply bg-background text-foreground;
+    }
+
+    /* Smooth theme transition - only on key elements */
+    html.theme-transition,
+    html.theme-transition *,
+    html.theme-transition *::before,
+    html.theme-transition *::after {
+        transition: background-color 300ms ease, border-color 300ms ease, color 300ms ease !important;
     }
 }

@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Download, ExternalLink, Check } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { MotionDiv, StaggerContainer, StaggerItem, motion } from '@/components/ui/motion';
 
 const RELEASES_URL = 'https://github.com/KaizenCore/Kaizen-Launcher/releases/latest';
 const GITHUB_API_URL = 'https://api.github.com/repos/KaizenCore/Kaizen-Launcher/releases/latest';
@@ -86,15 +87,15 @@ export function DownloadSection() {
         <section id="download" className="py-20 lg:py-32">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="text-center">
+                <MotionDiv className="text-center">
                     <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                         {t.download.title}
                     </h2>
                     <p className="mt-4 text-lg text-muted-foreground">{t.download.subtitle}</p>
-                </div>
+                </MotionDiv>
 
                 {/* Download cards */}
-                <div className="mt-16 grid gap-6 sm:grid-cols-3">
+                <StaggerContainer className="mt-16 grid gap-6 sm:grid-cols-3" staggerDelay={0.15}>
                     {platforms.map((os) => {
                         const data = osData[os];
                         const Icon = data.icon;
@@ -102,59 +103,78 @@ export function DownloadSection() {
                         const downloadUrl = getDownloadUrl(os);
 
                         return (
-                            <Card
-                                key={os}
-                                className={`relative border-border/50 bg-card/50 backdrop-blur transition-all duration-200 hover:border-border hover:bg-card ${
-                                    isCurrentOS ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
-                                }`}
-                            >
-                                {isCurrentOS && (
-                                    <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                                        <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
-                                            <Check className="h-3 w-3" />
-                                            Detected
-                                        </span>
-                                    </div>
-                                )}
-                                <CardContent className="p-6 pt-8 text-center">
-                                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted">
-                                        <Icon className="h-8 w-8" />
-                                    </div>
-                                    <h3 className="mb-2 text-xl font-semibold">
-                                        {t.download[os]}
-                                    </h3>
-                                    <p className="mb-4 text-sm text-muted-foreground">
-                                        {t.download[`${os}Desc` as keyof typeof t.download]}
-                                    </p>
-                                    <ul className="mb-6 space-y-1 text-xs text-muted-foreground">
-                                        {data.requirements.map((req, i) => (
-                                            <li key={i} className="flex items-center justify-center gap-1">
-                                                <Check className="h-3 w-3 text-green-500" />
-                                                {req}
-                                            </li>
-                                        ))}
-                                    </ul>
-                                    <Button className="w-full gap-2" asChild>
-                                        <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
-                                            <Download className="h-4 w-4" />
-                                            {t.download.downloadButton}
-                                        </a>
-                                    </Button>
-                                </CardContent>
-                            </Card>
+                            <StaggerItem key={os}>
+                                <motion.div
+                                    whileHover={{ y: -8, scale: 1.02 }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <Card
+                                        className={`relative h-full border-border/50 bg-card/50 backdrop-blur transition-colors hover:border-border hover:bg-card ${
+                                            isCurrentOS ? 'ring-2 ring-primary ring-offset-2 ring-offset-background' : ''
+                                        }`}
+                                    >
+                                        {isCurrentOS && (
+                                            <motion.div
+                                                initial={{ opacity: 0, y: -10 }}
+                                                animate={{ opacity: 1, y: 0 }}
+                                                transition={{ delay: 0.5 }}
+                                                className="absolute -top-3 left-1/2 -translate-x-1/2"
+                                            >
+                                                <span className="inline-flex items-center gap-1 rounded-full bg-primary px-3 py-1 text-xs font-medium text-primary-foreground">
+                                                    <Check className="h-3 w-3" />
+                                                    Detected
+                                                </span>
+                                            </motion.div>
+                                        )}
+                                        <CardContent className="p-6 pt-8 text-center">
+                                            <motion.div
+                                                className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-muted"
+                                                whileHover={{ scale: 1.1, rotate: 5 }}
+                                                transition={{ duration: 0.2 }}
+                                            >
+                                                <Icon className="h-8 w-8" />
+                                            </motion.div>
+                                            <h3 className="mb-2 text-xl font-semibold">
+                                                {t.download[os]}
+                                            </h3>
+                                            <p className="mb-4 text-sm text-muted-foreground">
+                                                {t.download[`${os}Desc` as keyof typeof t.download]}
+                                            </p>
+                                            <ul className="mb-6 space-y-1 text-xs text-muted-foreground">
+                                                {data.requirements.map((req, i) => (
+                                                    <li key={i} className="flex items-center justify-center gap-1">
+                                                        <Check className="h-3 w-3 text-green-500" />
+                                                        {req}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                                                <Button className="w-full gap-2" asChild>
+                                                    <a href={downloadUrl} target="_blank" rel="noopener noreferrer">
+                                                        <Download className="h-4 w-4" />
+                                                        {t.download.downloadButton}
+                                                    </a>
+                                                </Button>
+                                            </motion.div>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            </StaggerItem>
                         );
                     })}
-                </div>
+                </StaggerContainer>
 
                 {/* All releases link */}
-                <div className="mt-8 text-center">
-                    <Button variant="outline" className="gap-2" asChild>
-                        <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">
-                            {t.download.allReleases}
-                            <ExternalLink className="h-4 w-4" />
-                        </a>
-                    </Button>
-                </div>
+                <MotionDiv className="mt-8 text-center" delay={0.5}>
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="inline-block">
+                        <Button variant="outline" className="gap-2" asChild>
+                            <a href={RELEASES_URL} target="_blank" rel="noopener noreferrer">
+                                {t.download.allReleases}
+                                <ExternalLink className="h-4 w-4" />
+                            </a>
+                        </Button>
+                    </motion.div>
+                </MotionDiv>
             </div>
         </section>
     );

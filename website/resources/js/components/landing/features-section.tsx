@@ -1,5 +1,6 @@
 import { useTranslations } from '@/lib/i18n';
 import { Card, CardContent } from '@/components/ui/card';
+import { MotionDiv, StaggerContainer, StaggerItem, motion } from '@/components/ui/motion';
 import {
     Layers,
     Server,
@@ -55,43 +56,52 @@ export function FeaturesSection() {
         <section id="features" className="py-20 lg:py-32">
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 {/* Header */}
-                <div className="text-center">
+                <MotionDiv className="text-center">
                     <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
                         {t.features.title}
                     </h2>
                     <p className="mt-4 text-lg text-muted-foreground">
                         {t.features.subtitle}
                     </p>
-                </div>
+                </MotionDiv>
 
                 {/* Features grid */}
-                <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+                <StaggerContainer
+                    className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-3"
+                    staggerDelay={0.1}
+                >
                     {features.map((feature) => {
                         const featureData = t.features[feature.key];
                         const Icon = feature.icon;
 
                         return (
-                            <Card
-                                key={feature.key}
-                                className="border-border/50 bg-card/50 backdrop-blur transition-all duration-200 hover:border-border hover:bg-card"
-                            >
-                                <CardContent className="p-6">
-                                    <div
-                                        className={`mb-4 flex h-12 w-12 items-center justify-center rounded-lg ${feature.bgColor}`}
-                                    >
-                                        <Icon className={`h-6 w-6 ${feature.color}`} />
-                                    </div>
-                                    <h3 className="mb-2 text-lg font-semibold">
-                                        {featureData.title}
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">
-                                        {featureData.desc}
-                                    </p>
-                                </CardContent>
-                            </Card>
+                            <StaggerItem key={feature.key}>
+                                <motion.div
+                                    whileHover={{ y: -5, scale: 1.02 }}
+                                    transition={{ duration: 0.2 }}
+                                >
+                                    <Card className="h-full border-border/50 bg-card/50 backdrop-blur transition-colors hover:border-border hover:bg-card">
+                                        <CardContent className="p-6">
+                                            <motion.div
+                                                className={`mb-4 flex h-12 w-12 items-center justify-center rounded-lg ${feature.bgColor}`}
+                                                whileHover={{ scale: 1.1, rotate: 5 }}
+                                                transition={{ duration: 0.2 }}
+                                            >
+                                                <Icon className={`h-6 w-6 ${feature.color}`} />
+                                            </motion.div>
+                                            <h3 className="mb-2 text-lg font-semibold">
+                                                {featureData.title}
+                                            </h3>
+                                            <p className="text-sm text-muted-foreground">
+                                                {featureData.desc}
+                                            </p>
+                                        </CardContent>
+                                    </Card>
+                                </motion.div>
+                            </StaggerItem>
                         );
                     })}
-                </div>
+                </StaggerContainer>
             </div>
         </section>
     );

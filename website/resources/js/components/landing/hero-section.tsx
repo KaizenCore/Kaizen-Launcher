@@ -1,6 +1,8 @@
 import { useTranslations } from '@/lib/i18n';
+import { useGitHubRelease } from '@/hooks/use-github-release';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { motion } from '@/components/ui/motion';
 import { Download, Github, ChevronRight } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -36,6 +38,7 @@ const osNames: Record<OS, string> = {
 export function HeroSection() {
     const t = useTranslations();
     const os = useMemo(() => detectOS(), []);
+    const { version } = useGitHubRelease();
 
     const scrollToDownload = () => {
         const element = document.getElementById('download');
@@ -46,50 +49,97 @@ export function HeroSection() {
 
     return (
         <section className="relative overflow-hidden pt-32 pb-20 lg:pt-40 lg:pb-32">
-            {/* Background gradient */}
+            {/* Animated background gradient */}
             <div className="absolute inset-0 -z-10">
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent" />
-                <div className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-primary/5 blur-3xl" />
-                <div className="absolute bottom-0 left-0 h-[300px] w-[300px] rounded-full bg-primary/10 blur-3xl" />
+                <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ duration: 1.5 }}
+                    className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"
+                />
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 2, ease: 'easeOut' }}
+                    className="absolute top-0 right-0 h-[500px] w-[500px] rounded-full bg-primary/5 blur-3xl"
+                />
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ duration: 2, delay: 0.3, ease: 'easeOut' }}
+                    className="absolute bottom-0 left-0 h-[300px] w-[300px] rounded-full bg-primary/10 blur-3xl"
+                />
             </div>
 
             <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
                 <div className="text-center">
                     {/* Beta badge */}
-                    <Badge
-                        variant="outline"
-                        className="mb-6 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.1 }}
                     >
-                        {t.hero.beta}
-                    </Badge>
+                        <Badge
+                            variant="outline"
+                            className="mb-6 border-amber-500/30 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                        >
+                            {t.hero.beta}
+                        </Badge>
+                    </motion.div>
 
                     {/* Title */}
-                    <h1 className="mx-auto max-w-4xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl">
+                    <motion.h1
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.2 }}
+                        className="mx-auto max-w-4xl text-4xl font-bold tracking-tight sm:text-5xl lg:text-6xl"
+                    >
                         {t.hero.title}
-                    </h1>
+                    </motion.h1>
 
                     {/* Subtitle */}
-                    <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
+                    <motion.p
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.3 }}
+                        className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground"
+                    >
                         {t.hero.subtitle}
-                    </p>
+                    </motion.p>
 
                     {/* CTA buttons */}
-                    <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                        <Button size="lg" className="gap-2" onClick={scrollToDownload}>
-                            <Download className="h-5 w-5" />
-                            {t.hero.downloadFor} {osNames[os]}
-                        </Button>
-                        <Button size="lg" variant="outline" className="gap-2" asChild>
-                            <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
-                                <Github className="h-5 w-5" />
-                                {t.hero.viewGithub}
-                                <ChevronRight className="h-4 w-4" />
-                            </a>
-                        </Button>
-                    </div>
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.4 }}
+                        className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row"
+                    >
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Button size="lg" className="gap-2" onClick={scrollToDownload}>
+                                <Download className="h-5 w-5" />
+                                {t.hero.downloadFor} {osNames[os]}
+                            </Button>
+                        </motion.div>
+                        <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                            <Button size="lg" variant="outline" className="gap-2" asChild>
+                                <a href={GITHUB_URL} target="_blank" rel="noopener noreferrer">
+                                    <Github className="h-5 w-5" />
+                                    {t.hero.viewGithub}
+                                    <ChevronRight className="h-4 w-4" />
+                                </a>
+                            </Button>
+                        </motion.div>
+                    </motion.div>
 
                     {/* Version info */}
-                    <p className="mt-6 text-sm text-muted-foreground">{t.hero.version}</p>
+                    <motion.p
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.6, delay: 0.6 }}
+                        className="mt-6 text-sm text-muted-foreground"
+                    >
+                        {version} • Open Source
+                    </motion.p>
                 </div>
             </div>
         </section>
