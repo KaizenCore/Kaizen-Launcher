@@ -5,6 +5,7 @@ import { useChangelog, ChangelogEntry } from '@/hooks/use-github-release';
 import { I18nProvider, useLocale } from '@/lib/i18n';
 import { Navbar } from '@/components/landing/navbar';
 import { Footer } from '@/components/landing/footer';
+import { CookieConsent } from '@/components/cookie-consent';
 import { MotionDiv } from '@/components/ui/motion';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, ChevronDown, ChevronRight, Loader2, AlertCircle, ExternalLink } from 'lucide-react';
@@ -195,6 +196,7 @@ function ChangelogContent() {
             </main>
 
             <Footer />
+            <CookieConsent />
         </div>
     );
 }

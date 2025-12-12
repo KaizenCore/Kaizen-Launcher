@@ -6,6 +6,7 @@ import { PreviewSection } from '@/components/landing/preview-section';
 import { FeaturesSection } from '@/components/landing/features-section';
 import { DownloadSection } from '@/components/landing/download-section';
 import { Footer } from '@/components/landing/footer';
+import { CookieConsent } from '@/components/cookie-consent';
 
 export default function Welcome() {
     return (
@@ -27,6 +28,7 @@ export default function Welcome() {
                     <DownloadSection />
                 </main>
                 <Footer />
+                <CookieConsent />
             </div>
         </I18nProvider>
     );

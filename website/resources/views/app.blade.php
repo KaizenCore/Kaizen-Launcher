@@ -107,9 +107,6 @@
         }
         </script>
 
-        {{-- Analytics --}}
-        <script defer src="https://umami.3de-scs.tech/script.js" data-website-id="95f30323-435f-4ed0-a8a2-9e5bfc3f8ab6"></script>
-
         <link rel="preconnect" href="https://fonts.bunny.net">
         <link href="https://fonts.bunny.net/css?family=inter:400,500,600,700" rel="stylesheet" />
 
