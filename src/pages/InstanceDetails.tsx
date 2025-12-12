@@ -21,17 +21,17 @@ import { useTranslation } from "@/i18n"
 import { Wrench, Terminal, Server, Globe } from "lucide-react"
 
 // Lazy load heavy components - only loaded when their tab is selected
-const RamSlider = lazy(() => import("@/components/RamSlider").then(m => ({ default: m.RamSlider })))
-const JvmTemplates = lazy(() => import("@/components/JvmTemplates").then(m => ({ default: m.JvmTemplates })))
-const ServerJvmTemplates = lazy(() => import("@/components/ServerJvmTemplates").then(m => ({ default: m.ServerJvmTemplates })))
-const JavaSelector = lazy(() => import("@/components/JavaSelector").then(m => ({ default: m.JavaSelector })))
-const ModrinthBrowser = lazy(() => import("@/components/ModrinthBrowser").then(m => ({ default: m.ModrinthBrowser })))
-const ConfigEditor = lazy(() => import("@/components/ConfigEditor").then(m => ({ default: m.ConfigEditor })))
-const ServerConsole = lazy(() => import("@/components/ServerConsole").then(m => ({ default: m.ServerConsole })))
-const ServerPropertiesEditor = lazy(() => import("@/components/ServerPropertiesEditor").then(m => ({ default: m.ServerPropertiesEditor })))
-const ServerStats = lazy(() => import("@/components/ServerStats").then(m => ({ default: m.ServerStats })))
-const TunnelConfig = lazy(() => import("@/components/TunnelConfig").then(m => ({ default: m.TunnelConfig })))
-const WorldsTab = lazy(() => import("@/components/WorldsTab").then(m => ({ default: m.WorldsTab })))
+const RamSlider = lazy(() => import("@/components/config/RamSlider").then(m => ({ default: m.RamSlider })))
+const JvmTemplates = lazy(() => import("@/components/config/JvmTemplates").then(m => ({ default: m.JvmTemplates })))
+const ServerJvmTemplates = lazy(() => import("@/components/config/ServerJvmTemplates").then(m => ({ default: m.ServerJvmTemplates })))
+const JavaSelector = lazy(() => import("@/components/config/JavaSelector").then(m => ({ default: m.JavaSelector })))
+const ModrinthBrowser = lazy(() => import("@/components/browse/ModrinthBrowser").then(m => ({ default: m.ModrinthBrowser })))
+const ConfigEditor = lazy(() => import("@/components/config/ConfigEditor").then(m => ({ default: m.ConfigEditor })))
+const ServerConsole = lazy(() => import("@/components/server/ServerConsole").then(m => ({ default: m.ServerConsole })))
+const ServerPropertiesEditor = lazy(() => import("@/components/config/ServerPropertiesEditor").then(m => ({ default: m.ServerPropertiesEditor })))
+const ServerStats = lazy(() => import("@/components/server/ServerStats").then(m => ({ default: m.ServerStats })))
+const TunnelConfig = lazy(() => import("@/components/tunnel/TunnelConfig").then(m => ({ default: m.TunnelConfig })))
+const WorldsTab = lazy(() => import("@/components/instances/WorldsTab").then(m => ({ default: m.WorldsTab })))
 const ExportInstanceDialog = lazy(() => import("@/components/sharing/ExportInstanceDialog").then(m => ({ default: m.ExportInstanceDialog })))
 
 // Loading fallback for lazy components

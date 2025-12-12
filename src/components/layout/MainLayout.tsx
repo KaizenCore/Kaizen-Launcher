@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom"
 import { TitleBar } from "./TitleBar"
 import { Sidebar } from "./Sidebar"
-import { InstallationNotification } from "@/components/InstallationNotification"
+import { InstallationNotification } from "@/components/notifications/InstallationNotification"
 
 export function MainLayout() {
   return (

@@ -2,7 +2,7 @@ import { useNavigate } from "react-router-dom"
 import { Package, Blocks } from "lucide-react"
 import { useTranslation } from "@/i18n"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { ModpackBrowser } from "@/components/ModpackBrowser"
+import { ModpackBrowser } from "@/components/browse/ModpackBrowser"
 
 export function Browse() {
   const { t } = useTranslation()
