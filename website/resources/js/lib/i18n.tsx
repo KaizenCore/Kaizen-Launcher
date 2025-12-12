@@ -29,6 +29,9 @@ interface Translations {
         multiLoader: FeatureTranslation;
         servers: FeatureTranslation;
         modrinth: FeatureTranslation;
+        cloudBackup: FeatureTranslation;
+        skinManager: FeatureTranslation;
+        instanceSharing: FeatureTranslation;
         auth: FeatureTranslation;
         java: FeatureTranslation;
         tunneling: FeatureTranslation;
@@ -92,6 +95,18 @@ const translations: Record<Locale, Translations> = {
             modrinth: {
                 title: 'Modrinth Integration',
                 desc: 'Browse, search, and install mods and modpacks with a single click.',
+            },
+            cloudBackup: {
+                title: 'Cloud Backup',
+                desc: 'Save your worlds to Google Drive, Dropbox, Amazon S3, or Nextcloud automatically.',
+            },
+            skinManager: {
+                title: 'Skin Manager',
+                desc: 'Complete skin customization with 3D viewer, skin library, and search functionality.',
+            },
+            instanceSharing: {
+                title: 'Instance Sharing',
+                desc: 'Securely share instances with friends via encrypted download links.',
             },
             auth: {
                 title: 'Microsoft Authentication',
@@ -163,6 +178,18 @@ const translations: Record<Locale, Translations> = {
             modrinth: {
                 title: 'Intégration Modrinth',
                 desc: 'Parcourez, recherchez et installez des mods et modpacks en un clic.',
+            },
+            cloudBackup: {
+                title: 'Sauvegarde Cloud',
+                desc: 'Sauvegardez vos mondes sur Google Drive, Dropbox, Amazon S3 ou Nextcloud automatiquement.',
+            },
+            skinManager: {
+                title: 'Gestionnaire de Skins',
+                desc: 'Personnalisation complète avec visualiseur 3D, bibliothèque de skins et recherche.',
+            },
+            instanceSharing: {
+                title: 'Partage d\'Instances',
+                desc: 'Partagez vos instances avec vos amis via des liens de téléchargement sécurisés.',
             },
             auth: {
                 title: 'Authentification Microsoft',

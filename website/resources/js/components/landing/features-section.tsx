@@ -8,6 +8,9 @@ import {
     ShieldCheck,
     Coffee,
     Globe,
+    Cloud,
+    User,
+    Share2,
 } from 'lucide-react';
 
 const features = [
@@ -28,6 +31,24 @@ const features = [
         icon: Package,
         color: 'text-emerald-500',
         bgColor: 'bg-emerald-500/10',
+    },
+    {
+        key: 'cloudBackup',
+        icon: Cloud,
+        color: 'text-sky-500',
+        bgColor: 'bg-sky-500/10',
+    },
+    {
+        key: 'skinManager',
+        icon: User,
+        color: 'text-pink-500',
+        bgColor: 'bg-pink-500/10',
+    },
+    {
+        key: 'instanceSharing',
+        icon: Share2,
+        color: 'text-violet-500',
+        bgColor: 'bg-violet-500/10',
     },
     {
         key: 'auth',
