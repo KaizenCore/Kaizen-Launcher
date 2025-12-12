@@ -46,7 +46,7 @@
         <meta property="og:site_name" content="{{ config('app.name', 'Kaizen Launcher') }}">
         <meta property="og:title" content="{{ config('app.name', 'Kaizen Launcher') }} - Modern Minecraft Launcher">
         <meta property="og:description" content="A modern, open-source Minecraft launcher with modpack support, server management, and a beautiful interface. Download for Windows, macOS, and Linux.">
-        <meta property="og:image" content="{{ config('app.url') }}/og-image.png">
+        <meta property="og:image" content="{{ config('app.url') }}/preview.png">
         <meta property="og:image:width" content="1200">
         <meta property="og:image:height" content="630">
         <meta property="og:image:alt" content="Kaizen Launcher - Modern Minecraft Launcher">
@@ -57,7 +57,7 @@
         <meta name="twitter:url" content="{{ config('app.url') }}">
         <meta name="twitter:title" content="{{ config('app.name', 'Kaizen Launcher') }} - Modern Minecraft Launcher">
         <meta name="twitter:description" content="A modern, open-source Minecraft launcher with modpack support, server management, and a beautiful interface.">
-        <meta name="twitter:image" content="{{ config('app.url') }}/og-image.png">
+        <meta name="twitter:image" content="{{ config('app.url') }}/preview.png">
         <meta name="twitter:image:alt" content="Kaizen Launcher - Modern Minecraft Launcher">
 
         {{-- Theme color for browsers --}}
@@ -96,7 +96,7 @@
             },
             "softwareVersion": "0.5.2",
             "downloadUrl": "https://github.com/KaizenCore/Kaizen-Launcher/releases",
-            "screenshot": "{{ config('app.url') }}/og-image.png",
+            "screenshot": "{{ config('app.url') }}/preview.png",
             "featureList": [
                 "Modpack support (Fabric, Forge, NeoForge, Quilt)",
                 "Server management",
