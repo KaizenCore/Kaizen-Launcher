@@ -302,13 +302,13 @@ export function Backups() {
 
   if (isLoading) {
     return (
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 h-full">
         <div>
           <h1 className="text-2xl font-bold">{t("backups.title")}</h1>
           <p className="text-muted-foreground">{t("backups.subtitle")}</p>
         </div>
-        <Card>
-          <CardContent className="flex items-center justify-center py-16">
+        <Card className="flex-1">
+          <CardContent className="flex items-center justify-center h-full">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </CardContent>
         </Card>
@@ -318,7 +318,7 @@ export function Backups() {
 
   return (
     <TooltipProvider delayDuration={0}>
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 h-full">
       {/* Header with stats */}
       <div className="flex items-start justify-between">
         <div>
@@ -341,8 +341,8 @@ export function Backups() {
 
       {/* Empty state */}
       {backups.length === 0 ? (
-        <Card className="border-dashed">
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+        <Card className="border-dashed flex-1">
+          <CardContent className="flex flex-col items-center justify-center h-full text-center">
             <Archive className="h-12 w-12 text-muted-foreground/50 mb-4" />
             <h3 className="text-lg font-medium">{t("backups.noBackups")}</h3>
             <p className="text-muted-foreground text-sm mt-1 max-w-sm">
@@ -351,7 +351,7 @@ export function Backups() {
           </CardContent>
         </Card>
       ) : (
-        <>
+        <div className="flex flex-col gap-6 flex-1 min-h-0">
           {/* Toolbar */}
           <div className="flex gap-3">
             <div className="relative flex-1">
@@ -389,8 +389,8 @@ export function Backups() {
           </div>
 
           {/* Backups list */}
-          <ScrollArea className="h-[calc(100vh-280px)]">
-            <div className="space-y-2">
+          <ScrollArea className="flex-1">
+            <div className="space-y-2 pr-4">
               {filteredAndSortedBackups.map((backup) => {
                 const syncStatus = getCloudSyncStatus(backup)
                 const isUploading = uploadingBackups.has(backup.filename)
@@ -505,7 +505,7 @@ export function Backups() {
               )}
             </div>
           </ScrollArea>
-        </>
+        </div>
       )}
 
       {/* Delete Confirmation Dialog */}
