@@ -24,7 +24,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' https://cdn.modrinth.com https://launcher.mojang.com https://crafatar.com https://mc-heads.net data: blob:; connect-src 'self' https://api.modrinth.com https://cdn.modrinth.com https://api.minecraftservices.com https://api.mojang.com https://authserver.mojang.com https://meta.fabricmc.net https://maven.fabricmc.net https://maven.quiltmc.org https://maven.neoforged.net https://files.minecraftforge.net https://api.papermc.io https://api.purpurmc.org https://login.microsoftonline.com https://login.live.com https://user.auth.xboxlive.com https://xsts.auth.xboxlive.com; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; frame-src 'none'"
+      "csp": "default-src 'self'; img-src 'self' https://cdn.modrinth.com https://launcher.mojang.com https://crafatar.com https://mc-heads.net https://textures.minecraft.net data: blob:; connect-src 'self' https://api.modrinth.com https://cdn.modrinth.com https://api.minecraftservices.com https://api.mojang.com https://authserver.mojang.com https://meta.fabricmc.net https://maven.fabricmc.net https://maven.quiltmc.org https://maven.neoforged.net https://files.minecraftforge.net https://api.papermc.io https://api.purpurmc.org https://login.microsoftonline.com https://login.live.com https://user.auth.xboxlive.com https://xsts.auth.xboxlive.com https://api.mineskin.org https://textures.minecraft.net https://api.ashcon.app https://api.capes.dev https://optifine.net; style-src 'self' 'unsafe-inline'; script-src 'self'; font-src 'self' data:; frame-src 'none'"
     }
   },
   "bundle": {
