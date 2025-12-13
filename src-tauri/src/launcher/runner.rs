@@ -31,8 +31,9 @@ pub struct InstanceStatusEvent {
     pub exit_code: Option<i32>,
 }
 
+/// Generic log event for any instance (client or server)
 #[derive(Clone, Serialize)]
-pub struct ServerLogEvent {
+pub struct InstanceLogEvent {
     pub instance_id: String,
     pub line: String,
     pub is_error: bool,
@@ -264,31 +265,59 @@ pub async fn launch_minecraft(
     let running_instances_clone = running_instances.clone();
 
     // Spawn a task to read and print stdout/stderr
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+
+    // Stream stdout to frontend
+    let instance_id_stdout = instance_id.clone();
+    let app_stdout = app_handle.clone();
+    if let Some(stdout) = stdout {
+        tokio::spawn(async move {
+            use tokio::io::{AsyncBufReadExt, BufReader};
+            let reader = BufReader::new(stdout);
+            let mut lines = reader.lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                debug!("[MC STDOUT] {}", line);
+                let _ = app_stdout.emit(
+                    "instance-log",
+                    InstanceLogEvent {
+                        instance_id: instance_id_stdout.clone(),
+                        line,
+                        is_error: false,
+                    },
+                );
+                // Yield to prevent busy spinning and reduce CPU usage
+                tokio::task::yield_now().await;
+            }
+        });
+    }
+
+    // Stream stderr to frontend
+    let instance_id_stderr = instance_id.clone();
+    let app_stderr = app_handle.clone();
+    if let Some(stderr) = stderr {
+        tokio::spawn(async move {
+            use tokio::io::{AsyncBufReadExt, BufReader};
+            let reader = BufReader::new(stderr);
+            let mut lines = reader.lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                error!("[MC STDERR] {}", line);
+                let _ = app_stderr.emit(
+                    "instance-log",
+                    InstanceLogEvent {
+                        instance_id: instance_id_stderr.clone(),
+                        line,
+                        is_error: true,
+                    },
+                );
+                // Yield to prevent busy spinning and reduce CPU usage
+                tokio::task::yield_now().await;
+            }
+        });
+    }
+
+    // Spawn task to wait for exit
     tokio::spawn(async move {
-        use tokio::io::{AsyncBufReadExt, BufReader};
-
-        if let Some(stdout) = child.stdout.take() {
-            let mut stdout_reader = BufReader::new(stdout).lines();
-            tokio::spawn(async move {
-                while let Ok(Some(line)) = stdout_reader.next_line().await {
-                    debug!("[MC STDOUT] {}", line);
-                    // Yield to prevent busy spinning and reduce CPU usage
-                    tokio::task::yield_now().await;
-                }
-            });
-        }
-
-        if let Some(stderr) = child.stderr.take() {
-            let mut stderr_reader = BufReader::new(stderr).lines();
-            tokio::spawn(async move {
-                while let Ok(Some(line)) = stderr_reader.next_line().await {
-                    error!("[MC STDERR] {}", line);
-                    // Yield to prevent busy spinning and reduce CPU usage
-                    tokio::task::yield_now().await;
-                }
-            });
-        }
-
         // Wait for the process to complete
         let exit_code = match child.wait().await {
             Ok(status) => {
@@ -926,8 +955,8 @@ pub async fn launch_server(
                 }
 
                 let _ = app_stdout.emit(
-                    "server-log",
-                    ServerLogEvent {
+                    "instance-log",
+                    InstanceLogEvent {
                         instance_id: instance_id_stdout.clone(),
                         line,
                         is_error: false,
@@ -947,8 +976,8 @@ pub async fn launch_server(
             let mut lines = reader.lines();
             while let Ok(Some(line)) = lines.next_line().await {
                 let _ = app_stderr.emit(
-                    "server-log",
-                    ServerLogEvent {
+                    "instance-log",
+                    InstanceLogEvent {
                         instance_id: instance_id_stderr.clone(),
                         line,
                         is_error: true,

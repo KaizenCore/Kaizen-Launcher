@@ -24,6 +24,7 @@ const Settings = lazy(() => import("@/pages/Settings").then(m => ({ default: m.S
 const Changelog = lazy(() => import("@/pages/Changelog"))
 const Sharing = lazy(() => import("@/pages/Sharing").then(m => ({ default: m.Sharing })))
 const Skins = lazy(() => import("@/pages/Skins").then(m => ({ default: m.Skins })))
+const CreateServerFromClient = lazy(() => import("@/pages/CreateServerFromClient").then(m => ({ default: m.CreateServerFromClient })))
 
 // Loading fallback for lazy components
 function PageLoader() {
@@ -98,6 +99,7 @@ function App() {
             <Route index element={<Home />} />
             <Route path="instances" element={<Suspense fallback={<PageLoader />}><Instances /></Suspense>} />
             <Route path="instances/:instanceId" element={<Suspense fallback={<PageLoader />}><InstanceDetails /></Suspense>} />
+            <Route path="instances/:instanceId/create-server" element={<Suspense fallback={<PageLoader />}><CreateServerFromClient /></Suspense>} />
             <Route path="browse" element={<Suspense fallback={<PageLoader />}><Browse /></Suspense>} />
             <Route path="browse/modpack/:projectId" element={<Suspense fallback={<PageLoader />}><ModpackDetails /></Suspense>} />
             <Route path="backups" element={<Suspense fallback={<PageLoader />}><Backups /></Suspense>} />

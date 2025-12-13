@@ -47,6 +47,41 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.5.6",
+    date: "2025-12-13",
+    highlights: [
+      "Settings Sub-Tabs",
+      "Auto-Save Settings",
+      "Improved General Tab",
+    ],
+    features: [
+      {
+        icon: <Settings className="h-5 w-5" />,
+        title: "Settings Sub-Tabs",
+        description: "Instance settings are now organized into sub-tabs: General, Performance, Backups, and Server. Easier navigation and better organization.",
+        tag: "new",
+      },
+      {
+        icon: <RefreshCw className="h-5 w-5" />,
+        title: "Auto-Save Settings",
+        description: "Settings now save automatically as you change them. No more manual Save button - changes are saved with a 500ms debounce.",
+        tag: "improved",
+      },
+      {
+        icon: <Monitor className="h-5 w-5" />,
+        title: "Enhanced General Tab",
+        description: "Redesigned General tab with instance information (type, version, loader), statistics (playtime, last played), and quick actions.",
+        tag: "improved",
+      },
+      {
+        icon: <Sparkles className="h-5 w-5" />,
+        title: "Create Server Beta Badge",
+        description: "The 'Create Server from Client' feature now shows an Early Beta badge with a warning about mod detection limitations.",
+        tag: "new",
+      },
+    ],
+  },
+  {
     version: "0.5.5",
     date: "2025-12-12",
     highlights: [

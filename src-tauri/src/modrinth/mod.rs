@@ -276,6 +276,67 @@ impl<'a> ModrinthClient<'a> {
             .map_err(|e| ModrinthError::Parse(e.to_string()))
     }
 
+    /// Get multiple projects by IDs (batch request)
+    /// This is more efficient than calling get_project multiple times
+    /// Includes retry logic with exponential backoff for rate limiting (429)
+    pub async fn get_projects(&self, ids: &[&str]) -> Result<Vec<Project>, ModrinthError> {
+        if ids.is_empty() {
+            return Ok(Vec::new());
+        }
+
+        let ids_json = serde_json::to_string(&ids)
+            .map_err(|e| ModrinthError::Parse(format!("Failed to serialize IDs: {}", e)))?;
+        let url = format!(
+            "{}/projects?ids={}",
+            MODRINTH_API_BASE,
+            urlencoding::encode(&ids_json)
+        );
+
+        // Retry with exponential backoff for rate limiting
+        let max_retries = 3;
+        let mut retry_delay = std::time::Duration::from_millis(500);
+
+        for attempt in 0..=max_retries {
+            let response = self
+                .http_client
+                .get(&url)
+                .send()
+                .await
+                .map_err(|e| ModrinthError::Network(e.to_string()))?;
+
+            let status = response.status();
+
+            if status.is_success() {
+                return response
+                    .json::<Vec<Project>>()
+                    .await
+                    .map_err(|e| ModrinthError::Parse(e.to_string()));
+            }
+
+            // Handle rate limiting with retry
+            if status.as_u16() == 429 && attempt < max_retries {
+                log::warn!(
+                    "Modrinth API rate limited (429), retrying in {:?} (attempt {}/{})",
+                    retry_delay,
+                    attempt + 1,
+                    max_retries
+                );
+                tokio::time::sleep(retry_delay).await;
+                retry_delay *= 2; // Exponential backoff
+                continue;
+            }
+
+            return Err(ModrinthError::Api(format!(
+                "API returned status {}",
+                status
+            )));
+        }
+
+        Err(ModrinthError::Api(
+            "Max retries exceeded for rate limiting".to_string(),
+        ))
+    }
+
     /// Get all versions of a project
     pub async fn get_project_versions(
         &self,
@@ -329,6 +390,34 @@ impl<'a> ModrinthClient<'a> {
     /// Get a specific version by ID
     pub async fn get_version(&self, version_id: &str) -> Result<Version, ModrinthError> {
         let url = format!("{}/version/{}", MODRINTH_API_BASE, version_id);
+
+        let response = self
+            .http_client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| ModrinthError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(ModrinthError::Api(format!(
+                "API returned status {}",
+                response.status()
+            )));
+        }
+
+        response
+            .json::<Version>()
+            .await
+            .map_err(|e| ModrinthError::Parse(e.to_string()))
+    }
+
+    /// Look up a version by file hash (SHA-512)
+    /// Returns the version info if found on Modrinth
+    pub async fn get_version_by_hash(&self, sha512: &str) -> Result<Version, ModrinthError> {
+        let url = format!(
+            "{}/version_file/{}?algorithm=sha512",
+            MODRINTH_API_BASE, sha512
+        );
 
         let response = self
             .http_client

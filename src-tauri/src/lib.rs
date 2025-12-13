@@ -178,6 +178,11 @@ pub fn run() {
             instance::commands::get_all_backups,
             instance::commands::get_backup_stats,
             instance::commands::restore_backup_to_other_instance,
+            // Server from client feature
+            instance::commands::analyze_mods_for_server,
+            instance::commands::create_server_from_client,
+            instance::commands::check_server_dependencies,
+            instance::commands::analyze_instance_logs,
             // Minecraft version commands
             minecraft::commands::get_minecraft_versions,
             minecraft::commands::get_minecraft_version_details,
@@ -219,6 +224,9 @@ pub fn run() {
             modrinth::commands::install_modrinth_modpack,
             modrinth::commands::check_mod_updates,
             modrinth::commands::update_mod,
+            modrinth::commands::lookup_mod_by_hash,
+            modrinth::commands::enrich_instance_mods,
+            modrinth::commands::analyze_mods_for_server_detailed,
             // Tunnel commands
             tunnel::commands::check_tunnel_agent,
             tunnel::commands::install_tunnel_agent,

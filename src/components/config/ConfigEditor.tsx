@@ -1244,7 +1244,7 @@ export function ConfigEditor({ instanceId }: ConfigEditorProps) {
   const folderTree = buildFolderTree(configFiles)
 
   return (
-    <div className="flex h-[500px] gap-4">
+    <div className="flex h-full gap-4">
       {/* File tree sidebar */}
       <div className="w-72 flex-shrink-0 border rounded-lg overflow-hidden flex flex-col">
         <div className="p-2 border-b bg-muted/50">

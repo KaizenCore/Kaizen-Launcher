@@ -5,6 +5,7 @@ use crate::minecraft::versions;
 use crate::state::SharedState;
 use futures_util::future;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::Path;
 use sysinfo::System;
 use tauri::{AppHandle, State};
@@ -75,6 +76,13 @@ pub struct ModInfo {
     pub project_id: Option<String>,
 }
 
+/// Stored dependency info for mods
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoredDependency {
+    pub project_id: String,
+    pub dependency_type: String, // "required" or "optional"
+}
+
 /// Metadata saved for mods installed from Modrinth
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ModMetadata {
@@ -83,6 +91,15 @@ pub struct ModMetadata {
     pub project_id: String,
     pub version_id: Option<String>,
     pub icon_url: Option<String>,
+    /// Server-side compatibility: "required", "optional", or "unsupported"
+    #[serde(default)]
+    pub server_side: Option<String>,
+    /// Client-side compatibility: "required", "optional", or "unsupported"
+    #[serde(default)]
+    pub client_side: Option<String>,
+    /// Dependencies (project_id and type)
+    #[serde(default)]
+    pub dependencies: Vec<StoredDependency>,
 }
 
 /// Determine the content folder name based on loader type
@@ -2269,4 +2286,678 @@ pub async fn restore_backup_to_other_instance(
         Some(&app),
     )
     .await
+}
+
+// ============================================================================
+// SERVER FROM CLIENT FEATURE
+// ============================================================================
+
+/// Information about a mod's server compatibility
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModServerCompatibility {
+    /// Mod filename
+    pub filename: String,
+    /// Mod name (from metadata or filename)
+    pub name: String,
+    /// Whether this mod has Modrinth metadata
+    pub has_metadata: bool,
+    /// Modrinth project ID if available
+    pub project_id: Option<String>,
+    /// Server-side compatibility: "required", "optional", "unsupported", or "unknown"
+    pub server_side: String,
+    /// Client-side compatibility: "required", "optional", "unsupported", or "unknown"
+    pub client_side: String,
+    /// Whether this mod should be included in the server by default
+    pub include_by_default: bool,
+    /// Icon URL if available
+    pub icon_url: Option<String>,
+}
+
+/// Result of analyzing mods for server creation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModAnalysisResult {
+    /// Mods that can definitely be included (server_side is "required" or "optional")
+    pub server_compatible: Vec<ModServerCompatibility>,
+    /// Mods that are client-only (server_side is "unsupported")
+    pub client_only: Vec<ModServerCompatibility>,
+    /// Mods without metadata that need user decision
+    pub unknown: Vec<ModServerCompatibility>,
+    /// Total mod count
+    pub total_mods: usize,
+}
+
+/// Analyze mods from a client instance to determine server compatibility
+/// Reads compatibility info from local metadata files (no API calls)
+#[tauri::command]
+pub async fn analyze_mods_for_server(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<ModAnalysisResult> {
+    let state_guard = state.read().await;
+
+    // Get the instance
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    // Must be a client instance with mods
+    if instance.is_server {
+        return Err(AppError::Instance(
+            "Cannot analyze server instance - this feature is for client instances".to_string(),
+        ));
+    }
+
+    // Check if it's a modded instance
+    let loader = instance.loader.as_deref();
+    if !matches!(
+        loader,
+        Some("fabric") | Some("forge") | Some("neoforge") | Some("quilt")
+    ) {
+        return Err(AppError::Instance(
+            "This feature only works with modded instances (Fabric, Forge, NeoForge, Quilt)"
+                .to_string(),
+        ));
+    }
+
+    let instance_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir);
+    let mods_dir = instance_dir.join("mods");
+
+    if !mods_dir.exists() {
+        return Ok(ModAnalysisResult {
+            server_compatible: vec![],
+            client_only: vec![],
+            unknown: vec![],
+            total_mods: 0,
+        });
+    }
+
+    // Process all mods in a single blocking task for better I/O performance
+    let start = std::time::Instant::now();
+    let result = tokio::task::spawn_blocking(move || {
+        let mut server_compatible = vec![];
+        let mut client_only = vec![];
+        let mut unknown = vec![];
+
+        let entries = match std::fs::read_dir(&mods_dir) {
+            Ok(e) => e,
+            Err(_) => return (server_compatible, client_only, unknown),
+        };
+
+        for entry in entries.flatten() {
+            let filename = entry.file_name().to_string_lossy().to_string();
+
+            // Only process enabled mods (.jar files)
+            if !filename.ends_with(".jar") {
+                continue;
+            }
+
+            // Extract name from filename as fallback
+            let fallback_name = filename
+                .trim_end_matches(".jar")
+                .split('-')
+                .next()
+                .unwrap_or(&filename)
+                .replace('_', " ");
+
+            // Try to read metadata file
+            let meta_filename = format!("{}.meta.json", filename.trim_end_matches(".jar"));
+            let meta_path = mods_dir.join(&meta_filename);
+
+            if let Ok(content) = std::fs::read_to_string(&meta_path) {
+                if let Ok(meta) = serde_json::from_str::<ModMetadata>(&content) {
+                    // Check if metadata has server_side info
+                    if let Some(ref server_side) = meta.server_side {
+                        let compatibility = ModServerCompatibility {
+                            filename,
+                            name: meta.name.clone(),
+                            has_metadata: true,
+                            project_id: Some(meta.project_id.clone()),
+                            server_side: server_side.clone(),
+                            client_side: meta.client_side.clone().unwrap_or_else(|| "unknown".to_string()),
+                            include_by_default: server_side != "unsupported",
+                            icon_url: meta.icon_url.clone(),
+                        };
+
+                        if server_side == "unsupported" {
+                            client_only.push(compatibility);
+                        } else {
+                            server_compatible.push(compatibility);
+                        }
+                        continue;
+                    }
+
+                    // Has metadata but no server_side info (old format)
+                    unknown.push(ModServerCompatibility {
+                        filename,
+                        name: meta.name,
+                        has_metadata: true,
+                        project_id: Some(meta.project_id),
+                        server_side: "unknown".to_string(),
+                        client_side: "unknown".to_string(),
+                        include_by_default: false,
+                        icon_url: meta.icon_url,
+                    });
+                    continue;
+                }
+            }
+
+            // No metadata file or failed to parse
+            unknown.push(ModServerCompatibility {
+                filename,
+                name: fallback_name,
+                has_metadata: false,
+                project_id: None,
+                server_side: "unknown".to_string(),
+                client_side: "unknown".to_string(),
+                include_by_default: false,
+                icon_url: None,
+            });
+        }
+
+        (server_compatible, client_only, unknown)
+    })
+    .await
+    .map_err(|e| AppError::Instance(format!("Failed to analyze mods: {}", e)))?;
+
+    let (server_compatible, client_only, unknown) = result;
+    let total_mods = server_compatible.len() + client_only.len() + unknown.len();
+
+    log::info!(
+        "analyze_mods_for_server completed in {:?} - {} mods ({} compatible, {} client-only, {} unknown)",
+        start.elapsed(),
+        total_mods,
+        server_compatible.len(),
+        client_only.len(),
+        unknown.len()
+    );
+
+    Ok(ModAnalysisResult {
+        server_compatible,
+        client_only,
+        unknown,
+        total_mods,
+    })
+}
+
+/// Options for creating a server from a client instance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateServerFromClientOptions {
+    /// Source client instance ID
+    pub source_instance_id: String,
+    /// Name for the new server instance
+    pub server_name: String,
+    /// List of mod filenames to include (from server_compatible + selected unknown mods)
+    pub mods_to_include: Vec<String>,
+    /// Whether to copy config files
+    pub copy_configs: bool,
+    /// Server port (default 25565)
+    #[serde(default = "default_server_port")]
+    pub server_port: i64,
+}
+
+fn default_server_port() -> i64 {
+    25565
+}
+
+/// Create a server instance from a client instance
+/// This copies compatible mods and optionally configs
+#[tauri::command]
+pub async fn create_server_from_client(
+    state: State<'_, SharedState>,
+    options: CreateServerFromClientOptions,
+) -> AppResult<Instance> {
+    let state_guard = state.read().await;
+
+    // Get the source instance
+    let source_instance = Instance::get_by_id(&state_guard.db, &options.source_instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Source instance not found".to_string()))?;
+
+    // Validate source is a client
+    if source_instance.is_server {
+        return Err(AppError::Instance(
+            "Source must be a client instance".to_string(),
+        ));
+    }
+
+    // Validate loader is supported for server
+    let loader = source_instance
+        .loader
+        .as_deref()
+        .ok_or_else(|| AppError::Instance("Source instance has no mod loader".to_string()))?;
+
+    if !matches!(loader, "fabric" | "forge" | "neoforge" | "quilt") {
+        return Err(AppError::Instance(format!(
+            "Loader '{}' does not support server mode",
+            loader
+        )));
+    }
+
+    // Check if server name is unique
+    let existing = Instance::get_all(&state_guard.db)
+        .await
+        .map_err(AppError::from)?;
+    if existing.iter().any(|i| i.name == options.server_name) {
+        return Err(AppError::Instance(
+            "An instance with this name already exists".to_string(),
+        ));
+    }
+
+    // Create database entry FIRST to get the correct game_dir
+    let create_data = CreateInstance {
+        name: options.server_name.clone(),
+        mc_version: source_instance.mc_version.clone(),
+        loader: Some(loader.to_string()),
+        loader_version: source_instance.loader_version.clone(),
+        is_server: true,
+        is_proxy: false,
+        server_port: options.server_port,
+        modrinth_project_id: None,
+    };
+
+    let instance = Instance::create(&state_guard.db, create_data)
+        .await
+        .map_err(AppError::from)?;
+
+    // Now use the instance's game_dir to create the actual directory
+    let instances_dir = state_guard.data_dir.join("instances");
+    let server_dir = instances_dir.join(&instance.game_dir);
+    let source_dir = instances_dir.join(&source_instance.game_dir);
+
+    // Create server directory structure
+    fs::create_dir_all(&server_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create server directory: {}", e)))?;
+
+    for folder in ["mods", "config", "logs", "world"] {
+        fs::create_dir_all(server_dir.join(folder))
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to create {} directory: {}", folder, e)))?;
+    }
+
+    // Copy selected mods
+    let source_mods_dir = source_dir.join("mods");
+    let server_mods_dir = server_dir.join("mods");
+
+    let mut copied_mods = 0;
+    for mod_filename in &options.mods_to_include {
+        let source_mod = source_mods_dir.join(mod_filename);
+        let dest_mod = server_mods_dir.join(mod_filename);
+
+        if source_mod.exists() {
+            fs::copy(&source_mod, &dest_mod)
+                .await
+                .map_err(|e| AppError::Io(format!("Failed to copy mod {}: {}", mod_filename, e)))?;
+            copied_mods += 1;
+
+            // Also copy metadata file if exists
+            let meta_filename = format!("{}.meta.json", mod_filename.trim_end_matches(".jar"));
+            let source_meta = source_mods_dir.join(&meta_filename);
+            if source_meta.exists() {
+                let dest_meta = server_mods_dir.join(&meta_filename);
+                if let Err(e) = fs::copy(&source_meta, &dest_meta).await {
+                    log::warn!("Failed to copy mod metadata {}: {}", meta_filename, e);
+                }
+            }
+        } else {
+            log::warn!("Source mod not found: {}", mod_filename);
+        }
+    }
+
+    // Copy config files if requested
+    if options.copy_configs {
+        let source_config_dir = source_dir.join("config");
+        let server_config_dir = server_dir.join("config");
+
+        if source_config_dir.exists() {
+            copy_dir_recursive(&source_config_dir, &server_config_dir).await?;
+        }
+    }
+
+    log::info!(
+        "Created server instance '{}' (port {}) from client '{}' - copied {}/{} mods to {}",
+        instance.name,
+        options.server_port,
+        source_instance.name,
+        copied_mods,
+        options.mods_to_include.len(),
+        server_dir.display()
+    );
+
+    Ok(instance)
+}
+
+/// Helper function to recursively copy a directory
+async fn copy_dir_recursive(src: &Path, dst: &Path) -> AppResult<()> {
+    if !dst.exists() {
+        fs::create_dir_all(dst)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to create directory {:?}: {}", dst, e)))?;
+    }
+
+    let mut entries = fs::read_dir(src)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory {:?}: {}", src, e)))?;
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read entry: {}", e)))?
+    {
+        let src_path = entry.path();
+        let dst_path = dst.join(entry.file_name());
+
+        let file_type = entry
+            .file_type()
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to get file type: {}", e)))?;
+
+        if file_type.is_dir() {
+            Box::pin(copy_dir_recursive(&src_path, &dst_path)).await?;
+        } else {
+            fs::copy(&src_path, &dst_path)
+                .await
+                .map_err(|e| AppError::Io(format!("Failed to copy {:?}: {}", src_path, e)))?;
+        }
+    }
+
+    Ok(())
+}
+
+// ============================================================================
+// DEPENDENCY CHECKING FOR SERVER CREATION
+// ============================================================================
+
+/// Information about a missing dependency
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MissingDependency {
+    /// The mod that requires this dependency
+    pub required_by_filename: String,
+    /// Name of the mod requiring this dependency
+    pub required_by_name: String,
+    /// Project ID of the missing dependency
+    pub dependency_project_id: String,
+    /// Whether this is a required or optional dependency
+    pub dependency_type: String,
+    /// Name of the excluded mod (if found)
+    pub excluded_mod_name: Option<String>,
+    /// Filename of the excluded mod (if found)
+    pub excluded_mod_filename: Option<String>,
+    /// Why this dependency is missing
+    pub reason: String, // "client_only", "excluded", "not_installed"
+}
+
+/// Result of checking dependencies for server creation
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DependencyCheckResult {
+    /// Missing dependencies that will cause issues
+    pub missing_required: Vec<MissingDependency>,
+    /// Optional dependencies that are missing (warning only)
+    pub missing_optional: Vec<MissingDependency>,
+    /// Whether it's safe to proceed
+    pub can_proceed: bool,
+}
+
+/// Check if the selected mods have dependencies on excluded mods
+/// Returns information about missing dependencies
+#[tauri::command]
+pub async fn check_server_dependencies(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    mods_to_include: Vec<String>,
+    mods_to_exclude: Vec<String>,
+) -> AppResult<DependencyCheckResult> {
+    let state_guard = state.read().await;
+
+    // Get the instance
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let instance_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir);
+    let mods_dir = instance_dir.join("mods");
+
+    if !mods_dir.exists() {
+        return Ok(DependencyCheckResult {
+            missing_required: vec![],
+            missing_optional: vec![],
+            can_proceed: true,
+        });
+    }
+
+    // Build maps of project_id -> filename and project_id -> metadata for all mods
+    let result = tokio::task::spawn_blocking(move || {
+        let mut project_to_filename: HashMap<String, String> = HashMap::new();
+        let mut project_to_metadata: HashMap<String, (String, ModMetadata)> = HashMap::new();
+        let mut included_project_ids: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+        let mut excluded_project_ids: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
+
+        // Read all mod metadata files
+        let entries = match std::fs::read_dir(&mods_dir) {
+            Ok(e) => e,
+            Err(_) => {
+                return (
+                    project_to_filename,
+                    project_to_metadata,
+                    included_project_ids,
+                    excluded_project_ids,
+                )
+            }
+        };
+
+        for entry in entries.flatten() {
+            let filename = entry.file_name().to_string_lossy().to_string();
+
+            if !filename.ends_with(".jar") {
+                continue;
+            }
+
+            // Try to read metadata
+            let base_filename = filename.trim_end_matches(".jar");
+            let meta_path = mods_dir.join(format!("{}.meta.json", base_filename));
+
+            if let Ok(content) = std::fs::read_to_string(&meta_path) {
+                if let Ok(meta) = serde_json::from_str::<ModMetadata>(&content) {
+                    project_to_filename.insert(meta.project_id.clone(), filename.clone());
+                    project_to_metadata
+                        .insert(meta.project_id.clone(), (filename.clone(), meta.clone()));
+
+                    // Track which project IDs are included vs excluded
+                    if mods_to_include.contains(&filename) {
+                        included_project_ids.insert(meta.project_id.clone());
+                    }
+                    if mods_to_exclude.contains(&filename) {
+                        excluded_project_ids.insert(meta.project_id);
+                    }
+                }
+            }
+        }
+
+        (
+            project_to_filename,
+            project_to_metadata,
+            included_project_ids,
+            excluded_project_ids,
+        )
+    })
+    .await
+    .map_err(|e| AppError::Instance(format!("Failed to read mods: {}", e)))?;
+
+    let (project_to_filename, project_to_metadata, included_project_ids, excluded_project_ids) =
+        result;
+
+    let mut missing_required = Vec::new();
+    let mut missing_optional = Vec::new();
+
+    // Check each included mod's dependencies
+    for (project_id, (filename, metadata)) in &project_to_metadata {
+        if !included_project_ids.contains(project_id) {
+            continue;
+        }
+
+        for dep in &metadata.dependencies {
+            // Check if this dependency is in the included set
+            if included_project_ids.contains(&dep.project_id) {
+                continue; // Dependency is included, all good
+            }
+
+            // Dependency is missing from included set - figure out why
+            let reason = if excluded_project_ids.contains(&dep.project_id) {
+                "excluded"
+            } else if project_to_filename.contains_key(&dep.project_id) {
+                // It exists but wasn't included (probably client_only)
+                "client_only"
+            } else {
+                "not_installed"
+            };
+
+            let excluded_info = project_to_metadata.get(&dep.project_id);
+
+            let missing_dep = MissingDependency {
+                required_by_filename: filename.clone(),
+                required_by_name: metadata.name.clone(),
+                dependency_project_id: dep.project_id.clone(),
+                dependency_type: dep.dependency_type.clone(),
+                excluded_mod_name: excluded_info.map(|(_, m)| m.name.clone()),
+                excluded_mod_filename: excluded_info.map(|(f, _)| f.clone()),
+                reason: reason.to_string(),
+            };
+
+            if dep.dependency_type == "required" {
+                missing_required.push(missing_dep);
+            } else {
+                missing_optional.push(missing_dep);
+            }
+        }
+    }
+
+    let can_proceed = missing_required.is_empty();
+
+    log::info!(
+        "check_server_dependencies: {} required missing, {} optional missing, can_proceed={}",
+        missing_required.len(),
+        missing_optional.len(),
+        can_proceed
+    );
+
+    Ok(DependencyCheckResult {
+        missing_required,
+        missing_optional,
+        can_proceed,
+    })
+}
+
+/// Analyze instance logs and detect issues (missing dependencies, version mismatches, etc.)
+#[tauri::command]
+pub async fn analyze_instance_logs(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<Vec<crate::instance::log_parser::DetectedIssue>> {
+    use crate::instance::log_parser::{parse_log_for_issues, DetectedIssue};
+
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let logs_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join("logs");
+
+    if !logs_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    // Read latest.log first, then try crash reports
+    let latest_log_path = logs_dir.join("latest.log");
+    let mut all_issues: Vec<DetectedIssue> = Vec::new();
+
+    // Get loader type for better parsing
+    let loader_type = instance.loader.as_deref().unwrap_or("unknown");
+
+    // Parse latest.log if it exists
+    if latest_log_path.exists() {
+        let content = fs::read_to_string(&latest_log_path)
+            .await
+            .unwrap_or_default();
+        if !content.is_empty() {
+            let issues = parse_log_for_issues(&content, loader_type);
+            all_issues.extend(issues);
+        }
+    }
+
+    // Also check crash reports directory
+    let crash_reports_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir)
+        .join("crash-reports");
+
+    if crash_reports_dir.exists() {
+        // Get the most recent crash report
+        let mut entries = fs::read_dir(&crash_reports_dir)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to read crash-reports directory: {}", e)))?;
+
+        let mut crash_files: Vec<(std::path::PathBuf, std::time::SystemTime)> = Vec::new();
+
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+        {
+            let path = entry.path();
+            if path.extension().map_or(false, |ext| ext == "txt") {
+                if let Ok(metadata) = entry.metadata().await {
+                    if let Ok(modified) = metadata.modified() {
+                        crash_files.push((path, modified));
+                    }
+                }
+            }
+        }
+
+        // Sort by modification time (most recent first) and take the latest
+        crash_files.sort_by(|a, b| b.1.cmp(&a.1));
+
+        if let Some((latest_crash, _)) = crash_files.first() {
+            let content = fs::read_to_string(latest_crash)
+                .await
+                .unwrap_or_default();
+            if !content.is_empty() {
+                let issues = parse_log_for_issues(&content, loader_type);
+                all_issues.extend(issues);
+            }
+        }
+    }
+
+    // Deduplicate issues
+    all_issues.sort_by(|a, b| a.description.cmp(&b.description));
+    all_issues.dedup_by(|a, b| {
+        a.issue_type == b.issue_type
+            && a.mod_id == b.mod_id
+            && a.required_mod_id == b.required_mod_id
+    });
+
+    log::info!(
+        "analyze_instance_logs: Found {} issues for instance {}",
+        all_issues.len(),
+        instance_id
+    );
+
+    Ok(all_issues)
 }

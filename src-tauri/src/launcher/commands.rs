@@ -1,3 +1,4 @@
+use crate::auth::{microsoft, minecraft, xbox};
 use crate::crypto;
 use crate::db::accounts::Account;
 use crate::db::instances::Instance;
@@ -7,6 +8,8 @@ use crate::launcher::{java, runner};
 use crate::minecraft::{installer, versions};
 use crate::modloader::{self, paper, LoaderType};
 use crate::state::SharedState;
+use chrono::{Duration, Utc};
+use sqlx::SqlitePool;
 use std::path::Path;
 use tauri::{Emitter, State};
 use tokio::fs;
@@ -21,6 +24,69 @@ fn get_loader_version<'a>(instance: &'a Instance, loader_name: &str) -> AppResul
         .loader_version
         .as_deref()
         .ok_or_else(|| AppError::Instance(format!("{} requires a loader version", loader_name)))
+}
+
+/// Internal function to refresh token without needing Tauri State
+/// This is used during game launch to automatically refresh expired tokens
+async fn refresh_token_internal(
+    http_client: &reqwest::Client,
+    db: &SqlitePool,
+    encryption_key: &[u8; 32],
+    account: &Account,
+) -> AppResult<Account> {
+    tracing::info!("Refreshing token for account: {}", account.username);
+
+    // Refresh Microsoft token
+    let ms_token = microsoft::refresh_token(http_client, &account.refresh_token).await?;
+
+    // Re-authenticate through the chain
+    let xbox_token = xbox::authenticate_xbox_live(http_client, &ms_token.access_token).await?;
+    let xsts_token = xbox::get_xsts_token(http_client, &xbox_token.token).await?;
+    let mc_token =
+        minecraft::authenticate_minecraft(http_client, &xsts_token.user_hash, &xsts_token.token)
+            .await?;
+
+    // Get updated profile
+    let profile = minecraft::get_minecraft_profile(http_client, &mc_token.access_token).await?;
+
+    tracing::info!("Token refreshed successfully for user: {}", profile.name);
+
+    let expires_at = Utc::now() + Duration::seconds(mc_token.expires_in as i64);
+    let skin_url = profile.skins.first().map(|s| s.url.clone());
+
+    // Encrypt new tokens before storing
+    let encrypted_access_token = crypto::encrypt(encryption_key, &mc_token.access_token)
+        .map_err(|e| AppError::Encryption(format!("Failed to encrypt access token: {}", e)))?;
+    let encrypted_refresh_token = crypto::encrypt(encryption_key, &ms_token.refresh_token)
+        .map_err(|e| AppError::Encryption(format!("Failed to encrypt refresh token: {}", e)))?;
+
+    // Update account in database with encrypted tokens
+    let account_for_db = Account {
+        id: account.id.clone(),
+        uuid: profile.id.clone(),
+        username: profile.name.clone(),
+        access_token: encrypted_access_token,
+        refresh_token: encrypted_refresh_token,
+        expires_at: expires_at.to_rfc3339(),
+        skin_url: skin_url.clone(),
+        is_active: account.is_active,
+        created_at: account.created_at.clone(),
+    };
+
+    account_for_db.insert(db).await.map_err(AppError::from)?;
+
+    // Return account with decrypted tokens for immediate use
+    Ok(Account {
+        id: account.id.clone(),
+        uuid: profile.id,
+        username: profile.name,
+        access_token: mc_token.access_token,
+        refresh_token: ms_token.refresh_token,
+        expires_at: expires_at.to_rfc3339(),
+        skin_url,
+        is_active: account.is_active,
+        created_at: account.created_at.clone(),
+    })
 }
 
 /// Install Minecraft for an instance
@@ -1672,6 +1738,56 @@ pub async fn launch_instance(
                     crypto::decrypt(&state_guard.encryption_key, &account.refresh_token).map_err(
                         |e| AppError::Encryption(format!("Failed to decrypt refresh token: {}", e)),
                     )?;
+            }
+
+            // Check if token is expired or about to expire (within 5 minutes)
+            // and refresh it automatically
+            let should_refresh = if let Ok(expires_at) =
+                chrono::DateTime::parse_from_rfc3339(&account.expires_at)
+            {
+                let now = chrono::Utc::now();
+                let expires_at_utc = expires_at.with_timezone(&chrono::Utc);
+                // Refresh if token expires within 5 minutes
+                expires_at_utc < now + chrono::Duration::minutes(5)
+            } else {
+                // If we can't parse the expiration date, try to refresh anyway
+                tracing::warn!(
+                    "Could not parse token expiration date: {}",
+                    account.expires_at
+                );
+                true
+            };
+
+            if should_refresh {
+                tracing::info!(
+                    "Token expired or about to expire for account {}, refreshing...",
+                    account.username
+                );
+
+                // Refresh the token
+                match refresh_token_internal(
+                    &state_guard.http_client,
+                    &state_guard.db,
+                    &state_guard.encryption_key,
+                    &account,
+                )
+                .await
+                {
+                    Ok(refreshed_account) => {
+                        tracing::info!(
+                            "Token refreshed successfully for account {}",
+                            refreshed_account.username
+                        );
+                        account = refreshed_account;
+                    }
+                    Err(e) => {
+                        tracing::error!("Failed to refresh token: {}", e);
+                        return Err(AppError::Auth(format!(
+                            "Session expired. Please re-login to your Microsoft account. ({})",
+                            e
+                        )));
+                    }
+                }
             }
         }
 

@@ -766,10 +766,10 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
   const activeFiltersCount = selectedCategories.length + (sortBy !== "downloads" ? 1 : 0)
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col h-full gap-4">
       {/* Content type tabs - only shown for client instances when showContentTabs is true */}
       {showContentTabs && (
-        <Tabs value={activeContentType} onValueChange={handleContentTypeChange}>
+        <Tabs value={activeContentType} onValueChange={handleContentTypeChange} className="flex-shrink-0">
           <TabsList>
             <TabsTrigger value="mod" className="gap-2">
               <Package className="h-4 w-4" />
@@ -792,7 +792,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
       )}
 
       {/* Search bar */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 flex-shrink-0">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -813,7 +813,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
       </div>
 
       {/* Filters row */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2 flex-shrink-0">
         {/* Sort dropdown */}
         <Select value={sortBy} onValueChange={handleSortChange}>
           <SelectTrigger className="w-[160px]">
@@ -909,7 +909,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
 
       {/* Selected categories chips */}
       {selectedCategories.length > 0 && (
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 flex-shrink-0">
           {selectedCategories.map((cat) => {
             const catInfo = categories.find((c: { value: string; labelKey: TranslationKey }) => c.value === cat)
             return (
@@ -928,7 +928,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
       )}
 
       {/* Results */}
-      <ScrollArea className="h-[450px]" ref={scrollAreaRef}>
+      <ScrollArea className="flex-1 min-h-0" ref={scrollAreaRef}>
         {isSearching ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -961,7 +961,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
 
       {/* Pagination */}
       {totalPages > 1 && searchResults.length > 0 && (
-        <div className="flex items-center justify-center gap-1 pt-2">
+        <div className="flex items-center justify-center gap-1 pt-2 flex-shrink-0">
           <Button
             variant="outline"
             size="sm"

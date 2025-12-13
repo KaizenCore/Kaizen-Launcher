@@ -257,6 +257,13 @@ pub async fn get_modrinth_mod_versions(
     Ok(versions.into_iter().map(ModVersionInfo::from).collect())
 }
 
+/// Stored dependency information
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StoredDependency {
+    pub project_id: String,
+    pub dependency_type: String, // "required" or "optional"
+}
+
 /// Metadata saved for mods installed from Modrinth
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct ModMetadata {
@@ -265,6 +272,15 @@ struct ModMetadata {
     project_id: String,
     version_id: Option<String>,
     icon_url: Option<String>,
+    /// Server-side compatibility: "required", "optional", or "unsupported"
+    #[serde(default)]
+    server_side: Option<String>,
+    /// Client-side compatibility: "required", "optional", or "unsupported"
+    #[serde(default)]
+    client_side: Option<String>,
+    /// Dependencies (project_id and type)
+    #[serde(default)]
+    dependencies: Vec<StoredDependency>,
 }
 
 /// Helper function to find the first world folder in saves/
@@ -372,7 +388,7 @@ pub async fn install_modrinth_mod(
         .await
         .map_err(|e| AppError::Network(e.to_string()))?;
 
-    // Save metadata file with icon_url
+    // Save metadata file with icon_url, compatibility info, and dependencies
     // Strip appropriate extension based on file type
     let base_filename = file
         .filename
@@ -380,12 +396,29 @@ pub async fn install_modrinth_mod(
         .trim_end_matches(".zip");
     let meta_filename = format!("{}.meta.json", base_filename);
     let meta_path = target_dir.join(&meta_filename);
+
+    // Extract required/optional dependencies
+    let dependencies: Vec<StoredDependency> = version
+        .dependencies
+        .iter()
+        .filter(|d| d.dependency_type == "required" || d.dependency_type == "optional")
+        .filter_map(|d| {
+            d.project_id.as_ref().map(|pid| StoredDependency {
+                project_id: pid.clone(),
+                dependency_type: d.dependency_type.clone(),
+            })
+        })
+        .collect();
+
     let metadata = ModMetadata {
         name: project.title,
         version: version.version_number.clone(),
         project_id: project_id.clone(),
         version_id: Some(version_id.clone()),
         icon_url: project.icon_url,
+        server_side: Some(project.server_side),
+        client_side: Some(project.client_side),
+        dependencies,
     };
 
     if let Ok(meta_json) = serde_json::to_string_pretty(&metadata) {
@@ -662,15 +695,32 @@ pub async fn install_modrinth_mods_batch(
             continue;
         }
 
-        // Save metadata
+        // Save metadata with compatibility info and dependencies
         let meta_filename = format!("{}.meta.json", file.filename.trim_end_matches(".jar"));
         let meta_path = target_dir.join(&meta_filename);
+
+        // Extract required/optional dependencies
+        let dependencies: Vec<StoredDependency> = version
+            .dependencies
+            .iter()
+            .filter(|d| d.dependency_type == "required" || d.dependency_type == "optional")
+            .filter_map(|d| {
+                d.project_id.as_ref().map(|pid| StoredDependency {
+                    project_id: pid.clone(),
+                    dependency_type: d.dependency_type.clone(),
+                })
+            })
+            .collect();
+
         let metadata = ModMetadata {
             name: project.title.clone(),
             version: version.version_number.clone(),
             project_id: project_id.clone(),
             version_id: Some(version_id.clone()),
             icon_url: project.icon_url.clone(),
+            server_side: Some(project.server_side.clone()),
+            client_side: Some(project.client_side.clone()),
+            dependencies,
         };
 
         if let Ok(meta_json) = serde_json::to_string_pretty(&metadata) {
@@ -1133,11 +1183,27 @@ pub async fn install_modrinth_modpack(
         let mut fetched = 0;
 
         for (project_id, version_id, filename) in mod_files_to_fetch {
-            // Fetch project info for icon and name
+            // Fetch project info for icon, name, and compatibility
             match client.get_project(&project_id).await {
                 Ok(project_info) => {
                     let meta_filename = format!("{}.meta.json", filename.trim_end_matches(".jar"));
                     let meta_path = mods_dir.join(&meta_filename);
+
+                    // Also fetch version for dependencies
+                    let dependencies = match client.get_version(&version_id).await {
+                        Ok(version_info) => version_info
+                            .dependencies
+                            .iter()
+                            .filter(|d| d.dependency_type == "required" || d.dependency_type == "optional")
+                            .filter_map(|d| {
+                                d.project_id.as_ref().map(|pid| StoredDependency {
+                                    project_id: pid.clone(),
+                                    dependency_type: d.dependency_type.clone(),
+                                })
+                            })
+                            .collect(),
+                        Err(_) => Vec::new(),
+                    };
 
                     let metadata = ModMetadata {
                         name: project_info.title,
@@ -1145,6 +1211,9 @@ pub async fn install_modrinth_modpack(
                         project_id: project_id.clone(),
                         version_id: Some(version_id.clone()),
                         icon_url: project_info.icon_url,
+                        server_side: Some(project_info.server_side),
+                        client_side: Some(project_info.client_side),
+                        dependencies,
                     };
 
                     if let Ok(meta_json) = serde_json::to_string_pretty(&metadata) {
@@ -1266,6 +1335,361 @@ pub async fn install_modrinth_modpack(
         loader_version,
         files_count: total_files,
     })
+}
+
+// ============= Mod Metadata Enrichment =============
+
+/// Result of looking up a mod by hash
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HashLookupResult {
+    pub found: bool,
+    pub project_id: Option<String>,
+    pub version_id: Option<String>,
+    pub name: Option<String>,
+    pub icon_url: Option<String>,
+    pub server_side: Option<String>,
+    pub client_side: Option<String>,
+    pub dependencies: Vec<StoredDependency>,
+}
+
+/// Look up a mod file by its SHA-512 hash
+/// This can identify mods that were not installed through Modrinth
+#[tauri::command]
+pub async fn lookup_mod_by_hash(
+    state: State<'_, SharedState>,
+    file_path: String,
+) -> AppResult<HashLookupResult> {
+    use sha2::{Digest, Sha512};
+
+    let state_guard = state.read().await;
+    let client = ModrinthClient::new(&state_guard.http_client);
+
+    // Read file and compute SHA-512
+    let file_bytes = tokio::fs::read(&file_path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read file: {}", e)))?;
+
+    let mut hasher = Sha512::new();
+    hasher.update(&file_bytes);
+    let hash = format!("{:x}", hasher.finalize());
+
+    // Look up on Modrinth
+    match client.get_version_by_hash(&hash).await {
+        Ok(version) => {
+            // Get project details for additional info
+            let project = client.get_project(&version.project_id).await.ok();
+
+            let dependencies: Vec<StoredDependency> = version
+                .dependencies
+                .iter()
+                .filter(|d| d.dependency_type == "required" || d.dependency_type == "optional")
+                .filter_map(|d| {
+                    d.project_id.as_ref().map(|pid| StoredDependency {
+                        project_id: pid.clone(),
+                        dependency_type: d.dependency_type.clone(),
+                    })
+                })
+                .collect();
+
+            Ok(HashLookupResult {
+                found: true,
+                project_id: Some(version.project_id.clone()),
+                version_id: Some(version.id),
+                name: project.as_ref().map(|p| p.title.clone()),
+                icon_url: project.as_ref().and_then(|p| p.icon_url.clone()),
+                server_side: project.as_ref().map(|p| p.server_side.clone()),
+                client_side: project.as_ref().map(|p| p.client_side.clone()),
+                dependencies,
+            })
+        }
+        Err(_) => Ok(HashLookupResult {
+            found: false,
+            project_id: None,
+            version_id: None,
+            name: None,
+            icon_url: None,
+            server_side: None,
+            client_side: None,
+            dependencies: vec![],
+        }),
+    }
+}
+
+/// Result of enriching mods for an instance
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EnrichmentResult {
+    pub total_mods: usize,
+    pub enriched_count: usize,
+    pub already_had_metadata: usize,
+    pub not_found_on_modrinth: usize,
+    pub errors: Vec<String>,
+}
+
+/// Mod analysis for server compatibility
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModServerAnalysis {
+    pub filename: String,
+    pub name: String,
+    pub project_id: Option<String>,
+    pub icon_url: Option<String>,
+    /// Server compatibility: "required", "optional", "unsupported", "unknown"
+    pub compatibility: String,
+    /// Where the data came from: "metadata", "modrinth_lookup", "unknown"
+    pub source: String,
+    /// Any issues or warnings
+    pub issues: Vec<String>,
+}
+
+/// Enrich all mods in an instance that don't have metadata
+/// Uses Modrinth hash lookup to identify mods and fetch their info
+#[tauri::command]
+pub async fn enrich_instance_mods(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<EnrichmentResult> {
+    use sha2::{Digest, Sha512};
+
+    let state_guard = state.read().await;
+    let client = ModrinthClient::new(&state_guard.http_client);
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let folder_name = get_content_folder(Some("mod"), instance.loader.as_deref(), instance.is_server);
+
+    let instance_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir);
+
+    let content_dir = instance_dir.join(folder_name);
+
+    if !content_dir.exists() {
+        return Ok(EnrichmentResult {
+            total_mods: 0,
+            enriched_count: 0,
+            already_had_metadata: 0,
+            not_found_on_modrinth: 0,
+            errors: vec![],
+        });
+    }
+
+    let mut entries = tokio::fs::read_dir(&content_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read mods directory: {}", e)))?;
+
+    let mut enriched_count = 0;
+    let mut already_had_metadata = 0;
+    let mut not_found_on_modrinth = 0;
+    let mut errors: Vec<String> = vec![];
+
+    // Collect all mod files first
+    let mut mod_files: Vec<String> = vec![];
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
+        let filename = entry.file_name().to_string_lossy().to_string();
+        if filename.ends_with(".jar") || filename.ends_with(".jar.disabled") {
+            mod_files.push(filename);
+        }
+    }
+
+    let total_mods = mod_files.len();
+
+    for filename in mod_files {
+        // Check if metadata already exists
+        let base_name = filename
+            .trim_end_matches(".disabled")
+            .trim_end_matches(".jar");
+        let meta_path = content_dir.join(format!("{}.meta.json", base_name));
+
+        if meta_path.exists() {
+            already_had_metadata += 1;
+            continue;
+        }
+
+        let mod_path = content_dir.join(&filename);
+
+        // Read file and compute SHA-512
+        let file_bytes = match tokio::fs::read(&mod_path).await {
+            Ok(bytes) => bytes,
+            Err(e) => {
+                errors.push(format!("Failed to read {}: {}", filename, e));
+                continue;
+            }
+        };
+
+        let mut hasher = Sha512::new();
+        hasher.update(&file_bytes);
+        let hash = format!("{:x}", hasher.finalize());
+
+        // Look up on Modrinth
+        match client.get_version_by_hash(&hash).await {
+            Ok(version) => {
+                // Get project details
+                match client.get_project(&version.project_id).await {
+                    Ok(project) => {
+                        let dependencies: Vec<StoredDependency> = version
+                            .dependencies
+                            .iter()
+                            .filter(|d| {
+                                d.dependency_type == "required" || d.dependency_type == "optional"
+                            })
+                            .filter_map(|d| {
+                                d.project_id.as_ref().map(|pid| StoredDependency {
+                                    project_id: pid.clone(),
+                                    dependency_type: d.dependency_type.clone(),
+                                })
+                            })
+                            .collect();
+
+                        let metadata = ModMetadata {
+                            name: project.title,
+                            version: version.version_number,
+                            project_id: version.project_id,
+                            version_id: Some(version.id),
+                            icon_url: project.icon_url,
+                            server_side: Some(project.server_side),
+                            client_side: Some(project.client_side),
+                            dependencies,
+                        };
+
+                        if let Ok(meta_json) = serde_json::to_string_pretty(&metadata) {
+                            if tokio::fs::write(&meta_path, meta_json).await.is_ok() {
+                                enriched_count += 1;
+                            } else {
+                                errors.push(format!("Failed to write metadata for {}", filename));
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        errors.push(format!("Failed to get project info for {}: {}", filename, e));
+                    }
+                }
+            }
+            Err(_) => {
+                not_found_on_modrinth += 1;
+            }
+        }
+    }
+
+    Ok(EnrichmentResult {
+        total_mods,
+        enriched_count,
+        already_had_metadata,
+        not_found_on_modrinth,
+        errors,
+    })
+}
+
+/// Analyze mods for server compatibility
+/// Returns detailed analysis for each mod in the instance
+#[tauri::command]
+pub async fn analyze_mods_for_server_detailed(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<Vec<ModServerAnalysis>> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let folder_name = get_content_folder(Some("mod"), instance.loader.as_deref(), instance.is_server);
+
+    let instance_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir);
+
+    let content_dir = instance_dir.join(folder_name);
+
+    if !content_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut entries = tokio::fs::read_dir(&content_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read mods directory: {}", e)))?;
+
+    let mut results: Vec<ModServerAnalysis> = vec![];
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
+        let filename = entry.file_name().to_string_lossy().to_string();
+
+        // Only process .jar files (not .disabled or .meta.json)
+        if !filename.ends_with(".jar") {
+            continue;
+        }
+
+        let base_name = filename.trim_end_matches(".jar");
+        let meta_path = content_dir.join(format!("{}.meta.json", base_name));
+
+        if meta_path.exists() {
+            // Has metadata - use it
+            if let Ok(content) = tokio::fs::read_to_string(&meta_path).await {
+                if let Ok(meta) = serde_json::from_str::<ModMetadata>(&content) {
+                    let server_side = meta.server_side.as_deref().unwrap_or("unknown");
+                    let compatibility = match server_side {
+                        "required" => "required",
+                        "optional" => "optional",
+                        "unsupported" => "unsupported",
+                        _ => "unknown",
+                    };
+
+                    let mut issues = vec![];
+                    if server_side == "unsupported" {
+                        issues.push("Client-only mod, will not work on server".to_string());
+                    }
+
+                    results.push(ModServerAnalysis {
+                        filename: filename.clone(),
+                        name: meta.name,
+                        project_id: Some(meta.project_id),
+                        icon_url: meta.icon_url,
+                        compatibility: compatibility.to_string(),
+                        source: "metadata".to_string(),
+                        issues,
+                    });
+                    continue;
+                }
+            }
+        }
+
+        // No metadata - mark as unknown
+        results.push(ModServerAnalysis {
+            filename: filename.clone(),
+            name: base_name.to_string(),
+            project_id: None,
+            icon_url: None,
+            compatibility: "unknown".to_string(),
+            source: "unknown".to_string(),
+            issues: vec!["No metadata available. Run enrichment to identify this mod.".to_string()],
+        });
+    }
+
+    // Sort: required first, then optional, then unknown, then unsupported
+    results.sort_by(|a, b| {
+        let order = |c: &str| match c {
+            "required" => 0,
+            "optional" => 1,
+            "unknown" => 2,
+            "unsupported" => 3,
+            _ => 4,
+        };
+        order(&a.compatibility).cmp(&order(&b.compatibility))
+    });
+
+    Ok(results)
 }
 
 // ============= Mod Update Feature =============
@@ -1512,18 +1936,35 @@ pub async fn update_mod(
         let _ = tokio::fs::remove_file(&old_meta_path).await;
     }
 
-    // Save new metadata
+    // Save new metadata with compatibility info and dependencies
     let new_base = file
         .filename
         .trim_end_matches(".jar")
         .trim_end_matches(".zip");
     let new_meta_path = content_dir.join(format!("{}.meta.json", new_base));
+
+    // Extract required/optional dependencies
+    let dependencies: Vec<StoredDependency> = version
+        .dependencies
+        .iter()
+        .filter(|d| d.dependency_type == "required" || d.dependency_type == "optional")
+        .filter_map(|d| {
+            d.project_id.as_ref().map(|pid| StoredDependency {
+                project_id: pid.clone(),
+                dependency_type: d.dependency_type.clone(),
+            })
+        })
+        .collect();
+
     let metadata = ModMetadata {
         name: project.title.clone(),
         version: version.version_number.clone(),
         project_id: project_id.clone(),
         version_id: Some(new_version_id.clone()),
         icon_url: project.icon_url,
+        server_side: Some(project.server_side),
+        client_side: Some(project.client_side),
+        dependencies,
     };
 
     if let Ok(meta_json) = serde_json::to_string_pretty(&metadata) {

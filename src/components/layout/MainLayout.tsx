@@ -14,8 +14,8 @@ export function MainLayout() {
         {/* Sidebar */}
         <Sidebar />
 
-        {/* Page content - use flex and overflow-auto for scrollable content, pages can override with overflow-hidden if needed */}
-        <main className="flex-1 flex flex-col p-6 overflow-auto">
+        {/* Page content - pages manage their own scroll internally */}
+        <main className="flex-1 flex flex-col p-6 overflow-hidden">
           <Outlet />
         </main>
       </div>

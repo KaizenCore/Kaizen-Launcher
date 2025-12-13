@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod log_parser;
 pub mod worlds;
 
 // TODO: Implement these modules in Phase 4-5
