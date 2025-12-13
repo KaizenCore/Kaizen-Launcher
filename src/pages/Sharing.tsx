@@ -156,8 +156,10 @@ export function Sharing() {
   };
 
   const handleStopShare = async (share: ActiveShare) => {
+    console.log(`[Sharing] Stopping share: ${share.instance_name} (${share.share_id})`)
     try {
       await invoke("stop_share", { shareId: share.share_id });
+      console.log(`[Sharing] Share stopped: ${share.instance_name}`)
       setActiveShares((prev) =>
         prev.filter((s) => s.share_id !== share.share_id)
       );
@@ -169,21 +171,23 @@ export function Sharing() {
         }
       }
     } catch (err) {
-      console.error("[SHARE] Failed to stop share:", err);
+      console.error("[Sharing] Failed to stop share:", err);
     }
     setShareToStop(null);
   };
 
   const handleStopAll = async () => {
+    console.log(`[Sharing] Stopping all ${activeShares.length} shares...`)
     try {
       await invoke("stop_all_shares");
+      console.log("[Sharing] All shares stopped")
       setActiveShares([]);
       // Clear all seeds from store
       for (const exportId of activeSeeds.keys()) {
         removeSeed(exportId);
       }
     } catch (err) {
-      console.error("[SHARE] Failed to stop all shares:", err);
+      console.error("[Sharing] Failed to stop all shares:", err);
     }
   };
 

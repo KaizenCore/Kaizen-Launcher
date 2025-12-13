@@ -33,11 +33,13 @@ export function Accounts() {
   const [accountToDelete, setAccountToDelete] = useState<Account | null>(null)
 
   const loadAccounts = useCallback(async () => {
+    console.log("[Accounts] Loading accounts...")
     try {
       const result = await invoke<Account[]>("get_accounts")
+      console.log(`[Accounts] Loaded ${result.length} accounts`)
       setAccounts(result)
     } catch (err) {
-      console.error("Failed to load accounts:", err)
+      console.error("[Accounts] Failed to load accounts:", err)
       toast.error(t("accounts.unableToLoad"))
     } finally {
       setIsLoading(false)
@@ -46,16 +48,19 @@ export function Accounts() {
   }, [])
 
   useEffect(() => {
+    console.log("[Accounts] Page mounted")
     loadAccounts()
   }, [loadAccounts])
 
   const handleSetActive = async (accountId: string) => {
+    console.log(`[Accounts] Setting active account: ${accountId}`)
     try {
       await invoke("set_active_account", { accountId })
+      console.log(`[Accounts] Account activated: ${accountId}`)
       toast.success(t("accounts.accountActivated"))
       loadAccounts()
     } catch (err) {
-      console.error("Failed to set active account:", err)
+      console.error("[Accounts] Failed to set active account:", err)
       toast.error(t("accounts.unableToActivate"))
     }
   }
@@ -68,12 +73,14 @@ export function Accounts() {
   const handleConfirmDelete = async () => {
     if (!accountToDelete) return
 
+    console.log(`[Accounts] Deleting account: ${accountToDelete.username}`)
     try {
       await invoke("delete_account", { accountId: accountToDelete.id })
+      console.log(`[Accounts] Account deleted: ${accountToDelete.username}`)
       toast.success(t("accounts.accountDeleted"))
       loadAccounts()
     } catch (err) {
-      console.error("Failed to delete account:", err)
+      console.error("[Accounts] Failed to delete account:", err)
       toast.error(t("accounts.unableToDelete"))
     } finally {
       setAccountToDelete(null)

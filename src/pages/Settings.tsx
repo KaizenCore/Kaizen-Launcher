@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react"
-import { Moon, Sun, Monitor, Globe, Download, Trash2, RefreshCw, Check, HardDrive, FolderOpen, Github, Database, Cpu, Info, Palette, Loader2, Sparkles, Cloud, MessageSquare, Newspaper } from "lucide-react"
+import { Moon, Sun, Monitor, Globe, Download, Trash2, RefreshCw, Check, HardDrive, FolderOpen, Github, Database, Cpu, Info, Palette, Loader2, Sparkles, Cloud, MessageSquare, Newspaper, Terminal } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
@@ -17,6 +17,7 @@ import { toast } from "sonner"
 import { ThemeCustomizer } from "@/components/theme/ThemeCustomizer"
 import { CloudStorageConfig } from "@/components/cloud-storage/CloudStorageConfig"
 import { DiscordConfig } from "@/components/integrations/DiscordConfig"
+import { DevToolsSettings } from "@/components/settings/DevToolsSettings"
 import { useUpdateChecker } from "@/hooks/useUpdateChecker"
 import { useOnboardingStore } from "@/stores/onboardingStore"
 
@@ -75,6 +76,7 @@ function formatBytes(bytes: number): string {
 }
 
 export function Settings() {
+  console.log("[Settings] Page rendered")
   const { theme, setTheme } = useTheme()
   const { t, locale, setLocale, availableLocales } = useTranslation()
 
@@ -301,9 +303,9 @@ export function Settings() {
   const memoryMax = systemMemory ? Math.min(systemMemory.total_mb - 1024, 32768) : 16384
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <div>
+      <div className="shrink-0 pb-4">
         <h1 className="text-2xl font-bold tracking-tight">{t("settings.title")}</h1>
         <p className="text-muted-foreground">
           {t("settings.subtitle")}
@@ -311,8 +313,8 @@ export function Settings() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="appearance" className="flex-1">
-        <TabsList className="grid w-full grid-cols-6">
+      <Tabs defaultValue="appearance" className="flex-1 flex flex-col min-h-0">
+        <TabsList className="grid w-full grid-cols-7 shrink-0">
           <TabsTrigger value="appearance" className="gap-2">
             <Palette className="h-4 w-4" />
             {t("settings.appearance")}
@@ -333,6 +335,10 @@ export function Settings() {
             <MessageSquare className="h-4 w-4" />
             {t("settings.discord")}
           </TabsTrigger>
+          <TabsTrigger value="devtools" className="gap-2">
+            <Terminal className="h-4 w-4" />
+            {t("settings.devtools")}
+          </TabsTrigger>
           <TabsTrigger value="about" className="gap-2">
             <Info className="h-4 w-4" />
             {t("settings.about")}
@@ -340,7 +346,7 @@ export function Settings() {
         </TabsList>
 
         {/* Appearance Tab */}
-        <TabsContent value="appearance" className="mt-6 space-y-6">
+        <TabsContent value="appearance" className="mt-6 space-y-6 flex-1 overflow-y-auto min-h-0">
           <Card>
             <CardHeader>
               <CardTitle>{t("settings.appearance")}</CardTitle>
@@ -416,7 +422,7 @@ export function Settings() {
         </TabsContent>
 
         {/* Java Tab */}
-        <TabsContent value="java" className="mt-6 space-y-6">
+        <TabsContent value="java" className="mt-6 space-y-6 flex-1 overflow-y-auto min-h-0">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -620,7 +626,7 @@ export function Settings() {
         </TabsContent>
 
         {/* Storage Tab */}
-        <TabsContent value="storage" className="mt-6 space-y-6">
+        <TabsContent value="storage" className="mt-6 space-y-6 flex-1 overflow-y-auto min-h-0">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -855,17 +861,22 @@ export function Settings() {
         </TabsContent>
 
         {/* Cloud Backup Tab */}
-        <TabsContent value="cloud" className="mt-6">
+        <TabsContent value="cloud" className="mt-6 flex-1 overflow-y-auto min-h-0">
           <CloudStorageConfig />
         </TabsContent>
 
         {/* Discord Tab */}
-        <TabsContent value="discord" className="mt-6">
+        <TabsContent value="discord" className="mt-6 flex-1 overflow-y-auto min-h-0">
           <DiscordConfig />
         </TabsContent>
 
+        {/* DevTools Tab */}
+        <TabsContent value="devtools" className="mt-6 flex-1 overflow-y-auto min-h-0">
+          <DevToolsSettings />
+        </TabsContent>
+
         {/* About Tab */}
-        <TabsContent value="about" className="mt-6 space-y-6">
+        <TabsContent value="about" className="mt-6 space-y-6 flex-1 overflow-y-auto min-h-0">
           <Card>
             <CardHeader>
               <CardTitle>{t("settings.about")}</CardTitle>

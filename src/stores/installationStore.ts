@@ -50,6 +50,7 @@ export const useInstallationStore = create<InstallationState>()((set, get) => ({
   installations: new Map(),
 
   startInstallation: (instanceId, instanceName, type = "instance") => {
+    console.log(`[InstallStore] Starting ${type} installation: ${instanceName} (${instanceId})`)
     set((state) => {
       const newInstallations = new Map(state.installations)
       newInstallations.set(instanceId, {
@@ -124,6 +125,7 @@ export const useInstallationStore = create<InstallationState>()((set, get) => ({
   },
 
   completeInstallation: (instanceId) => {
+    console.log(`[InstallStore] Installation completed: ${instanceId}`)
     set((state) => {
       const newInstallations = new Map(state.installations)
       newInstallations.delete(instanceId)
@@ -132,6 +134,7 @@ export const useInstallationStore = create<InstallationState>()((set, get) => ({
   },
 
   cancelInstallation: (instanceId) => {
+    console.log(`[InstallStore] Installation cancelled: ${instanceId}`)
     set((state) => {
       const newInstallations = new Map(state.installations)
       newInstallations.delete(instanceId)

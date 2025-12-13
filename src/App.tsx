@@ -9,7 +9,9 @@ import { Onboarding } from "@/components/onboarding/Onboarding"
 import { TourOverlay } from "@/components/onboarding/TourOverlay"
 import { UpdateNotification } from "@/components/notifications/UpdateNotification"
 import { DevMonitor } from "@/components/dev/DevMonitor"
+import { BugReportDialog } from "@/components/dev/BugReportDialog"
 import { useOnboardingStore } from "@/stores/onboardingStore"
+import { useDevModeStore } from "@/stores/devModeStore"
 import { useTheme } from "@/hooks/useTheme"
 import { useUpdateChecker } from "@/hooks/useUpdateChecker"
 
@@ -25,6 +27,7 @@ const Changelog = lazy(() => import("@/pages/Changelog"))
 const Sharing = lazy(() => import("@/pages/Sharing").then(m => ({ default: m.Sharing })))
 const Skins = lazy(() => import("@/pages/Skins").then(m => ({ default: m.Skins })))
 const CreateServerFromClient = lazy(() => import("@/pages/CreateServerFromClient").then(m => ({ default: m.CreateServerFromClient })))
+const LogViewer = lazy(() => import("@/pages/LogViewer"))
 
 // Loading fallback for lazy components
 function PageLoader() {
@@ -36,7 +39,9 @@ function PageLoader() {
 }
 
 function App() {
+  console.log("[App] Kaizen Launcher initializing...")
   const { completed, setCompleted } = useOnboardingStore()
+  const { enabled: devModeEnabled, load: loadDevMode, openLogViewer } = useDevModeStore()
   const { resolvedTheme } = useTheme()
   const {
     updateAvailable,
@@ -50,14 +55,38 @@ function App() {
 
   // Dev Monitor state
   const [devMonitorVisible, setDevMonitorVisible] = useState(false)
+  // Bug Report Dialog state
+  const [bugReportOpen, setBugReportOpen] = useState(false)
 
-  // Keyboard shortcut: Ctrl+Shift+D (or Cmd+Shift+D on Mac)
+  // Load dev mode state on mount
+  useEffect(() => {
+    loadDevMode()
+  }, [loadDevMode])
+
+  // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
-    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "d") {
-      e.preventDefault()
-      setDevMonitorVisible(prev => !prev)
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+      const key = e.key.toLowerCase()
+
+      // Ctrl+Shift+D: Toggle DevMonitor
+      if (key === "d") {
+        e.preventDefault()
+        setDevMonitorVisible(prev => !prev)
+      }
+
+      // Ctrl+Shift+B: Open Bug Report (only if dev mode enabled)
+      if (key === "b" && devModeEnabled) {
+        e.preventDefault()
+        setBugReportOpen(true)
+      }
+
+      // Ctrl+Shift+L: Open Log Viewer (only if dev mode enabled)
+      if (key === "l" && devModeEnabled) {
+        e.preventDefault()
+        openLogViewer().catch(console.error)
+      }
     }
-  }, [])
+  }, [devModeEnabled, openLogViewer])
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown)
@@ -95,6 +124,8 @@ function App() {
     <>
       <BrowserRouter>
         <Routes>
+          {/* Log Viewer - separate window without MainLayout */}
+          <Route path="log-viewer" element={<Suspense fallback={<PageLoader />}><LogViewer /></Suspense>} />
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Home />} />
             <Route path="instances" element={<Suspense fallback={<PageLoader />}><Instances /></Suspense>} />
@@ -144,6 +175,10 @@ function App() {
       <DevMonitor
         visible={devMonitorVisible}
         onClose={() => setDevMonitorVisible(false)}
+      />
+      <BugReportDialog
+        open={bugReportOpen}
+        onOpenChange={setBugReportOpen}
       />
     </>
   )

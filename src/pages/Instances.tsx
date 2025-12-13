@@ -598,21 +598,25 @@ export function Instances() {
   }, [])
 
   const checkJava = async () => {
+    console.log("[Instances] Checking Java installation...")
     try {
       const result = await invoke<JavaInfo | null>("check_java")
+      console.log(`[Instances] Java check result: ${result ? `v${result.version} at ${result.path}` : "not found"}`)
       setJavaInfo(result)
     } catch (e) {
-      console.error("Failed to check Java:", e)
+      console.error("[Instances] Failed to check Java:", e)
     } finally {
       setJavaChecked(true)
     }
   }
 
   const handleInstallJava = async () => {
+    console.log("[Instances] Installing Java...")
     setInstallingJava(true)
     setError(null)
     try {
       const result = await invoke<JavaInfo>("install_java")
+      console.log(`[Instances] Java installed: v${result.version}`)
       setJavaInfo(result)
       toast.success(t("settings.javaInstalled"))
     } catch (err) {
@@ -625,8 +629,10 @@ export function Instances() {
   }
 
   const loadInstances = useCallback(async () => {
+    console.log("[Instances] Loading instances...")
     try {
       const result = await invoke<Instance[]>("get_instances")
+      console.log(`[Instances] Loaded ${result.length} instances`)
       setInstances(result)
 
       // Check which instances are installed (single batch call instead of N calls)
@@ -669,6 +675,7 @@ export function Instances() {
   }, [])
 
   useEffect(() => {
+    console.log("[Instances] Page mounted")
     loadInstances()
     checkJava()
 
@@ -719,11 +726,13 @@ export function Instances() {
   }, [instances.length])
 
   const handleInstall = useCallback(async (instance: Instance) => {
+    console.log(`[Instances] Installing instance: ${instance.name} (${instance.mc_version})`)
     setError(null)
     // Start installation in global store (shows notification)
     startInstallation(instance.id, instance.name)
     try {
       await invoke("install_instance", { instanceId: instance.id })
+      console.log(`[Instances] Installation started for: ${instance.name}`)
       setInstalledVersions(prev => new Set([...prev, instance.id]))
       toast.success(`${t("instances.instanceInstalled")}: "${instance.name}"`)
     } catch (err) {
@@ -735,6 +744,7 @@ export function Instances() {
   }, [startInstallation])
 
   const handleLaunch = useCallback(async (instance: Instance) => {
+    console.log(`[Instances] Launching instance: ${instance.name}`)
     setError(null)
     setLaunchingInstance(instance.id)
     try {
@@ -751,6 +761,7 @@ export function Instances() {
         instanceId: instance.id,
         accountId: account.id
       })
+      console.log(`[Instances] Launch command sent for: ${instance.name} with account: ${account.username}`)
       toast.success(`${t("instances.launchingInstance")} "${instance.name}"`)
     } catch (err) {
       console.error("Failed to launch instance:", err)
@@ -816,9 +827,11 @@ export function Instances() {
   }
 
   const handleStop = useCallback(async (instanceId: string) => {
+    console.log(`[Instances] Stopping instance: ${instanceId}`)
     setStoppingInstance(instanceId)
     try {
       await invoke("stop_instance", { instanceId })
+      console.log(`[Instances] Instance stopped: ${instanceId}`)
       setRunningInstances(prev => {
         const newSet = new Set(prev)
         newSet.delete(instanceId)

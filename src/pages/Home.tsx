@@ -69,12 +69,14 @@ export function Home() {
   const [instanceIcons, setInstanceIcons] = useState<Record<string, string | null>>({})
 
   const loadData = useCallback(async () => {
+    console.log("[Home] Loading dashboard data...")
     try {
       const [instancesResult, accountResult, modsCount] = await Promise.all([
         invoke<Instance[]>("get_instances"),
         invoke<Account | null>("get_active_account"),
         invoke<number>("get_total_mod_count"),
       ])
+      console.log(`[Home] Loaded ${instancesResult.length} instances, ${modsCount} mods, account: ${accountResult?.username || "none"}`)
       setInstances(instancesResult)
       setActiveAccount(accountResult)
       setTotalMods(modsCount)
@@ -113,6 +115,7 @@ export function Home() {
   }, [])
 
   useEffect(() => {
+    console.log("[Home] Page mounted")
     loadData()
   }, [loadData])
 
@@ -228,6 +231,7 @@ export function Home() {
 
     if (instanceStatus === "not_installed") {
       // Install first
+      console.log(`[Home] Installing instance: ${selectedInstance.name}`)
       setInstanceStatus("installing")
       setInstallProgress({ current: 0, message: t("home.startingInstall") })
       try {
@@ -243,8 +247,10 @@ export function Home() {
 
     if (instanceStatus === "running") {
       // Stop the instance
+      console.log(`[Home] Stopping instance: ${selectedInstance.name}`)
       try {
         await invoke("stop_instance", { instanceId: selectedInstance.id })
+        console.log(`[Home] Instance stopped: ${selectedInstance.name}`)
         toast.success(t("home.instanceStopped"))
       } catch (err) {
         console.error("Failed to stop:", err)
@@ -254,12 +260,14 @@ export function Home() {
     }
 
     // Launch
+    console.log(`[Home] Launching instance: ${selectedInstance.name} with account: ${activeAccount.username}`)
     setIsLaunching(true)
     try {
       await invoke("launch_instance", {
         instanceId: selectedInstance.id,
         accountId: activeAccount.id
       })
+      console.log(`[Home] Launch command sent for: ${selectedInstance.name}`)
     } catch (err) {
       console.error("Failed to launch:", err)
       toast.error(`${t("home.launchError")}: ${err}`)

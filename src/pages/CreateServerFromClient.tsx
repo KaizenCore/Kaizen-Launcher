@@ -194,6 +194,7 @@ export function CreateServerFromClient() {
     async function loadEnrichAndAnalyze() {
       if (!instanceId) return
 
+      console.log(`[CreateServerFromClient] Loading instance: ${instanceId}`)
       setIsLoading(true)
       try {
         // Load instance
@@ -211,11 +212,13 @@ export function CreateServerFromClient() {
           return
         }
 
+        console.log(`[CreateServerFromClient] Instance loaded: ${inst.name}`)
         setInstance(inst)
         setServerName(`${inst.name} Server`)
         setIsLoading(false)
 
         // Step 1: Enrich mods without metadata
+        console.log("[CreateServerFromClient] Enriching mods metadata...")
         setProcessingStep("enriching")
         setProgressPercent(10)
 
@@ -224,6 +227,7 @@ export function CreateServerFromClient() {
         })
         if (!mounted) return
 
+        console.log(`[CreateServerFromClient] Enriched ${enrichResult.enriched_count} mods`)
         setProgressPercent(50)
 
         if (enrichResult.enriched_count > 0) {
@@ -231,6 +235,7 @@ export function CreateServerFromClient() {
         }
 
         // Step 2: Analyze mods for server compatibility
+        console.log("[CreateServerFromClient] Analyzing mods for server compatibility...")
         setProcessingStep("analyzing")
         setProgressPercent(70)
 
@@ -239,12 +244,13 @@ export function CreateServerFromClient() {
         })
         if (!mounted) return
 
+        console.log(`[CreateServerFromClient] Analysis complete: ${result.server_compatible.length} compatible, ${result.client_only.length} client-only, ${result.unknown.length} unknown`)
         setAnalysis(result)
         setProgressPercent(100)
         setProcessingStep("ready")
       } catch (error) {
         if (!mounted) return
-        console.error("Failed to load/analyze:", error)
+        console.error("[CreateServerFromClient] Failed to load/analyze:", error)
         toast.error(String(error))
         setProcessingStep("idle")
       }
@@ -259,6 +265,7 @@ export function CreateServerFromClient() {
   const handleReEnrich = useCallback(async () => {
     if (!instance) return
 
+    console.log(`[CreateServerFromClient] Re-enriching mods for: ${instance.name}`)
     setProcessingStep("enriching")
     setProgressPercent(10)
 
@@ -267,6 +274,7 @@ export function CreateServerFromClient() {
         instanceId: instance.id
       })
 
+      console.log(`[CreateServerFromClient] Re-enriched ${enrichResult.enriched_count} mods`)
       setProgressPercent(50)
 
       if (enrichResult.enriched_count > 0) {
@@ -276,6 +284,7 @@ export function CreateServerFromClient() {
       }
 
       // Re-analyze
+      console.log("[CreateServerFromClient] Re-analyzing mods...")
       setProcessingStep("analyzing")
       setProgressPercent(70)
 
@@ -283,11 +292,12 @@ export function CreateServerFromClient() {
         instanceId: instance.id
       })
 
+      console.log(`[CreateServerFromClient] Re-analysis complete: ${result.server_compatible.length} compatible`)
       setAnalysis(result)
       setProgressPercent(100)
       setProcessingStep("ready")
     } catch (error) {
-      console.error("Failed to re-enrich:", error)
+      console.error("[CreateServerFromClient] Failed to re-enrich:", error)
       toast.error(String(error))
       setProcessingStep("ready")
     }
@@ -394,6 +404,7 @@ export function CreateServerFromClient() {
   const handleCreate = useCallback(async () => {
     if (!analysis || !instance || !serverName.trim()) return
 
+    console.log(`[CreateServerFromClient] Creating server: ${serverName.trim()} from ${instance.name}`)
     setProcessingStep("creating")
     try {
       // Include required mods, active optional mods, and selected unknown mods
@@ -402,6 +413,8 @@ export function CreateServerFromClient() {
         ...activeOptionalMods.map(m => m.filename),
         ...Array.from(selectedUnknownMods)
       ]
+
+      console.log(`[CreateServerFromClient] Including ${modsToInclude.length} mods`)
 
       const options: CreateServerFromClientOptions = {
         source_instance_id: instance.id,
@@ -413,28 +426,33 @@ export function CreateServerFromClient() {
 
       const newInstance = await invoke<Instance>("create_server_from_client", { options })
 
+      console.log(`[CreateServerFromClient] Server created: ${newInstance.name} (${newInstance.id})`)
+
       // Check for dependency issues after creation
       setProcessingStep("checking_deps")
       try {
+        console.log("[CreateServerFromClient] Checking dependencies...")
         const issues = await invoke<DetectedIssue[]>("check_server_dependencies", {
           instanceId: newInstance.id
         })
 
         if (issues && issues.length > 0) {
+          console.warn(`[CreateServerFromClient] ${issues.length} dependency issues found`)
           // Show warning but still navigate
           toast.warning(t("serverFromClient.dependencyWarning", { count: issues.length }))
         } else {
+          console.log("[CreateServerFromClient] No dependency issues")
           toast.success(t("serverFromClient.success", { name: newInstance.name }))
         }
       } catch (depError) {
-        console.warn("Failed to check dependencies:", depError)
+        console.warn("[CreateServerFromClient] Failed to check dependencies:", depError)
         // Don't block navigation for dependency check failure
         toast.success(t("serverFromClient.success", { name: newInstance.name }))
       }
 
       navigate(`/instances/${newInstance.id}`)
     } catch (error) {
-      console.error("Failed to create server:", error)
+      console.error("[CreateServerFromClient] Failed to create server:", error)
       toast.error(String(error))
       setProcessingStep("ready")
     }

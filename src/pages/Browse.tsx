@@ -8,7 +8,10 @@ export function Browse() {
   const { t } = useTranslation()
   const navigate = useNavigate()
 
+  console.log("[Browse] Page rendered")
+
   const handleModpackInstalled = () => {
+    console.log("[Browse] Modpack installed, navigating to instances")
     // Navigate to instances page after installing a modpack
     navigate("/instances")
   }

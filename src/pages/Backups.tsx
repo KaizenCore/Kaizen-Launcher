@@ -115,12 +115,14 @@ export function Backups() {
   const [isRestoring, setIsRestoring] = useState(false)
 
   const loadData = async () => {
+    console.log("[Backups] Loading backup data...")
     try {
       const [backupsResult, statsResult, instancesResult] = await Promise.all([
         invoke<GlobalBackupInfo[]>("get_all_backups"),
         invoke<BackupStats>("get_backup_stats"),
         invoke<Instance[]>("get_instances"),
       ])
+      console.log(`[Backups] Loaded ${backupsResult.length} backups from ${statsResult.instance_count} instances`)
       setBackups(backupsResult)
       setStats(statsResult)
       setInstances(instancesResult)
@@ -142,7 +144,7 @@ export function Backups() {
         setCloudConfig(null)
       }
     } catch (err) {
-      console.error("Failed to load backups:", err)
+      console.error("[Backups] Failed to load backups:", err)
       toast.error(t("backups.loadError"))
     } finally {
       setIsLoading(false)
@@ -256,6 +258,7 @@ export function Backups() {
 
   const handleDelete = async () => {
     if (!selectedBackup) return
+    console.log(`[Backups] Deleting backup: ${selectedBackup.filename}`)
     setIsDeleting(true)
     try {
       await invoke("delete_world_backup", {
@@ -263,11 +266,12 @@ export function Backups() {
         worldName: selectedBackup.world_name,
         backupFilename: selectedBackup.filename,
       })
+      console.log(`[Backups] Backup deleted: ${selectedBackup.filename}`)
       toast.success(t("backups.deleteSuccess"))
       setDeleteDialogOpen(false)
       loadData()
     } catch (err) {
-      console.error("Failed to delete backup:", err)
+      console.error("[Backups] Failed to delete backup:", err)
       toast.error(t("backups.deleteError"))
     } finally {
       setIsDeleting(false)
@@ -276,6 +280,7 @@ export function Backups() {
 
   const handleRestore = async () => {
     if (!selectedBackup || !targetInstanceId) return
+    console.log(`[Backups] Restoring backup: ${selectedBackup.filename} to instance ${targetInstanceId}`)
     setIsRestoring(true)
     try {
       await invoke("restore_backup_to_other_instance", {
@@ -284,10 +289,11 @@ export function Backups() {
         backupFilename: selectedBackup.filename,
         targetInstanceId,
       })
+      console.log(`[Backups] Backup restored: ${selectedBackup.filename}`)
       toast.success(t("backups.restoreSuccess"))
       setRestoreDialogOpen(false)
     } catch (err) {
-      console.error("Failed to restore backup:", err)
+      console.error("[Backups] Failed to restore backup:", err)
       toast.error(t("backups.restoreError"))
     } finally {
       setIsRestoring(false)

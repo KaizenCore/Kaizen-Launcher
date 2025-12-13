@@ -147,21 +147,24 @@ export function Skins() {
 
   // Load active account and profile
   const loadProfile = useCallback(async () => {
+    console.log("[Skins] Loading skin profile...")
     setIsLoading(true)
     try {
       const account = await invoke<Account | null>("get_active_account")
       setActiveAccount(account)
 
       if (account) {
+        console.log(`[Skins] Loading profile for account: ${account.username}`)
         try {
           const skinProfile = await invoke<PlayerSkinProfile>("get_skin_profile", {
             accountId: account.id,
           })
+          console.log(`[Skins] Profile loaded, ${skinProfile.available_capes?.length || 0} capes available`)
           setProfile(skinProfile)
           setSelectedCapeId(skinProfile.current_cape?.id || null)
         } catch (profileErr) {
           // API might fail for offline accounts or expired tokens - that's ok
-          console.warn("Failed to load skin profile:", profileErr)
+          console.warn("[Skins] Failed to load skin profile:", profileErr)
           setProfile({
             uuid: account.uuid,
             username: account.username,
@@ -172,7 +175,7 @@ export function Skins() {
         }
       }
     } catch (err) {
-      console.error("Failed to load account:", err)
+      console.error("[Skins] Failed to load account:", err)
     } finally {
       setIsLoading(false)
     }
@@ -184,13 +187,15 @@ export function Skins() {
 
   // Load favorites
   const loadFavorites = useCallback(async () => {
+    console.log("[Skins] Loading favorite skins...")
     setIsLoadingFavorites(true)
     try {
       const favs = await invoke<FavoriteSkin[]>("get_favorite_skins")
+      console.log(`[Skins] Loaded ${favs.length} favorite skins`)
       setFavorites(favs)
       setFavoritedIds(new Set(favs.map((f) => f.skin_id)))
     } catch (err) {
-      console.error("Failed to load favorites:", err)
+      console.error("[Skins] Failed to load favorites:", err)
     } finally {
       setIsLoadingFavorites(false)
     }
@@ -204,6 +209,7 @@ export function Skins() {
   const handleAddFavorite = async (skin: CommunitySkin) => {
     if (favoritedIds.has(skin.id)) {
       // Already favorited, remove it
+      console.log(`[Skins] Removing favorite: ${skin.name}`)
       const favorite = favorites.find((f) => f.skin_id === skin.id)
       if (favorite) {
         await handleRemoveFavorite(favorite.id)
@@ -211,6 +217,7 @@ export function Skins() {
       return
     }
 
+    console.log(`[Skins] Adding to favorites: ${skin.name}`)
     try {
       await invoke("add_favorite_skin", {
         skinId: skin.id,
@@ -221,22 +228,25 @@ export function Skins() {
         source: skin.source,
         author: skin.author || null,
       })
+      console.log(`[Skins] Added to favorites: ${skin.name}`)
       toast.success(t("skins.addedToFavorites"))
       loadFavorites()
     } catch (err) {
-      console.error("Failed to add favorite:", err)
+      console.error("[Skins] Failed to add favorite:", err)
       toast.error(t("skins.addToFavoritesError"))
     }
   }
 
   // Remove skin from favorites
   const handleRemoveFavorite = async (id: string) => {
+    console.log(`[Skins] Removing favorite with id: ${id}`)
     try {
       await invoke("remove_favorite_skin", { id })
+      console.log(`[Skins] Favorite removed: ${id}`)
       toast.success(t("skins.removedFromFavorites"))
       loadFavorites()
     } catch (err) {
-      console.error("Failed to remove favorite:", err)
+      console.error("[Skins] Failed to remove favorite:", err)
       toast.error(t("skins.removeFromFavoritesError"))
     }
   }
@@ -254,6 +264,7 @@ export function Skins() {
 
   // Load community skins
   const loadCommunitySkins = useCallback(async (page = 1, append = false) => {
+    console.log(`[Skins] Loading community skins (mode: ${browseMode}, page: ${page})`)
     setIsSearching(true)
     try {
       let response: SearchSkinsResponse
@@ -261,6 +272,7 @@ export function Skins() {
       if (browseMode === "search" && searchQuery.trim()) {
         // If searching by player name
         if (searchType === "player") {
+          console.log(`[Skins] Searching player skin: ${searchQuery}`)
           const playerSkin = await invoke<CommunitySkin | null>("search_player_skin", {
             username: searchQuery,
           })
@@ -272,6 +284,7 @@ export function Skins() {
           }
         } else {
           // Gallery search
+          console.log(`[Skins] Searching gallery: "${searchQuery}"`)
           response = await invoke<SearchSkinsResponse>("search_community_skins", {
             query: searchQuery,
             page,
@@ -283,6 +296,7 @@ export function Skins() {
         response = await invoke<SearchSkinsResponse>("get_trending_skins", { page })
       }
 
+      console.log(`[Skins] Found ${response.skins.length} skins (total: ${response.total})`)
       if (append) {
         setCommunitySkins((prev) => [...prev, ...response.skins])
       } else {
@@ -291,7 +305,7 @@ export function Skins() {
       setSearchPage(page)
       setHasMore(response.has_more)
     } catch (err) {
-      console.error("Failed to load community skins:", err)
+      console.error("[Skins] Failed to load community skins:", err)
       // Don't show error toast - just show empty state
       if (!append) {
         setCommunitySkins([])
@@ -321,6 +335,7 @@ export function Skins() {
   const handleApplySkin = async () => {
     if (!skinToApply || !activeAccount) return
 
+    console.log(`[Skins] Applying skin: ${skinToApply.name} (variant: ${applyVariant})`)
     setIsApplying(true)
     try {
       await invoke("apply_skin", {
@@ -328,11 +343,12 @@ export function Skins() {
         skinUrl: skinToApply.url,
         variant: applyVariant,
       })
+      console.log(`[Skins] Skin applied successfully: ${skinToApply.name}`)
       toast.success(t("skins.skinApplied"))
       setSkinToApply(null)
       loadProfile()
     } catch (err) {
-      console.error("Failed to apply skin:", err)
+      console.error("[Skins] Failed to apply skin:", err)
       toast.error(t("skins.skinApplyError"))
     } finally {
       setIsApplying(false)
@@ -343,13 +359,15 @@ export function Skins() {
   const handleResetSkin = async () => {
     if (!activeAccount) return
 
+    console.log(`[Skins] Resetting skin for account: ${activeAccount.username}`)
     setIsApplying(true)
     try {
       await invoke("reset_skin", { accountId: activeAccount.id })
+      console.log("[Skins] Skin reset successfully")
       toast.success(t("skins.skinReset"))
       loadProfile()
     } catch (err) {
-      console.error("Failed to reset skin:", err)
+      console.error("[Skins] Failed to reset skin:", err)
       toast.error(t("skins.skinApplyError"))
     } finally {
       setIsApplying(false)
@@ -360,15 +378,17 @@ export function Skins() {
   const handleSetCape = async (cape: Cape | null) => {
     if (!activeAccount || isOfflineAccount) return
 
+    console.log(`[Skins] Setting cape: ${cape?.name || "none"}`)
     setSelectedCapeId(cape?.id || null)
     try {
       await invoke("set_active_cape", {
         accountId: activeAccount.id,
         capeId: cape?.id || null,
       })
+      console.log(`[Skins] Cape ${cape ? "set" : "hidden"} successfully`)
       toast.success(cape ? t("skins.capeSet") : t("skins.capeHidden"))
     } catch (err) {
-      console.error("Failed to set cape:", err)
+      console.error("[Skins] Failed to set cape:", err)
       toast.error(t("skins.capeError"))
       // Revert UI
       setSelectedCapeId(profile?.current_cape?.id || null)
@@ -377,6 +397,7 @@ export function Skins() {
 
   // Upload from file
   const handleUploadFile = async () => {
+    console.log("[Skins] Opening file picker for skin upload...")
     try {
       const selected = await open({
         multiple: false,
@@ -384,17 +405,19 @@ export function Skins() {
       })
 
       if (selected && activeAccount) {
+        console.log(`[Skins] Uploading skin from file: ${selected}`)
         setIsUploading(true)
         await invoke("apply_skin_from_file", {
           accountId: activeAccount.id,
           filePath: selected,
           variant: uploadVariant,
         })
+        console.log("[Skins] Skin uploaded successfully from file")
         toast.success(t("skins.uploadSuccess"))
         loadProfile()
       }
     } catch (err) {
-      console.error("Failed to upload skin:", err)
+      console.error("[Skins] Failed to upload skin:", err)
       toast.error(t("skins.uploadError"))
     } finally {
       setIsUploading(false)
@@ -405,6 +428,7 @@ export function Skins() {
   const handleUploadUrl = async () => {
     if (!uploadUrl.trim() || !activeAccount) return
 
+    console.log(`[Skins] Uploading skin from URL: ${uploadUrl}`)
     setIsUploading(true)
     try {
       await invoke("apply_skin", {
@@ -412,11 +436,12 @@ export function Skins() {
         skinUrl: uploadUrl,
         variant: uploadVariant,
       })
+      console.log("[Skins] Skin uploaded successfully from URL")
       toast.success(t("skins.uploadSuccess"))
       setUploadUrl("")
       loadProfile()
     } catch (err) {
-      console.error("Failed to upload skin from URL:", err)
+      console.error("[Skins] Failed to upload skin from URL:", err)
       toast.error(t("skins.uploadError"))
     } finally {
       setIsUploading(false)
@@ -427,6 +452,7 @@ export function Skins() {
   const handleScreenshot = async () => {
     if (!viewerRef.current) return
 
+    console.log("[Skins] Taking screenshot...")
     const dataUrl = viewerRef.current.takeScreenshot()
     if (!dataUrl) {
       toast.error(t("skins.screenshotError"))
@@ -440,14 +466,16 @@ export function Skins() {
       })
 
       if (filePath) {
+        console.log(`[Skins] Saving screenshot to: ${filePath}`)
         // Convert data URL to binary
         const base64Data = dataUrl.replace(/^data:image\/png;base64,/, "")
         const binaryData = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
         await writeFile(filePath, binaryData)
+        console.log("[Skins] Screenshot saved")
         toast.success(t("skins.screenshotSaved"))
       }
     } catch (err) {
-      console.error("Failed to save screenshot:", err)
+      console.error("[Skins] Failed to save screenshot:", err)
       toast.error(t("skins.screenshotError"))
     }
   }

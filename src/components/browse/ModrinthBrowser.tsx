@@ -450,6 +450,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
 
   // Search function that uses current filters
   const performSearch = useCallback(async (query: string, cats: string[], sort: string, page: number = 1) => {
+    console.log(`[Modrinth] Searching ${projectType}: "${query || "(popular)"}" (page ${page}, sort: ${sort})`)
     setIsSearching(true)
     setHasSearched(true)
     try {
@@ -464,6 +465,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         offset: offset,
         limit: ITEMS_PER_PAGE,
       })
+      console.log(`[Modrinth] Found ${response.total_hits} results`)
       setSearchResults(response.results)
       setTotalHits(response.total_hits)
       setCurrentPage(page)
@@ -598,11 +600,13 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
   const checkAndInstall = async (mod: ModSearchResult, versionId: string) => {
     // Check if the mod is already installed
     if (installedModIds.has(mod.project_id)) {
+      console.log(`[Modrinth] ${mod.title} is already installed`)
       toast.error(`${mod.title} ${t("modrinth.alreadyInstalled")}`)
       setInstallingModId(null)
       return
     }
 
+    console.log(`[Modrinth] Checking dependencies for: ${mod.title}`)
     setIsLoadingDeps(true)
     try {
       const deps = await invoke<DependencyInfo[]>("get_mod_dependencies", {
@@ -613,6 +617,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
 
       // Filter out already installed dependencies
       const notInstalledDeps = deps.filter(d => !installedModIds.has(d.project_id))
+      console.log(`[Modrinth] ${mod.title} has ${notInstalledDeps.length} dependencies to install`)
 
       if (notInstalledDeps.length > 0) {
         // Has dependencies that are not installed - show dialog
@@ -627,7 +632,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         await doInstall(mod, versionId, [])
       }
     } catch (err) {
-      console.error("Failed to check dependencies:", err)
+      console.error("[Modrinth] Failed to check dependencies:", err)
       // Install anyway if we can't check dependencies
       await doInstall(mod, versionId, [])
     } finally {
@@ -637,6 +642,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
 
   // Actually install the mod and selected dependencies
   const doInstall = async (mod: ModSearchResult, versionId: string, depsToInstall: DependencyInfo[]) => {
+    console.log(`[Modrinth] Installing ${mod.title}${depsToInstall.length > 0 ? ` with ${depsToInstall.length} dependencies` : ""}`)
     setIsInstalling(true)
     setInstallingModId(mod.project_id)
     const toastId = `install-${mod.project_id}`
@@ -652,6 +658,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
         versionId: versionId,
         projectType: projectType,
       })
+      console.log(`[Modrinth] Main ${projectType} installed: ${mod.title}`)
 
       // Then install dependencies if any
       if (depsToInstall.length > 0) {
@@ -732,6 +739,7 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
   }
 
   const handleQuickInstall = async (mod: ModSearchResult) => {
+    console.log(`[Modrinth] Quick installing: ${mod.title}`)
     setInstallingModId(mod.project_id)
     const toastId = `install-${mod.project_id}`
     toast.loading(t("modrinth.checkingDeps"), { id: toastId })
@@ -745,15 +753,17 @@ export function ModrinthBrowser({ instanceId, mcVersion, loader, isServer: _isSe
       })
 
       if (versions.length === 0) {
+        console.warn(`[Modrinth] No compatible version found for: ${mod.title}`)
         toast.error(t("modrinth.noCompatibleVersionFound"), { id: toastId })
         setInstallingModId(null)
         return
       }
 
+      console.log(`[Modrinth] Installing version ${versions[0].version_number} of ${mod.title}`)
       toast.dismiss(toastId)
       await checkAndInstall(mod, versions[0].id)
     } catch (err) {
-      console.error(`Failed to install ${itemLabelSingular}:`, err)
+      console.error(`[Modrinth] Failed to install ${itemLabelSingular}:`, err)
       toast.error(`${t("errors.installError")}: ${err}`, { id: toastId })
       setInstallingModId(null)
     } finally {

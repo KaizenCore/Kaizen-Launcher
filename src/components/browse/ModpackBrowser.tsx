@@ -269,6 +269,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
 
   // Modpack selection
   const handleSelectModpack = async (modpack: ModpackSearchResult) => {
+    console.log(`[ModpackBrowser] Selected modpack: ${modpack.title} (${modpack.project_id})`)
     setSelectedModpack(modpack)
     setIsLoadingVersions(true)
     setModpackVersions([])
@@ -280,12 +281,13 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
         gameVersion: null,
         loader: null,
       })
+      console.log(`[ModpackBrowser] Loaded ${versions.length} versions for ${modpack.title}`)
       setModpackVersions(versions)
       if (versions.length > 0) {
         setSelectedVersion(versions[0].id)
       }
     } catch (err) {
-      console.error("Failed to load versions:", err)
+      console.error("[ModpackBrowser] Failed to load versions:", err)
       toast.error(t("errors.loadError"))
     } finally {
       setIsLoadingVersions(false)
@@ -295,6 +297,8 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
   // Install modpack
   const handleInstall = async () => {
     if (!selectedModpack || !selectedVersion) return
+
+    console.log(`[ModpackBrowser] Installing modpack: ${selectedModpack.title} (version: ${selectedVersion})`)
 
     // Start tracking in global store with modpack prefix
     const trackingId = `modpack_${selectedModpack.project_id}`
@@ -311,21 +315,25 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
         instanceName: null,
       })
 
+      console.log(`[ModpackBrowser] Modpack files installed, instance ID: ${result.instance_id}`)
+
       // Migrate tracking from temporary ID to real instance ID
       const store = useInstallationStore.getState()
       store.migrateInstallation(trackingId, result.instance_id)
       store.setStep(result.instance_id, "minecraft")
 
       // Step 2: Install Minecraft with the loader
+      console.log(`[ModpackBrowser] Installing Minecraft for modpack instance: ${result.instance_id}`)
       await invoke("install_instance", {
         instanceId: result.instance_id,
       })
 
+      console.log(`[ModpackBrowser] Modpack installation completed: ${selectedModpack.title}`)
       // Refresh the installed modpacks list
       loadInstalledModpacks()
       onInstalled?.()
     } catch (err) {
-      console.error("Failed to install modpack:", err)
+      console.error("[ModpackBrowser] Failed to install modpack:", err)
       toast.error(`${t("common.error")}: ${err}`)
       // Cancel the installation tracking on error
       useInstallationStore.getState().cancelInstallation(trackingId)

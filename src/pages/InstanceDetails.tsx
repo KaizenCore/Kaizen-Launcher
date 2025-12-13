@@ -238,8 +238,10 @@ export function InstanceDetails() {
 
   const loadInstance = async () => {
     if (!instanceId) return
+    console.log(`[InstanceDetails] Loading instance: ${instanceId}`)
     try {
       const result = await invoke<Instance>("get_instance", { instanceId })
+      console.log(`[InstanceDetails] Loaded instance: ${result.name} (MC ${result.mc_version}, ${result.loader || "vanilla"})`)
       setInstance(result)
       setName(result.name)
       setMemoryMin(result.memory_min_mb)
@@ -251,7 +253,7 @@ export function InstanceDetails() {
         isInitialLoadRef.current = false
       }, 100)
     } catch (err) {
-      console.error("Failed to load instance:", err)
+      console.error("[InstanceDetails] Failed to load instance:", err)
     } finally {
       setIsLoading(false)
     }
@@ -293,12 +295,14 @@ export function InstanceDetails() {
   // Load mods for this instance - memoized to prevent unnecessary re-renders
   const loadMods = useCallback(async () => {
     if (!instanceId) return
+    console.log(`[InstanceDetails] Loading mods for instance: ${instanceId}`)
     setIsLoadingMods(true)
     try {
       const modsData = await invoke<ModInfo[]>("get_instance_mods", { instanceId })
+      console.log(`[InstanceDetails] Loaded ${modsData.length} mods`)
       setMods(modsData)
     } catch (err) {
-      console.error("Failed to load mods:", err)
+      console.error("[InstanceDetails] Failed to load mods:", err)
     } finally {
       setIsLoadingMods(false)
     }
@@ -306,13 +310,14 @@ export function InstanceDetails() {
 
   const handleToggleMod = useCallback(async (filename: string, enabled: boolean) => {
     if (!instanceId) return
+    console.log(`[InstanceDetails] Toggling mod: ${filename} -> ${enabled ? "enabled" : "disabled"}`)
     try {
       await invoke("toggle_mod", { instanceId, filename, enabled })
       toast.success(enabled ? t("instanceDetails.modEnabled") : t("instanceDetails.modDisabled"))
       loadMods()
     } catch (err) {
       toast.error(t("instanceDetails.modToggleError"))
-      console.error("Failed to toggle mod:", err)
+      console.error("[InstanceDetails] Failed to toggle mod:", err)
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [instanceId, loadMods])
@@ -547,17 +552,20 @@ export function InstanceDetails() {
       toast.error(t("instanceDetails.noActiveAccount"))
       return
     }
+    console.log(`[InstanceDetails] Launching instance: ${instance?.name || instanceId}`)
     setIsLaunching(true)
     setLaunchError(null)
 
     // Auto-backup worlds before launch if enabled
     if (autoBackupEnabled) {
+      console.log("[InstanceDetails] Running auto-backup before launch...")
       toast.loading(t("instanceDetails.backingUpWorlds"), { id: "auto-backup" })
       try {
         await invoke("auto_backup_worlds", { instanceId })
+        console.log("[InstanceDetails] Auto-backup completed")
         toast.success(t("instanceDetails.backupComplete"), { id: "auto-backup" })
       } catch (err) {
-        console.warn("Auto-backup failed:", err)
+        console.warn("[InstanceDetails] Auto-backup failed:", err)
         toast.warning(t("instanceDetails.backupWarning"), { id: "auto-backup" })
       }
     }
@@ -565,9 +573,10 @@ export function InstanceDetails() {
     toast.loading(t("instanceDetails.starting"), { id: "launch-instance" })
     try {
       await invoke("launch_instance", { instanceId, accountId: activeAccountId })
+      console.log(`[InstanceDetails] Instance launched: ${instance?.name || instanceId}`)
       toast.success(t("instanceDetails.started"), { id: "launch-instance" })
     } catch (err) {
-      console.error("Failed to launch instance:", err)
+      console.error("[InstanceDetails] Failed to launch instance:", err)
       setLaunchError(`${t("errors.launchFailed")}: ${err}`)
       toast.error(`${t("errors.launchFailed")}: ${err}`, { id: "launch-instance" })
     } finally {
@@ -608,11 +617,13 @@ export function InstanceDetails() {
 
   const handleStop = async () => {
     if (!instanceId) return
+    console.log(`[InstanceDetails] Stopping instance: ${instance?.name || instanceId}`)
     try {
       await invoke("stop_instance", { instanceId })
+      console.log(`[InstanceDetails] Instance stopped: ${instance?.name || instanceId}`)
       toast.success(t("instances.instanceStopped"))
     } catch (err) {
-      console.error("Failed to stop instance:", err)
+      console.error("[InstanceDetails] Failed to stop instance:", err)
       setLaunchError(`${t("instances.unableToStop")}: ${err}`)
       toast.error(`${t("instances.unableToStop")}: ${err}`)
     }

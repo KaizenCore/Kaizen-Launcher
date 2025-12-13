@@ -142,16 +142,18 @@ export function ModpackDetails() {
   const loadProject = useCallback(async () => {
     if (!projectId) return
 
+    console.log(`[ModpackDetails] Loading project: ${projectId}`)
     setLoading(true)
     try {
       const [projectData, installedIds] = await Promise.all([
         invoke<Project>("get_modrinth_mod_details", { projectId }),
         invoke<string[]>("get_installed_modpack_ids"),
       ])
+      console.log(`[ModpackDetails] Project loaded: ${projectData.title}`)
       setProject(projectData)
       setIsInstalled(installedIds.includes(projectId))
     } catch (err) {
-      console.error("Failed to load project:", err)
+      console.error("[ModpackDetails] Failed to load project:", err)
       toast.error(t("browse.modpackLoadError"))
     } finally {
       setLoading(false)
@@ -161,6 +163,7 @@ export function ModpackDetails() {
   const loadVersions = useCallback(async () => {
     if (!projectId) return
 
+    console.log(`[ModpackDetails] Loading versions for: ${projectId}`)
     setLoadingVersions(true)
     try {
       const versionsData = await invoke<ModpackVersion[]>("get_modrinth_mod_versions", {
@@ -168,12 +171,13 @@ export function ModpackDetails() {
         gameVersion: null,
         loader: null,
       })
+      console.log(`[ModpackDetails] Loaded ${versionsData.length} versions`)
       setVersions(versionsData)
       if (versionsData.length > 0) {
         setSelectedVersion(versionsData[0].id)
       }
     } catch (err) {
-      console.error("Failed to load versions:", err)
+      console.error("[ModpackDetails] Failed to load versions:", err)
     } finally {
       setLoadingVersions(false)
     }
@@ -187,6 +191,8 @@ export function ModpackDetails() {
   const handleInstall = async () => {
     if (!projectId || !selectedVersion || !project) return
 
+    console.log(`[ModpackDetails] Installing modpack: ${project.title} (version: ${selectedVersion})`)
+
     // Start tracking in global store with modpack prefix
     const trackingId = `modpack_${projectId}`
     startInstallation(trackingId, project.title, "modpack")
@@ -199,20 +205,24 @@ export function ModpackDetails() {
         instanceName: null,
       })
 
+      console.log(`[ModpackDetails] Modpack files installed, instance ID: ${result.instance_id}`)
+
       // Migrate tracking from temporary ID to real instance ID
       const store = useInstallationStore.getState()
       store.migrateInstallation(trackingId, result.instance_id)
       store.setStep(result.instance_id, "minecraft")
 
       // Step 2: Install Minecraft with the loader
+      console.log(`[ModpackDetails] Installing Minecraft for instance: ${result.instance_id}`)
       await invoke("install_instance", {
         instanceId: result.instance_id,
       })
 
+      console.log(`[ModpackDetails] Modpack installation completed: ${project.title}`)
       // Update installed status
       setIsInstalled(true)
     } catch (err) {
-      console.error("Failed to install modpack:", err)
+      console.error("[ModpackDetails] Failed to install modpack:", err)
       toast.error(`Error: ${err}`)
       // Cancel the installation tracking on error
       useInstallationStore.getState().cancelInstallation(trackingId)

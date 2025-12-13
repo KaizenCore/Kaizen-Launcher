@@ -55,6 +55,7 @@ export function AddAccountDialog({
   }, [])
 
   const startLogin = async () => {
+    console.log("[AddAccount] Starting Microsoft login...")
     setStatus("device_code")
     setError(null)
     setCopied(false)
@@ -62,12 +63,14 @@ export function AddAccountDialog({
     try {
       // Step 1: Get device code
       const codeInfo = await invoke<DeviceCodeInfo>("login_microsoft_start")
+      console.log(`[AddAccount] Device code received: ${codeInfo.user_code}`)
       setDeviceCode(codeInfo)
 
       // Open browser automatically
       openUrl(codeInfo.verification_uri)
 
       // Step 2: Start polling in background
+      console.log("[AddAccount] Waiting for user to complete authentication...")
       setStatus("waiting")
 
       await invoke("login_microsoft_complete", {
@@ -76,6 +79,7 @@ export function AddAccountDialog({
         expiresIn: codeInfo.expires_in,
       })
 
+      console.log("[AddAccount] Microsoft login successful!")
       setStatus("success")
       const timeout = setTimeout(() => {
         onOpenChange(false)
@@ -84,6 +88,7 @@ export function AddAccountDialog({
       }, 1500)
       timeoutRefs.current.push(timeout)
     } catch (err) {
+      console.error("[AddAccount] Microsoft login failed:", err)
       setError(err instanceof Error ? err.message : String(err))
       setStatus("error")
     }
@@ -95,11 +100,13 @@ export function AddAccountDialog({
       return
     }
 
+    console.log(`[AddAccount] Creating offline account: ${offlineUsername.trim()}`)
     setStatus("waiting")
     setError(null)
 
     try {
       await invoke("create_offline_account", { username: offlineUsername.trim() })
+      console.log(`[AddAccount] Offline account created: ${offlineUsername.trim()}`)
       setStatus("success")
       const timeout = setTimeout(() => {
         onOpenChange(false)
@@ -108,6 +115,7 @@ export function AddAccountDialog({
       }, 1500)
       timeoutRefs.current.push(timeout)
     } catch (err) {
+      console.error("[AddAccount] Failed to create offline account:", err)
       setError(err instanceof Error ? err.message : String(err))
       setStatus("error")
     }

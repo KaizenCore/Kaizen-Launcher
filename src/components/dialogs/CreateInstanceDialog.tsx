@@ -125,6 +125,7 @@ export function CreateInstanceDialog({
   // Fetch versions and used ports when dialog opens
   useEffect(() => {
     if (open) {
+      console.log("[CreateInstance] Dialog opened")
       fetchVersions()
       fetchUsedPorts()
     }
@@ -168,11 +169,13 @@ export function CreateInstanceDialog({
     // Proxies don't need MC versions
     if (mode === "proxy") return
 
+    console.log("[CreateInstance] Fetching Minecraft versions...")
     setIsLoadingVersions(true)
     try {
       const result = await invoke<MinecraftVersionList>("get_minecraft_versions", {
         includeSnapshots: showSnapshots,
       })
+      console.log(`[CreateInstance] Loaded ${result.versions.length} Minecraft versions`)
       setVersions(result.versions)
       setLatestRelease(result.latest_release)
 
@@ -191,12 +194,14 @@ export function CreateInstanceDialog({
   const fetchLoaderVersions = async () => {
     if (loader === "vanilla") return
 
+    console.log(`[CreateInstance] Fetching ${loader} versions for MC ${mcVersion || "proxy"}...`)
     setIsLoadingLoaderVersions(true)
     try {
       const result = await invoke<LoaderVersion[]>("get_loader_versions", {
         loaderType: loader,
         mcVersion: mode !== "proxy" ? mcVersion : null,
       })
+      console.log(`[CreateInstance] Loaded ${result.length} ${loader} versions`)
       setLoaderVersions(result)
 
       // Auto-select recommended (first stable or first)
@@ -223,6 +228,7 @@ export function CreateInstanceDialog({
       return
     }
 
+    console.log(`[CreateInstance] Creating ${mode}: ${name.trim()} (MC ${mcVersion || "N/A"}, ${loader}${loaderVersion ? ` ${loaderVersion}` : ""})`)
     setIsLoading(true)
     setError(null)
 
@@ -236,6 +242,7 @@ export function CreateInstanceDialog({
         isProxy: mode === "proxy",
         serverPort: mode !== "client" ? serverPort : null,
       })
+      console.log(`[CreateInstance] Instance created successfully: ${name.trim()}`)
 
       // Reset form
       setName("")

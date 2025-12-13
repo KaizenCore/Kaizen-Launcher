@@ -27,7 +27,66 @@ use std::sync::Arc;
 use tauri::Manager;
 use tokio::sync::RwLock;
 use tracing::info;
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use tracing_subscriber::{
+    fmt, layer::SubscriberExt, registry::LookupSpan, util::SubscriberInitExt, EnvFilter, Layer,
+};
+
+/// Custom tracing layer that captures logs into the in-memory buffer
+struct LogBufferLayer;
+
+impl<S> Layer<S> for LogBufferLayer
+where
+    S: tracing::Subscriber + for<'a> LookupSpan<'a>,
+{
+    fn on_event(
+        &self,
+        event: &tracing::Event<'_>,
+        _ctx: tracing_subscriber::layer::Context<'_, S>,
+    ) {
+        use tracing_subscriber::field::Visit;
+
+        struct MessageVisitor {
+            message: String,
+        }
+
+        impl Visit for MessageVisitor {
+            fn record_debug(&mut self, field: &tracing::field::Field, value: &dyn std::fmt::Debug) {
+                if field.name() == "message" {
+                    self.message = format!("{:?}", value);
+                    // Remove surrounding quotes from debug output
+                    if self.message.starts_with('"') && self.message.ends_with('"') {
+                        self.message = self.message[1..self.message.len() - 1].to_string();
+                    }
+                }
+            }
+
+            fn record_str(&mut self, field: &tracing::field::Field, value: &str) {
+                if field.name() == "message" {
+                    self.message = value.to_string();
+                }
+            }
+        }
+
+        let mut visitor = MessageVisitor {
+            message: String::new(),
+        };
+        event.record(&mut visitor);
+
+        // Skip empty messages
+        if visitor.message.is_empty() {
+            return;
+        }
+
+        let entry = devtools::LogEntry {
+            timestamp: chrono::Utc::now().to_rfc3339(),
+            level: event.metadata().level().to_string(),
+            target: event.metadata().target().to_string(),
+            message: visitor.message,
+        };
+
+        devtools::push_log(entry);
+    }
+}
 
 /// Initialize the logging system with file and console output
 fn init_logging(data_dir: &std::path::Path) -> anyhow::Result<()> {
@@ -41,7 +100,7 @@ fn init_logging(data_dir: &std::path::Path) -> anyhow::Result<()> {
     // Keep the guard alive for the lifetime of the app
     std::mem::forget(_guard);
 
-    // Build the subscriber with both console and file output
+    // Build the subscriber with console, file, and buffer output
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info,sqlx=warn,hyper=warn,reqwest=warn"));
 
@@ -55,6 +114,8 @@ fn init_logging(data_dir: &std::path::Path) -> anyhow::Result<()> {
                 .with_target(true)
                 .with_thread_ids(true),
         )
+        // Add the log buffer layer for dev tools
+        .with(LogBufferLayer)
         .init();
 
     Ok(())
@@ -242,6 +303,17 @@ pub fn run() {
             // DevTools commands
             devtools::get_app_metrics,
             devtools::is_dev_mode,
+            devtools::commands::get_dev_mode_enabled,
+            devtools::commands::set_dev_mode_enabled,
+            devtools::commands::get_bug_report_webhook,
+            devtools::commands::set_bug_report_webhook,
+            devtools::commands::test_bug_report_webhook,
+            devtools::commands::get_recent_logs,
+            devtools::commands::clear_log_buffer,
+            devtools::commands::get_system_info_for_report,
+            devtools::commands::submit_bug_report,
+            devtools::commands::open_log_viewer_window,
+            devtools::commands::close_log_viewer_window,
             // Cloud storage commands
             cloud_storage::commands::get_oauth_availability,
             cloud_storage::commands::get_cloud_storage_config,

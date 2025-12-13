@@ -115,10 +115,21 @@ export const useSharingStore = create<SharingState>()((set, get) => ({
   currentImport: null,
   activeDownloads: new Map(),
 
-  setExportProgress: (progress) => set({ exportProgress: progress }),
-  setCurrentExport: (exportData) => set({ currentExport: exportData }),
+  setExportProgress: (progress) => {
+    if (progress) {
+      console.log(`[SharingStore] Export progress: ${progress.stage} - ${progress.progress}% - ${progress.message}`)
+    }
+    set({ exportProgress: progress })
+  },
+  setCurrentExport: (exportData) => {
+    if (exportData) {
+      console.log(`[SharingStore] Export prepared: ${exportData.manifest.instance.name}`)
+    }
+    set({ currentExport: exportData })
+  },
 
   addSeed: (seed) => {
+    console.log(`[SharingStore] Starting seed: ${seed.instanceName}`)
     set((state) => {
       const newSeeds = new Map(state.activeSeeds)
       newSeeds.set(seed.exportId, seed)
@@ -127,6 +138,7 @@ export const useSharingStore = create<SharingState>()((set, get) => ({
   },
 
   removeSeed: (exportId) => {
+    console.log(`[SharingStore] Stopping seed: ${exportId}`)
     set((state) => {
       const newSeeds = new Map(state.activeSeeds)
       newSeeds.delete(exportId)
@@ -144,10 +156,21 @@ export const useSharingStore = create<SharingState>()((set, get) => ({
     })
   },
 
-  setImportProgress: (progress) => set({ importProgress: progress }),
-  setCurrentImport: (manifest) => set({ currentImport: manifest }),
+  setImportProgress: (progress) => {
+    if (progress) {
+      console.log(`[SharingStore] Import progress: ${progress.stage} - ${progress.progress}% - ${progress.message}`)
+    }
+    set({ importProgress: progress })
+  },
+  setCurrentImport: (manifest) => {
+    if (manifest) {
+      console.log(`[SharingStore] Import manifest loaded: ${manifest.instance.name}`)
+    }
+    set({ currentImport: manifest })
+  },
 
   addDownload: (magnetUri, session) => {
+    console.log(`[SharingStore] Starting download from peer`)
     set((state) => {
       const newDownloads = new Map(state.activeDownloads)
       newDownloads.set(magnetUri, session)
@@ -156,6 +179,7 @@ export const useSharingStore = create<SharingState>()((set, get) => ({
   },
 
   removeDownload: (magnetUri) => {
+    console.log(`[SharingStore] Download removed`)
     set((state) => {
       const newDownloads = new Map(state.activeDownloads)
       newDownloads.delete(magnetUri)

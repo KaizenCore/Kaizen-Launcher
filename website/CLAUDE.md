@@ -63,6 +63,7 @@ php artisan wayfinder:generate
 - **Inertia v2**: Use `<Form>` component with Wayfinder's `.form()` method
 - **Tailwind v4**: CSS-first config via `@theme` directive in `resources/css/app.css`, uses OKLCH color space
 - **Framer Motion**: Animations via `@/components/ui/motion.tsx` wrapper
+- **React Compiler**: Enabled via `babel-plugin-react-compiler` in Vite config for automatic memoization
 
 ### Landing Page Structure
 The public-facing landing page (`resources/js/pages/welcome.tsx`) is composed of:
@@ -124,6 +125,10 @@ import { Link } from '@inertiajs/react'
 Public routes (no auth):
 - `/` - Landing page (welcome.tsx)
 - `/changelog` - Release changelog from GitHub
+- `/terms` - Terms of Service
+- `/privacy` - Privacy Policy
+- `/sitemap.xml` - Dynamic SEO sitemap
+- `/robots.txt` - Dynamic robots.txt
 
 Authenticated routes:
 - `/dashboard` - User dashboard

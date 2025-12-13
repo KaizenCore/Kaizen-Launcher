@@ -53,6 +53,9 @@ pub enum AppError {
     #[error("Security error: {0}")]
     Security(String),
 
+    #[error("DevTools error: {0}")]
+    DevTools(String),
+
     #[error("{0}")]
     Custom(String),
 }

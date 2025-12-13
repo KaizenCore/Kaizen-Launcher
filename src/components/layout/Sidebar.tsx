@@ -131,9 +131,12 @@ export function Sidebar() {
 
       try {
         const account = await invoke<Account | null>("get_active_account")
+        if (account) {
+          console.log(`[Sidebar] Active account loaded: ${account.username}`)
+        }
         setActiveAccount(account)
       } catch (err) {
-        console.error("Failed to load active account:", err)
+        console.error("[Sidebar] Failed to load active account:", err)
       }
     }
 

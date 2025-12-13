@@ -1,9 +1,16 @@
+pub mod bug_report;
+pub mod commands;
+pub mod log_buffer;
+
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use std::sync::Mutex;
 use sysinfo::{Pid, System};
 
 use crate::error::AppResult;
+
+// Re-export types used by lib.rs for log integration
+pub use log_buffer::{push_log, LogEntry};
 
 /// Cached System instance for performance monitoring
 static SYSTEM: Lazy<Mutex<System>> = Lazy::new(|| {

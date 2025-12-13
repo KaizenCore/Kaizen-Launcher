@@ -29,7 +29,9 @@ import {
   Heart,
   Upload,
   Layout,
-  Network
+  Network,
+  Terminal,
+  ScrollText,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -46,6 +48,47 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.5.7",
+    date: "2025-12-13",
+    highlights: [
+      "Dev Tools System",
+      "Log Viewer Window",
+      "Bug Report via Discord",
+    ],
+    features: [
+      {
+        icon: <Terminal className="h-5 w-5" />,
+        title: "Dev Tools System",
+        description: "New Dev Mode toggle in Settings > DevTools. When enabled, access powerful debugging tools with keyboard shortcuts: Ctrl+Shift+D (DevMonitor), Ctrl+Shift+L (Log Viewer), Ctrl+Shift+B (Bug Report).",
+        tag: "new",
+      },
+      {
+        icon: <ScrollText className="h-5 w-5" />,
+        title: "Log Viewer Window",
+        description: "Dedicated window showing real-time logs from both frontend and backend. Filter by log level (info, warn, error), search, pause/resume, and download logs. Perfect for debugging issues.",
+        tag: "new",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Bug Report via Discord",
+        description: "Submit bug reports directly to a Discord webhook. Includes automatic screenshot capture (without the modal visible), system info, and recent logs. Configure your webhook URL in Settings > DevTools.",
+        tag: "new",
+      },
+      {
+        icon: <FileCode className="h-5 w-5" />,
+        title: "Comprehensive Logging",
+        description: "Added detailed console logs throughout the entire application. All user actions, API calls, and state changes are now logged with consistent prefixes like [Home], [Modrinth], [Skins], etc.",
+        tag: "improved",
+      },
+      {
+        icon: <Camera className="h-5 w-5" />,
+        title: "Screenshot Capture Fix",
+        description: "Bug report screenshots are now captured before the dialog appears, ensuring the actual app content is visible instead of the modal overlay.",
+        tag: "fix",
+      },
+    ],
+  },
   {
     version: "0.5.6",
     date: "2025-12-13",

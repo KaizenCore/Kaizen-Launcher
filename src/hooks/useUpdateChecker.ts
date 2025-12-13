@@ -66,6 +66,7 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
   const [dismissed, setDismissed] = useState(false);
 
   const checkForUpdates = useCallback(async () => {
+    console.log("[Updates] Checking for updates (auto)...");
     setChecking(true);
     setError(null);
     setDismissed(false);
@@ -77,6 +78,7 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
         // Get current app version
         const currentVersion = await getVersion();
         const newVersion = result.version;
+        console.log(`[Updates] Update available: ${currentVersion} -> ${newVersion}`);
 
         // Check if this is a major update (0.4.x → 0.5.x)
         const isMajor = isMajorUpdate(currentVersion, newVersion);
@@ -95,11 +97,12 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
         // Dev builds (patch versions) can be installed manually via Settings
         setUpdateAvailable(isMajor);
       } else {
+        console.log("[Updates] No updates available");
         setUpdateAvailable(false);
         setUpdateInfo(null);
       }
     } catch (err) {
-      console.error("Failed to check for updates:", err);
+      console.error("[Updates] Failed to check for updates:", err);
       setError(err instanceof Error ? err.message : "Failed to check for updates");
     } finally {
       setChecking(false);
@@ -108,6 +111,7 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
 
   // Manual check - shows ALL updates including dev builds (patch versions)
   const manualCheckForUpdates = useCallback(async () => {
+    console.log("[Updates] Checking for updates (manual)...");
     setChecking(true);
     setError(null);
     setDismissed(false);
@@ -118,6 +122,7 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
       if (result) {
         const currentVersion = await getVersion();
         const newVersion = result.version;
+        console.log(`[Updates] Update found: ${currentVersion} -> ${newVersion}`);
         const isMajor = isMajorUpdate(currentVersion, newVersion);
         const isStableVer = isStable(newVersion);
 
@@ -133,11 +138,12 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
         // Manual check shows ALL available updates (even patch/dev builds)
         setUpdateAvailable(true);
       } else {
+        console.log("[Updates] No updates available");
         setUpdateAvailable(false);
         setUpdateInfo(null);
       }
     } catch (err) {
-      console.error("Failed to check for updates:", err);
+      console.error("[Updates] Failed to check for updates:", err);
       setError(err instanceof Error ? err.message : "Failed to check for updates");
     } finally {
       setChecking(false);
@@ -147,6 +153,7 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
   const downloadAndInstall = useCallback(async () => {
     if (!update) return;
 
+    console.log(`[Updates] Downloading and installing update: ${update.version}`);
     setInstalling(true);
     setDownloadProgress(0);
     setError(null);
@@ -159,6 +166,7 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
         switch (event.event) {
           case "Started":
             contentLength = event.data.contentLength ?? 0;
+            console.log(`[Updates] Download started: ${Math.round(contentLength / 1024 / 1024)}MB`);
             break;
           case "Progress":
             downloaded += event.data.chunkLength;
@@ -167,15 +175,17 @@ export function useUpdateChecker(autoCheck = true): UseUpdateCheckerReturn {
             }
             break;
           case "Finished":
+            console.log("[Updates] Download complete, installing...");
             setDownloadProgress(100);
             break;
         }
       });
 
+      console.log("[Updates] Update installed, relaunching...");
       // Relaunch the app after install
       await relaunch();
     } catch (err) {
-      console.error("Failed to install update:", err);
+      console.error("[Updates] Failed to install update:", err);
       setError(err instanceof Error ? err.message : "Failed to install update");
       setInstalling(false);
     }
