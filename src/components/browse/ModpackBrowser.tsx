@@ -431,7 +431,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
           <PopoverTrigger asChild>
             <Button variant="outline" className="gap-2">
               <SlidersHorizontal className="h-4 w-4" />
-              {t("modrinth.categories")}
+              {t("browse.categories")}
               {selectedCategories.length > 0 && (
                 <Badge variant="secondary" className="ml-1 px-1.5 py-0 text-xs">
                   {selectedCategories.length}

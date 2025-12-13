@@ -670,10 +670,13 @@
     "installError": "Error installing",
     "modpackLoadError": "Failed to load modpack details",
     "discoverModpacks": "Discover and install modpacks from Modrinth",
+    "discoverContent": "Discover and install modpacks and mods from Modrinth",
     "modsInInstanceDetails": "To install mods, go to an instance's details",
     "viewGrid": "Grid view",
     "viewList": "List view",
-    "viewCompact": "Compact view"
+    "viewCompact": "Compact view",
+    "noModInstances": "No instances with mod support. Create a client instance with Fabric, Forge, NeoForge or Quilt.",
+    "selectInstanceHint": "Select an instance to install mods"
   },
   "server": {
     "console": "Server Console",
@@ -1165,7 +1168,31 @@
     "categoryLightweight": "Lightweight",
     "categoryPotato": "Potato",
     "categorySemiRealistic": "Semi-realistic",
-    "categoryVanillaLike": "Vanilla-like"
+    "categoryVanillaLike": "Vanilla-like",
+    "modInstalled": "{name} installed successfully",
+    "installingTo": "Installing to",
+    "searchError": "Search failed. Please try again.",
+    "categories": {
+      "adventure": "Adventure",
+      "cursed": "Cursed",
+      "decoration": "Decoration",
+      "economy": "Economy",
+      "equipment": "Equipment",
+      "food": "Food",
+      "gameMechanics": "Game Mechanics",
+      "library": "Library",
+      "magic": "Magic",
+      "management": "Management",
+      "minigame": "Minigames",
+      "mobs": "Mobs",
+      "optimization": "Optimization",
+      "social": "Social",
+      "storage": "Storage",
+      "technology": "Technology",
+      "transportation": "Transportation",
+      "utility": "Utility",
+      "worldgen": "World Generation"
+    }
   },
   "modpack": {
     "searchPlaceholder": "Search modpacks on Modrinth...",

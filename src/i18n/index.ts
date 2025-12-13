@@ -13,8 +13,8 @@ export type TranslationKeys = typeof frTranslations;
 const translations: Record<Locale, TranslationKeys> = {
   fr: frTranslations,
   en: enTranslations,
-  de: deTranslations as TranslationKeys,
-  nl: nlTranslations as TranslationKeys,
+  de: deTranslations as unknown as TranslationKeys,
+  nl: nlTranslations as unknown as TranslationKeys,
 };
 
 interface I18nState {

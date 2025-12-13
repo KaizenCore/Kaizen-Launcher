@@ -670,10 +670,13 @@
     "installError": "Erreur lors de l'installation",
     "modpackLoadError": "Erreur lors du chargement des details du modpack",
     "discoverModpacks": "Decouvrez et installez des modpacks depuis Modrinth",
+    "discoverContent": "Decouvrez et installez des modpacks et mods depuis Modrinth",
     "modsInInstanceDetails": "Pour installer des mods, allez dans les details d'une instance",
     "viewGrid": "Vue grille",
     "viewList": "Vue liste",
-    "viewCompact": "Vue compacte"
+    "viewCompact": "Vue compacte",
+    "noModInstances": "Aucune instance avec support de mods. Creez une instance client avec Fabric, Forge, NeoForge ou Quilt.",
+    "selectInstanceHint": "Selectionnez une instance pour installer des mods"
   },
   "server": {
     "console": "Console du serveur",
@@ -1165,7 +1168,31 @@
     "categoryLightweight": "Leger",
     "categoryPotato": "Potato",
     "categorySemiRealistic": "Semi-realiste",
-    "categoryVanillaLike": "Style Vanilla"
+    "categoryVanillaLike": "Style Vanilla",
+    "modInstalled": "{name} installe avec succes",
+    "installingTo": "Installation vers",
+    "searchError": "Echec de la recherche. Veuillez reessayer.",
+    "categories": {
+      "adventure": "Aventure",
+      "cursed": "Maudit",
+      "decoration": "Decoration",
+      "economy": "Economie",
+      "equipment": "Equipement",
+      "food": "Nourriture",
+      "gameMechanics": "Mecaniques de jeu",
+      "library": "Bibliotheque",
+      "magic": "Magie",
+      "management": "Gestion",
+      "minigame": "Mini-jeux",
+      "mobs": "Mobs",
+      "optimization": "Optimisation",
+      "social": "Social",
+      "storage": "Stockage",
+      "technology": "Technologie",
+      "transportation": "Transport",
+      "utility": "Utilitaire",
+      "worldgen": "Generation de monde"
+    }
   },
   "modpack": {
     "searchPlaceholder": "Rechercher des modpacks sur Modrinth...",

@@ -1,4 +1,19 @@
 import { create } from "zustand"
+import { invoke } from "@tauri-apps/api/core"
+
+// Backend type for active shares
+interface BackendActiveShare {
+  share_id: string
+  instance_name: string
+  package_path: string
+  local_port: number
+  public_url: string | null
+  download_count: number
+  uploaded_bytes: number
+  started_at: string
+  file_size: number
+  provider: "bore" | "cloudflare"
+}
 
 export interface SharingProgress {
   operation_id: string
@@ -104,6 +119,9 @@ interface SharingState {
   // Helpers
   isExporting: () => boolean
   isImporting: () => boolean
+
+  // Sync with backend
+  syncWithBackend: () => Promise<void>
 }
 
 export const useSharingStore = create<SharingState>()((set, get) => ({
@@ -199,4 +217,29 @@ export const useSharingStore = create<SharingState>()((set, get) => ({
 
   isExporting: () => get().exportProgress !== null,
   isImporting: () => get().importProgress !== null,
+
+  syncWithBackend: async () => {
+    try {
+      const shares = await invoke<BackendActiveShare[]>("get_active_shares")
+      console.log(`[SharingStore] Synced ${shares.length} active shares from backend`)
+
+      // Convert backend shares to seed sessions
+      const newSeeds = new Map<string, SeedSession>()
+      for (const share of shares) {
+        newSeeds.set(share.share_id, {
+          exportId: share.share_id,
+          instanceName: share.instance_name,
+          packagePath: share.package_path,
+          magnetUri: share.public_url,
+          peerCount: 0,
+          uploadedBytes: share.uploaded_bytes,
+          startedAt: new Date(share.started_at).getTime(),
+        })
+      }
+
+      set({ activeSeeds: newSeeds })
+    } catch (err) {
+      console.error("[SharingStore] Failed to sync with backend:", err)
+    }
+  },
 }))

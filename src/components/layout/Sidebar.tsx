@@ -120,6 +120,12 @@ export function Sidebar() {
   const location = useLocation()
   const [activeAccount, setActiveAccount] = useState<Account | null>(null)
   const activeSeedsCount = useSharingStore((state) => state.activeSeeds.size)
+  const syncSharing = useSharingStore((state) => state.syncWithBackend)
+
+  // Sync sharing store with backend on mount
+  useEffect(() => {
+    syncSharing()
+  }, [syncSharing])
 
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null

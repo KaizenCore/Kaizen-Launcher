@@ -32,6 +32,8 @@ import {
   Network,
   Terminal,
   ScrollText,
+  LayoutGrid,
+  Blocks,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -48,6 +50,65 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.5.8",
+    date: "2025-12-13",
+    highlights: [
+      "Mod Browser",
+      "Multiple View Modes",
+      "Windows Skin/Cape Fix",
+    ],
+    features: [
+      {
+        icon: <Blocks className="h-5 w-5" />,
+        title: "Mod Browser",
+        description: "Browse and install mods from Modrinth directly into your instances. Search by name, filter by category, loader, and game version. Quick install with version selection.",
+        tag: "new",
+      },
+      {
+        icon: <LayoutGrid className="h-5 w-5" />,
+        title: "Multiple View Modes",
+        description: "Browse page now supports Grid, List, and Compact view modes. Your preference is saved locally and persists across sessions.",
+        tag: "new",
+      },
+      {
+        icon: <Shield className="h-5 w-5" />,
+        title: "Windows Skin/Cape Fix",
+        description: "Fixed skin and cape loading on Windows production builds by adding missing CSP domains for MineSkin, Ashcon, Capes.dev, and OptiFine APIs.",
+        tag: "fix",
+      },
+      {
+        icon: <Layout className="h-5 w-5" />,
+        title: "Backups Page Layout",
+        description: "Backups page now properly fills the available space instead of having a fixed height.",
+        tag: "fix",
+      },
+      {
+        icon: <ScrollText className="h-5 w-5" />,
+        title: "Frontend Logs in Log Viewer",
+        description: "Console logs from the main app window are now captured and sent to the backend buffer, making them visible in the Log Viewer (Ctrl+Shift+L).",
+        tag: "improved",
+      },
+      {
+        icon: <Network className="h-5 w-5" />,
+        title: "Modrinth API Rate Limit Fix",
+        description: "Fixed infinite loop causing excessive API calls and 429 rate limit errors when browsing mods. Tabs now only mount the active component.",
+        tag: "fix",
+      },
+      {
+        icon: <Layout className="h-5 w-5" />,
+        title: "Mods Tab Layout",
+        description: "Fixed the Mods tab content being pushed to the bottom of the page instead of aligning to the top.",
+        tag: "fix",
+      },
+      {
+        icon: <Share2 className="h-5 w-5" />,
+        title: "Sharing Badge Sync",
+        description: "Fixed the active shares counter in the sidebar not updating after app restart. The store now syncs with the backend on startup.",
+        tag: "fix",
+      },
+    ],
+  },
   {
     version: "0.5.7",
     date: "2025-12-13",
