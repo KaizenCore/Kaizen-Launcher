@@ -310,6 +310,7 @@ pub fn run() {
             devtools::commands::test_bug_report_webhook,
             devtools::commands::get_recent_logs,
             devtools::commands::clear_log_buffer,
+            devtools::commands::add_frontend_log,
             devtools::commands::get_system_info_for_report,
             devtools::commands::submit_bug_report,
             devtools::commands::open_log_viewer_window,

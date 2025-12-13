@@ -15,6 +15,76 @@ import { useDevModeStore } from "@/stores/devModeStore"
 import { useTheme } from "@/hooks/useTheme"
 import { useUpdateChecker } from "@/hooks/useUpdateChecker"
 
+// Set up console interception to send logs to backend buffer
+// This runs once at module load to capture all console output
+const setupConsoleInterception = (() => {
+  let initialized = false
+
+  return () => {
+    if (initialized) return
+    initialized = true
+
+    const originalConsole = {
+      log: console.log.bind(console),
+      info: console.info.bind(console),
+      warn: console.warn.bind(console),
+      error: console.error.bind(console),
+      debug: console.debug.bind(console),
+    }
+
+    const sendToBackend = (level: string, args: unknown[]) => {
+      const message = args.map(arg => {
+        if (typeof arg === "string") return arg
+        try {
+          return JSON.stringify(arg)
+        } catch {
+          return String(arg)
+        }
+      }).join(" ")
+
+      // Don't log empty messages or recursive calls
+      if (!message || message.includes("[Backend Log]")) return
+
+      // Send to backend asynchronously (fire and forget)
+      invoke("add_frontend_log", {
+        level,
+        target: "frontend",
+        message,
+      }).catch(() => {
+        // Silently ignore errors to avoid infinite loops
+      })
+    }
+
+    console.log = (...args: unknown[]) => {
+      originalConsole.log(...args)
+      sendToBackend("INFO", args)
+    }
+
+    console.info = (...args: unknown[]) => {
+      originalConsole.info(...args)
+      sendToBackend("INFO", args)
+    }
+
+    console.warn = (...args: unknown[]) => {
+      originalConsole.warn(...args)
+      sendToBackend("WARN", args)
+    }
+
+    console.error = (...args: unknown[]) => {
+      originalConsole.error(...args)
+      sendToBackend("ERROR", args)
+    }
+
+    console.debug = (...args: unknown[]) => {
+      originalConsole.debug(...args)
+      sendToBackend("DEBUG", args)
+    }
+  }
+})()
+
+// Initialize console interception immediately
+setupConsoleInterception()
+
 // Lazy load pages for better initial bundle size
 const Instances = lazy(() => import("@/pages/Instances").then(m => ({ default: m.Instances })))
 const InstanceDetails = lazy(() => import("@/pages/InstanceDetails").then(m => ({ default: m.InstanceDetails })))

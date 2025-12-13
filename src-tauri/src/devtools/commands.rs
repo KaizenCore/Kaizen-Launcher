@@ -156,6 +156,24 @@ pub async fn clear_log_buffer() -> AppResult<()> {
     Ok(())
 }
 
+/// Add a frontend log entry to the buffer
+/// This allows the main app window to send console logs to the backend buffer
+#[tauri::command]
+pub async fn add_frontend_log(
+    level: String,
+    target: String,
+    message: String,
+) -> AppResult<()> {
+    let entry = LogEntry {
+        timestamp: chrono::Utc::now().to_rfc3339(),
+        level,
+        target,
+        message,
+    };
+    log_buffer::push_log(entry);
+    Ok(())
+}
+
 // ============================================================================
 // System Info
 // ============================================================================
