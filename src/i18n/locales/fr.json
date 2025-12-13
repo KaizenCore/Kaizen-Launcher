@@ -670,7 +670,10 @@
     "installError": "Erreur lors de l'installation",
     "modpackLoadError": "Erreur lors du chargement des details du modpack",
     "discoverModpacks": "Decouvrez et installez des modpacks depuis Modrinth",
-    "modsInInstanceDetails": "Pour installer des mods, allez dans les details d'une instance"
+    "modsInInstanceDetails": "Pour installer des mods, allez dans les details d'une instance",
+    "viewGrid": "Vue grille",
+    "viewList": "Vue liste",
+    "viewCompact": "Vue compacte"
   },
   "server": {
     "console": "Console du serveur",

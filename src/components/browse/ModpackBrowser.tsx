@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react"
 import { useNavigate } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
 import { toast } from "sonner"
-import { Search, Download, Loader2, Package, ChevronLeft, ChevronRight, X, SlidersHorizontal, Check, RefreshCw, ExternalLink } from "lucide-react"
+import { Search, Download, Loader2, Package, ChevronLeft, ChevronRight, X, SlidersHorizontal, Check, RefreshCw, ExternalLink, LayoutGrid, List, LayoutList } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
@@ -103,6 +103,22 @@ const LOADER_FILTERS = [
   { value: "quilt", label: "Quilt" },
 ]
 
+// View modes
+type ViewMode = "grid" | "list" | "compact"
+const VIEW_MODE_STORAGE_KEY = "kaizen_browse_view_mode"
+
+function getStoredViewMode(): ViewMode {
+  try {
+    const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY)
+    if (stored === "grid" || stored === "list" || stored === "compact") {
+      return stored
+    }
+  } catch {
+    // Ignore localStorage errors
+  }
+  return "list" // Default
+}
+
 export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -113,6 +129,18 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
   const [totalHits, setTotalHits] = useState(0)
   const [hasSearched, setHasSearched] = useState(false)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  // View mode with localStorage persistence
+  const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode)
+
+  const handleViewModeChange = useCallback((mode: ViewMode) => {
+    setViewMode(mode)
+    try {
+      localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode)
+    } catch {
+      // Ignore localStorage errors
+    }
+  }, [])
 
   // Installed modpacks tracking
   const [installedModpackIds, setInstalledModpackIds] = useState<Set<string>>(new Set())
@@ -466,6 +494,37 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
             {totalHits} {t("modrinth.results")}
           </Badge>
         )}
+
+        {/* View mode toggle */}
+        <div className="flex border rounded-md">
+          <Button
+            variant={viewMode === "grid" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 px-2 rounded-r-none border-r"
+            onClick={() => handleViewModeChange("grid")}
+            title={t("browse.viewGrid")}
+          >
+            <LayoutGrid className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "list" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 px-2 rounded-none border-r"
+            onClick={() => handleViewModeChange("list")}
+            title={t("browse.viewList")}
+          >
+            <List className="h-4 w-4" />
+          </Button>
+          <Button
+            variant={viewMode === "compact" ? "secondary" : "ghost"}
+            size="sm"
+            className="h-8 px-2 rounded-l-none"
+            onClick={() => handleViewModeChange("compact")}
+            title={t("browse.viewCompact")}
+          >
+            <LayoutList className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Selected categories chips */}
@@ -504,7 +563,144 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
                 : t("modpack.searchModpacks")}
             </p>
           </div>
+        ) : viewMode === "grid" ? (
+          /* Grid View */
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pr-4">
+            {searchResults.map((modpack) => {
+              const isInstalled = installedModpackIds.has(modpack.project_id)
+              return (
+                <Card
+                  key={modpack.project_id}
+                  className="overflow-hidden hover:bg-accent/50 transition-colors cursor-pointer group"
+                  onClick={() => navigate(`/browse/modpack/${modpack.project_id}`)}
+                >
+                  <CardContent className="p-3">
+                    <div className="flex flex-col items-center text-center">
+                      {/* Icon */}
+                      <div className="relative mb-2">
+                        {modpack.icon_url ? (
+                          <img
+                            src={modpack.icon_url}
+                            alt={modpack.title}
+                            className="w-16 h-16 rounded-lg object-cover"
+                          />
+                        ) : (
+                          <div className="w-16 h-16 rounded-lg bg-muted flex items-center justify-center">
+                            <Package className="h-8 w-8 text-muted-foreground" />
+                          </div>
+                        )}
+                        {isInstalled && (
+                          <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="h-3 w-3 text-white" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Info */}
+                      <h4 className="font-medium text-sm truncate w-full">{modpack.title}</h4>
+                      <p className="text-xs text-muted-foreground truncate w-full">{modpack.author}</p>
+                      <div className="flex items-center gap-1 mt-1.5 flex-wrap justify-center">
+                        <Badge variant="outline" className="text-xs">
+                          {formatDownloads(modpack.downloads)}
+                        </Badge>
+                        {modpack.game_versions.length > 0 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {modpack.game_versions[0]}
+                          </Badge>
+                        )}
+                      </div>
+
+                      {/* Install button on hover */}
+                      <Button
+                        size="sm"
+                        variant={isInstalled ? "outline" : "default"}
+                        className="mt-2 w-full opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleSelectModpack(modpack)
+                        }}
+                      >
+                        {isInstalled ? (
+                          <RefreshCw className="h-3 w-3 mr-1" />
+                        ) : (
+                          <Download className="h-3 w-3 mr-1" />
+                        )}
+                        {isInstalled ? t("modpack.otherVersion") : t("common.install")}
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        ) : viewMode === "compact" ? (
+          /* Compact View */
+          <div className="space-y-1 pr-4">
+            {searchResults.map((modpack) => {
+              const isInstalled = installedModpackIds.has(modpack.project_id)
+              return (
+                <div
+                  key={modpack.project_id}
+                  className="flex items-center gap-3 p-2 rounded-md hover:bg-accent/50 transition-colors cursor-pointer group"
+                  onClick={() => navigate(`/browse/modpack/${modpack.project_id}`)}
+                >
+                  {/* Icon */}
+                  <div className="flex-shrink-0 relative">
+                    {modpack.icon_url ? (
+                      <img
+                        src={modpack.icon_url}
+                        alt={modpack.title}
+                        className="w-8 h-8 rounded object-cover"
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded bg-muted flex items-center justify-center">
+                        <Package className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
+                    {isInstalled && (
+                      <div className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                        <Check className="h-2 w-2 text-white" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0 flex items-center gap-3">
+                    <span className="font-medium text-sm truncate min-w-[120px] max-w-[200px]">{modpack.title}</span>
+                    <span className="text-xs text-muted-foreground truncate">{modpack.author}</span>
+                    <Badge variant="outline" className="text-xs flex-shrink-0">
+                      {formatDownloads(modpack.downloads)}
+                    </Badge>
+                    {modpack.loaders[0] && (
+                      <Badge variant="secondary" className="text-xs flex-shrink-0">
+                        {modpack.loaders[0]}
+                      </Badge>
+                    )}
+                    {modpack.game_versions[0] && (
+                      <Badge variant="outline" className="text-xs flex-shrink-0">
+                        {modpack.game_versions[0]}
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Actions */}
+                  <Button
+                    size="sm"
+                    variant={isInstalled ? "outline" : "default"}
+                    className="h-7 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleSelectModpack(modpack)
+                    }}
+                  >
+                    {isInstalled ? <RefreshCw className="h-3 w-3" /> : <Download className="h-3 w-3" />}
+                  </Button>
+                </div>
+              )
+            })}
+          </div>
         ) : (
+          /* List View (default) */
           <div className="space-y-2 pr-4">
             {searchResults.map((modpack) => {
               const isInstalled = installedModpackIds.has(modpack.project_id)
