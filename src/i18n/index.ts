@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { useCallback, useMemo } from "react";
 
 import frTranslations from "./locales/fr.json";
 import enTranslations from "./locales/en.json";
@@ -64,25 +65,32 @@ export function useTranslation() {
   const { locale, setLocale } = useI18nStore();
   const currentTranslations = translations[locale];
 
-  const t = (key: TranslationKey, params?: Record<string, string | number>): string => {
-    let value = getNestedValue(currentTranslations, key);
+  // Memoize the t function to prevent unnecessary re-renders
+  // Only changes when locale changes
+  const t = useCallback(
+    (key: TranslationKey, params?: Record<string, string | number>): string => {
+      let value = getNestedValue(currentTranslations, key);
 
-    if (params) {
-      Object.entries(params).forEach(([paramKey, paramValue]) => {
-        // Support both {param} and {{param}} syntax
-        value = value.replace(new RegExp(`\\{\\{${paramKey}\\}\\}`, 'g'), String(paramValue));
-        value = value.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(paramValue));
-      });
-    }
+      if (params) {
+        Object.entries(params).forEach(([paramKey, paramValue]) => {
+          // Support both {param} and {{param}} syntax
+          value = value.replace(new RegExp(`\\{\\{${paramKey}\\}\\}`, 'g'), String(paramValue));
+          value = value.replace(new RegExp(`\\{${paramKey}\\}`, 'g'), String(paramValue));
+        });
+      }
 
-    return value;
-  };
+      return value;
+    },
+    [currentTranslations]
+  );
+
+  const availableLocales = useMemo(() => Object.keys(translations) as Locale[], []);
 
   return {
     t,
     locale,
     setLocale,
-    availableLocales: Object.keys(translations) as Locale[],
+    availableLocales,
   };
 }
 

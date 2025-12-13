@@ -389,6 +389,72 @@ impl AppState {
         .execute(db)
         .await?;
 
+        // Migration: Schematics tables
+        sqlx::query(
+            r#"
+            -- Central schematics library
+            CREATE TABLE IF NOT EXISTS schematics (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                format TEXT NOT NULL,
+                file_hash TEXT NOT NULL,
+                file_size_bytes INTEGER NOT NULL,
+                library_path TEXT,
+                width INTEGER,
+                height INTEGER,
+                length INTEGER,
+                author TEXT,
+                description TEXT,
+                mc_version TEXT,
+                is_favorite INTEGER DEFAULT 0,
+                tags TEXT DEFAULT '[]',
+                created_at TEXT DEFAULT (datetime('now')),
+                updated_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_schematics_hash ON schematics(file_hash);
+            CREATE INDEX IF NOT EXISTS idx_schematics_favorite ON schematics(is_favorite);
+            CREATE INDEX IF NOT EXISTS idx_schematics_format ON schematics(format);
+            CREATE INDEX IF NOT EXISTS idx_schematics_name ON schematics(name);
+
+            -- Schematic-instance links for sync tracking
+            CREATE TABLE IF NOT EXISTS schematic_instance_links (
+                id TEXT PRIMARY KEY,
+                schematic_id TEXT NOT NULL,
+                instance_id TEXT NOT NULL,
+                instance_path TEXT NOT NULL,
+                source TEXT NOT NULL,
+                sync_status TEXT DEFAULT 'synced',
+                last_synced_at TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (schematic_id) REFERENCES schematics(id) ON DELETE CASCADE,
+                FOREIGN KEY (instance_id) REFERENCES instances(id) ON DELETE CASCADE,
+                UNIQUE(schematic_id, instance_id)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_schematic_links_instance ON schematic_instance_links(instance_id);
+            CREATE INDEX IF NOT EXISTS idx_schematic_links_schematic ON schematic_instance_links(schematic_id);
+            CREATE INDEX IF NOT EXISTS idx_schematic_links_status ON schematic_instance_links(sync_status);
+
+            -- Cloud sync tracking for schematics
+            CREATE TABLE IF NOT EXISTS schematic_cloud_sync (
+                id TEXT PRIMARY KEY,
+                schematic_id TEXT NOT NULL UNIQUE,
+                remote_path TEXT,
+                sync_status TEXT DEFAULT 'pending',
+                last_synced_at TEXT,
+                error_message TEXT,
+                created_at TEXT DEFAULT (datetime('now')),
+                FOREIGN KEY (schematic_id) REFERENCES schematics(id) ON DELETE CASCADE
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_schematic_cloud_status ON schematic_cloud_sync(sync_status);
+        "#,
+        )
+        .execute(db)
+        .await?;
+
         Ok(())
     }
 }

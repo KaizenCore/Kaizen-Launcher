@@ -13,6 +13,7 @@ mod minecraft;
 mod modloader;
 mod modpacks;
 mod modrinth;
+mod schematics;
 mod sharing;
 mod skins;
 mod state;
@@ -382,6 +383,29 @@ pub fn run() {
             skins::commands::add_favorite_skin,
             skins::commands::remove_favorite_skin,
             skins::commands::is_skin_favorited,
+            // Schematics commands
+            schematics::commands::get_schematics,
+            schematics::commands::get_schematics_with_instances,
+            schematics::commands::get_instance_schematics,
+            schematics::commands::get_schematic_stats,
+            schematics::commands::import_schematic,
+            schematics::commands::import_schematic_from_instance,
+            schematics::commands::delete_schematic,
+            schematics::commands::copy_schematic_to_instances,
+            schematics::commands::toggle_schematic_favorite,
+            schematics::commands::update_schematic_tags,
+            schematics::commands::update_schematic_metadata,
+            schematics::commands::scan_instance_schematics,
+            schematics::commands::get_schematic_conflicts,
+            schematics::commands::resolve_schematic_conflict,
+            schematics::commands::open_schematics_folder,
+            schematics::commands::get_all_schematic_tags,
+            // Schematic sharing
+            schematics::commands::start_schematic_share,
+            schematics::commands::stop_schematic_share,
+            schematics::commands::get_schematic_shares,
+            schematics::commands::download_shared_schematic,
+            schematics::commands::fetch_schematic_share_info,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -10,6 +10,7 @@ import { TourOverlay } from "@/components/onboarding/TourOverlay"
 import { UpdateNotification } from "@/components/notifications/UpdateNotification"
 import { DevMonitor } from "@/components/dev/DevMonitor"
 import { BugReportDialog } from "@/components/dev/BugReportDialog"
+import { MajorUpdateDialog } from "@/components/dialogs/MajorUpdateDialog"
 import { useOnboardingStore } from "@/stores/onboardingStore"
 import { useDevModeStore } from "@/stores/devModeStore"
 import { useTheme } from "@/hooks/useTheme"
@@ -96,6 +97,7 @@ const Settings = lazy(() => import("@/pages/Settings").then(m => ({ default: m.S
 const Changelog = lazy(() => import("@/pages/Changelog"))
 const Sharing = lazy(() => import("@/pages/Sharing").then(m => ({ default: m.Sharing })))
 const Skins = lazy(() => import("@/pages/Skins").then(m => ({ default: m.Skins })))
+const Schematics = lazy(() => import("@/pages/Schematics").then(m => ({ default: m.Schematics })))
 const CreateServerFromClient = lazy(() => import("@/pages/CreateServerFromClient").then(m => ({ default: m.CreateServerFromClient })))
 const LogViewer = lazy(() => import("@/pages/LogViewer"))
 
@@ -205,12 +207,14 @@ function App() {
             <Route path="browse/modpack/:projectId" element={<Suspense fallback={<PageLoader />}><ModpackDetails /></Suspense>} />
             <Route path="backups" element={<Suspense fallback={<PageLoader />}><Backups /></Suspense>} />
             <Route path="sharing" element={<Suspense fallback={<PageLoader />}><Sharing /></Suspense>} />
+            <Route path="schematics" element={<Suspense fallback={<PageLoader />}><Schematics /></Suspense>} />
             <Route path="accounts" element={<Suspense fallback={<PageLoader />}><Accounts /></Suspense>} />
             <Route path="skins" element={<Suspense fallback={<PageLoader />}><Skins /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
             <Route path="changelog" element={<Suspense fallback={<PageLoader />}><Changelog /></Suspense>} />
           </Route>
         </Routes>
+        <MajorUpdateDialog />
       </BrowserRouter>
       <Toaster
         position="bottom-right"

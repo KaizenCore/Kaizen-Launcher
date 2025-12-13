@@ -1,6 +1,7 @@
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import {
   Sparkles,
   Cloud,
@@ -34,6 +35,11 @@ import {
   ScrollText,
   LayoutGrid,
   Blocks,
+  Boxes,
+  Search,
+  Tag,
+  FolderSync,
+  PartyPopper,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -41,6 +47,7 @@ interface ChangelogEntry {
   version: string
   date: string
   highlights?: string[]
+  isMajor?: boolean
   features: {
     icon: React.ReactNode
     title: string
@@ -50,6 +57,67 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.6.0",
+    date: "2025-12-14",
+    isMajor: true,
+    highlights: [
+      "Schematics Manager",
+      "Bidirectional Sync",
+      "Schematic Sharing",
+      "Performance Overhaul",
+    ],
+    features: [
+      {
+        icon: <Boxes className="h-5 w-5" />,
+        title: "Schematics Manager",
+        description: "Complete schematic library management system. Import, organize, and manage your .schem, .schematic, .litematic, and .nbt files from a central library. View dimensions, format, and metadata extracted from NBT.",
+        tag: "new",
+      },
+      {
+        icon: <FolderSync className="h-5 w-5" />,
+        title: "Bidirectional Sync",
+        description: "Sync schematics between your library and instances. Copy schematics to WorldEdit, Litematica, or Axiom folders. Import schematics from instances back to library. Automatic conflict detection and resolution.",
+        tag: "new",
+      },
+      {
+        icon: <Search className="h-5 w-5" />,
+        title: "Smart Scanning",
+        description: "Scan all instances for existing schematics. Detects schematics in client (WorldEdit, Litematica, Axiom, Create) and server (WorldEdit, FAWE) folders. Parallel scanning for fast results.",
+        tag: "new",
+      },
+      {
+        icon: <Tag className="h-5 w-5" />,
+        title: "Tags & Favorites",
+        description: "Organize schematics with custom tags and favorites. Filter by format, search by name, and quickly find the schematics you need.",
+        tag: "new",
+      },
+      {
+        icon: <Share2 className="h-5 w-5" />,
+        title: "Schematic Sharing",
+        description: "Share schematics with friends via HTTP tunnel (Bore or Cloudflare). Password protection, download counter, and seamless integration with the sharing system.",
+        tag: "new",
+      },
+      {
+        icon: <Cloud className="h-5 w-5" />,
+        title: "Cloud Ready",
+        description: "Upload schematics to your configured cloud storage (Google Drive, Dropbox, Nextcloud, S3). Keep your schematic library backed up and synced across devices.",
+        tag: "new",
+      },
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "Performance Optimizations",
+        description: "Major performance improvements: streaming hash calculation, parallel instance scanning, N+1 query elimination, React memoization, debounced search, and stable translation hooks.",
+        tag: "improved",
+      },
+      {
+        icon: <Database className="h-5 w-5" />,
+        title: "NBT Parsing",
+        description: "Extract metadata from schematic files: dimensions (width, height, length), author, Minecraft version. Supports Sponge v2/v3 (.schem), legacy (.schematic), Litematica (.litematic), and vanilla structures (.nbt).",
+        tag: "new",
+      },
+    ],
+  },
   {
     version: "0.5.9",
     date: "2025-12-13",
@@ -727,6 +795,10 @@ export default function Changelog() {
     }
   }
 
+  // Split changelog into v0.6+ and v0.5.x
+  const majorReleases = changelog.filter(e => e.version.startsWith("0.6"))
+  const v05Releases = changelog.filter(e => e.version.startsWith("0.5") || e.version.startsWith("0.4") || e.version.startsWith("0.3"))
+
   return (
     <div className="flex flex-col gap-6 h-full">
       <div>
@@ -736,17 +808,131 @@ export default function Changelog() {
 
       <ScrollArea className="flex-1">
         <div className="space-y-6 pr-4">
-          {changelog.map((entry, index) => (
-            <Card key={entry.version} className={index === 0 ? "border-primary/50" : ""}>
+          {/* Major Release - Special Design */}
+          {majorReleases.map((entry, index) => (
+            <Card
+              key={entry.version}
+              className={`relative overflow-hidden ${
+                entry.isMajor
+                  ? "border-2 border-primary/50 bg-gradient-to-br from-primary/5 via-purple-500/5 to-pink-500/5"
+                  : index === 0 ? "border-primary/50" : ""
+              }`}
+            >
+              {entry.isMajor && (
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+              )}
+              <CardHeader className="pb-3 relative">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="flex items-center gap-3">
+                    {entry.isMajor && (
+                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
+                        <PartyPopper className="h-4 w-4 text-white" />
+                      </div>
+                    )}
+                    <span className={`text-xl ${entry.isMajor ? "bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold" : ""}`}>
+                      v{entry.version}
+                    </span>
+                    {index === 0 && (
+                      <Badge className="bg-gradient-to-r from-primary to-purple-500 text-white border-0">
+                        {t("changelog.latest")}
+                      </Badge>
+                    )}
+                    {entry.isMajor && (
+                      <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/30">
+                        {t("changelog.majorRelease")}
+                      </Badge>
+                    )}
+                  </CardTitle>
+                  <span className="text-sm text-muted-foreground">{entry.date}</span>
+                </div>
+                {entry.highlights && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {entry.highlights.map((highlight, i) => (
+                      <Badge
+                        key={i}
+                        variant="secondary"
+                        className={entry.isMajor ? "bg-primary/10 text-primary border-primary/20 font-normal" : "font-normal"}
+                      >
+                        {highlight}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </CardHeader>
+              <CardContent className="space-y-4 relative">
+                {entry.features.map((feature, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className={`flex-shrink-0 h-10 w-10 rounded-lg flex items-center justify-center ${
+                      entry.isMajor ? "bg-background border" : "bg-muted"
+                    } text-muted-foreground`}>
+                      {feature.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium">{feature.title}</span>
+                        {feature.tag && (
+                          <Badge variant="outline" className={getTagColor(feature.tag)}>
+                            {getTagLabel(feature.tag)}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">{feature.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+
+          {/* v0.5.x Recap Section */}
+          <div className="pt-4">
+            <div className="flex items-center gap-3 mb-4">
+              <Separator className="flex-1" />
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted">
+                <Archive className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">
+                  {t("changelog.previousVersions")}
+                </span>
+              </div>
+              <Separator className="flex-1" />
+            </div>
+
+            {/* v0.5.x Summary Card */}
+            <Card className="mb-6 bg-muted/30 border-dashed">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  {t("changelog.v05RecapTitle")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-4">
+                  {t("changelog.v05RecapDesc")}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary">Skin Manager</Badge>
+                  <Badge variant="secondary">Mod Browser</Badge>
+                  <Badge variant="secondary">Dev Tools</Badge>
+                  <Badge variant="secondary">Cloud Backups</Badge>
+                  <Badge variant="secondary">Discord RPC</Badge>
+                  <Badge variant="secondary">P2P Sharing</Badge>
+                  <Badge variant="secondary">HTTP Tunnels</Badge>
+                  <Badge variant="secondary">Onboarding</Badge>
+                  <Badge variant="secondary">4K Support</Badge>
+                  <Badge variant="secondary">4 Languages</Badge>
+                  <Badge variant="secondary">90% Less CPU</Badge>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Previous Versions */}
+          {v05Releases.map((entry) => (
+            <Card key={entry.version} className="opacity-80 hover:opacity-100 transition-opacity">
               <CardHeader className="pb-3">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-3">
                     <span className="text-xl">v{entry.version}</span>
-                    {index === 0 && (
-                      <Badge className="bg-primary/10 text-primary border-primary/20">
-                        {t("changelog.latest")}
-                      </Badge>
-                    )}
                   </CardTitle>
                   <span className="text-sm text-muted-foreground">{entry.date}</span>
                 </div>

@@ -1,6 +1,6 @@
 [package]
 name = "kaizen-launcher"
-version = "0.5.9"
+version = "0.6.0"
 description = "A modern Minecraft launcher"
 authors = ["Kaizen"]
 edition = "2021"
@@ -69,6 +69,7 @@ regex = "1"
 once_cell = "1"
 base64 = "0.22"
 walkdir = "2"
+fastnbt = "2"
 
 [dev-dependencies]
 tempfile = "3"

@@ -10,6 +10,7 @@ import {
   Clock,
   Package,
   Link2,
+  Boxes,
 } from "lucide-react";
 import { useTranslation } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -74,6 +75,13 @@ function formatDuration(startedAt: string): string {
   if (seconds < 60) return `${seconds}s`;
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`;
   return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+}
+
+// Check if a share is a schematic (vs instance package)
+const SCHEMATIC_EXTENSIONS = [".schem", ".schematic", ".litematic", ".nbt"];
+function isSchematicShare(share: ActiveShare): boolean {
+  const path = share.package_path.toLowerCase();
+  return SCHEMATIC_EXTENSIONS.some((ext) => path.endsWith(ext));
 }
 
 export function Sharing() {
@@ -234,13 +242,17 @@ export function Sharing() {
           </div>
         ) : (
           <div className="grid gap-4 lg:grid-cols-2 3xl:grid-cols-3 4xl:grid-cols-4">
-            {activeShares.map((share) => (
+            {activeShares.map((share) => {
+              const isSchematic = isSchematicShare(share);
+              const ShareIcon = isSchematic ? Boxes : Package;
+
+              return (
               <Card key={share.share_id}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-primary/10 rounded-lg">
-                        <Package className="h-5 w-5 text-primary" />
+                      <div className={`p-2 rounded-lg ${isSchematic ? "bg-purple-500/10" : "bg-primary/10"}`}>
+                        <ShareIcon className={`h-5 w-5 ${isSchematic ? "text-purple-500" : "text-primary"}`} />
                       </div>
                       <div>
                         <CardTitle className="text-lg">
@@ -253,6 +265,14 @@ export function Sharing() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
+                      {isSchematic && (
+                        <Badge
+                          variant="outline"
+                          className="bg-purple-500/10 text-purple-500 border-purple-500/30"
+                        >
+                          Schematic
+                        </Badge>
+                      )}
                       <Badge
                         variant="outline"
                         className={
@@ -323,7 +343,8 @@ export function Sharing() {
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

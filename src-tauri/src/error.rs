@@ -56,6 +56,9 @@ pub enum AppError {
     #[error("DevTools error: {0}")]
     DevTools(String),
 
+    #[error("Schematic error: {0}")]
+    Schematic(String),
+
     #[error("{0}")]
     Custom(String),
 }
