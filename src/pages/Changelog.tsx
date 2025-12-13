@@ -51,6 +51,34 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.5.9",
+    date: "2025-12-13",
+    highlights: [
+      "Windows 3D Skin Viewer Fix",
+      "Performance Optimization",
+    ],
+    features: [
+      {
+        icon: <Palette className="h-5 w-5" />,
+        title: "Windows 3D Skin Viewer Fix",
+        description: "Fixed the 3D skin viewer not displaying on Windows. The issue was caused by CORS restrictions on textures.minecraft.net. Skin URLs are now automatically converted to mc-heads.net which supports CORS for WebGL.",
+        tag: "fix",
+      },
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "SkinViewer3D Performance",
+        description: "Optimized the 3D skin viewer by separating skin/cape updates from viewer recreation. Changing skins no longer recreates the entire WebGL context, resulting in smoother transitions.",
+        tag: "improved",
+      },
+      {
+        icon: <Monitor className="h-5 w-5" />,
+        title: "Three.js Background Fix",
+        description: "Fixed 'THREE.Color: Unknown color transparent' warning by properly handling transparent backgrounds in the 3D viewer.",
+        tag: "fix",
+      },
+    ],
+  },
+  {
     version: "0.5.8",
     date: "2025-12-13",
     highlights: [

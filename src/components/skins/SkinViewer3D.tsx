@@ -2,6 +2,19 @@ import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardR
 import { SkinViewer, WalkingAnimation, IdleAnimation, RunningAnimation, WaveAnimation } from "skinview3d"
 import { Loader2 } from "lucide-react"
 
+// Convert skin URLs to CORS-compatible URLs
+// textures.minecraft.net doesn't send CORS headers, breaking WebGL texture loading
+function getCorsCompatibleSkinUrl(url: string): string {
+  // Extract texture hash from textures.minecraft.net URL
+  const minecraftTextureMatch = url.match(/textures\.minecraft\.net\/texture\/([a-f0-9]+)/i)
+  if (minecraftTextureMatch) {
+    // Use mc-heads.net which supports CORS and can resolve texture hashes
+    return `https://mc-heads.net/skin/${minecraftTextureMatch[1]}`
+  }
+  // Return original URL if it's already from a CORS-friendly source
+  return url
+}
+
 export type AnimationType = "idle" | "walk" | "run" | "wave" | "none"
 
 export interface SkinViewer3DRef {
@@ -104,6 +117,7 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
     }
   }, [dimensions])
 
+  // Create/recreate viewer when core settings change (not skin/cape - those update dynamically)
   useEffect(() => {
     if (!canvasRef.current) return
 
@@ -117,14 +131,20 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
     }
 
     try {
+      // skinview3d/Three.js doesn't understand "transparent" - use undefined for transparent background
+      const bgColor = background === "transparent" ? undefined : background
+
+      // Convert skin URL to CORS-compatible URL
+      const corsCompatibleSkinUrl = getCorsCompatibleSkinUrl(skinUrl)
+
       const viewer = new SkinViewer({
         canvas: canvasRef.current,
         width: dimensions.width || width,
         height: dimensions.height || height,
-        skin: skinUrl,
+        skin: corsCompatibleSkinUrl,
         cape: capeUrl,
         model: slim ? "slim" : "default",
-        background,
+        background: bgColor,
       })
 
       // Set up controls
@@ -166,7 +186,7 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
       setIsLoading(false)
       onLoad?.()
     } catch (err) {
-      console.error("Failed to create skin viewer:", err)
+      console.error("[SkinViewer3D] Failed to create viewer:", err)
       setError("Failed to load skin")
       setIsLoading(false)
     }
@@ -177,20 +197,25 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
         viewerRef.current = null
       }
     }
-  }, [skinUrl, capeUrl, dimensions.width, dimensions.height, width, height, animation, controls, zoom, slim, background, onLoad])
+    // Note: skinUrl and capeUrl are handled by separate effects for efficiency
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dimensions.width, dimensions.height, width, height, animation, controls, zoom, slim, background, onLoad])
 
-  // Update skin when URL changes
+  // Update skin dynamically without recreating the viewer
   useEffect(() => {
     if (viewerRef.current && skinUrl) {
-      viewerRef.current.loadSkin(skinUrl, { model: slim ? "slim" : "default" })
+      const corsCompatibleUrl = getCorsCompatibleSkinUrl(skinUrl)
+      viewerRef.current.loadSkin(corsCompatibleUrl, { model: slim ? "slim" : "default" })
+        .catch((err) => console.error("[SkinViewer3D] Failed to load skin:", err))
     }
   }, [skinUrl, slim])
 
-  // Update cape when URL changes
+  // Update cape dynamically without recreating the viewer
   useEffect(() => {
     if (viewerRef.current) {
       if (capeUrl) {
         viewerRef.current.loadCape(capeUrl)
+          .catch((err) => console.error("[SkinViewer3D] Failed to load cape:", err))
       } else {
         viewerRef.current.resetCape()
       }

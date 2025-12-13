@@ -493,9 +493,14 @@ export function Skins() {
   }
 
   // Get current skin URL for viewer
-  const currentSkinUrl = profile?.current_skin?.url ||
-    `https://mc-heads.net/skin/${activeAccount?.username || "Steve"}`
+  // Always use mc-heads.net for WebGL compatibility (CORS support)
+  // textures.minecraft.net doesn't send CORS headers, which breaks WebGL texture loading
+  const currentSkinUrl = activeAccount?.uuid
+    ? `https://mc-heads.net/skin/${activeAccount.uuid}`
+    : `https://mc-heads.net/skin/${activeAccount?.username || "Steve"}`
 
+  // For capes, we need to use the direct URL as mc-heads doesn't proxy capes
+  // Cape URLs from Mojang API should work if they're from the same origin or support CORS
   const currentCapeUrl = profile?.available_capes?.find(c => c.id === selectedCapeId)?.url
 
   if (isLoading) {
