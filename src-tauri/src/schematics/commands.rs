@@ -196,6 +196,9 @@ pub async fn import_schematic(
             .unwrap_or_else(|| filename.clone())
     });
 
+    // Author is locked if extracted from file (protects original creator)
+    let author_locked = nbt_metadata.author.is_some();
+
     let schematic = Schematic {
         id: Uuid::new_v4().to_string(),
         name: display_name,
@@ -206,6 +209,7 @@ pub async fn import_schematic(
         library_path: Some(library_filename),
         dimensions: nbt_metadata.dimensions,
         author: nbt_metadata.author,
+        author_locked,
         description: None,
         mc_version: nbt_metadata.mc_version,
         is_favorite: false,
@@ -410,13 +414,14 @@ pub async fn update_schematic_tags(
     db::update_tags(&state.db, &schematic_id, &tags).await
 }
 
-/// Update schematic name/description
+/// Update schematic name/description/author
 #[tauri::command]
 pub async fn update_schematic_metadata(
     state: State<'_, SharedState>,
     schematic_id: String,
     name: Option<String>,
     description: Option<String>,
+    author: Option<String>,
 ) -> AppResult<()> {
     let state = state.read().await;
 
@@ -429,6 +434,15 @@ pub async fn update_schematic_metadata(
     }
     if let Some(desc) = description {
         schematic.description = Some(desc);
+    }
+    if let Some(author) = author {
+        // Only allow author modification if not locked (author wasn't from original file)
+        if schematic.author_locked {
+            return Err(AppError::Schematic(
+                "Cannot modify author: original author is protected".to_string(),
+            ));
+        }
+        schematic.author = if author.is_empty() { None } else { Some(author) };
     }
     schematic.updated_at = chrono::Utc::now().to_rfc3339();
 

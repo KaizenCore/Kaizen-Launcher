@@ -60,6 +60,7 @@ pub fn extract_metadata(path: &Path) -> AppResult<SchematicMetadata> {
 
 /// Extract metadata from a schematic file (async version, runs on blocking thread pool)
 /// Use this for batch operations to avoid blocking the async runtime
+#[allow(dead_code)]
 pub async fn extract_metadata_async(path: std::path::PathBuf) -> AppResult<SchematicMetadata> {
     tokio::task::spawn_blocking(move || extract_metadata_sync(&path))
         .await
@@ -88,16 +89,23 @@ fn read_nbt_compound<R: Read>(reader: R) -> AppResult<HashMap<String, Value>> {
 }
 
 /// Parse Sponge Schematic format (v2/v3) - .schem files
-/// Structure:
-/// - Width, Height, Length at root
-/// - Metadata compound with author, date, etc.
+/// Structure v2: Width, Height, Length at root
+/// Structure v3: Everything inside "Schematic" compound at root
 fn parse_sponge_schematic(nbt: &HashMap<String, Value>) -> AppResult<SchematicMetadata> {
     let mut metadata = SchematicMetadata::default();
 
+    // Sponge Schematic v3 wraps everything in a "Schematic" compound
+    // v2 has data at root level
+    let data = if let Some(Value::Compound(schematic)) = nbt.get("Schematic") {
+        schematic
+    } else {
+        nbt
+    };
+
     // Get dimensions
-    let width = get_i16_or_i32(nbt, "Width");
-    let height = get_i16_or_i32(nbt, "Height");
-    let length = get_i16_or_i32(nbt, "Length");
+    let width = get_i16_or_i32(data, "Width");
+    let height = get_i16_or_i32(data, "Height");
+    let length = get_i16_or_i32(data, "Length");
 
     if let (Some(w), Some(h), Some(l)) = (width, height, length) {
         metadata.dimensions = Some(SchematicDimensions {
@@ -108,31 +116,48 @@ fn parse_sponge_schematic(nbt: &HashMap<String, Value>) -> AppResult<SchematicMe
     }
 
     // Get version
-    if let Some(Value::Int(v)) = nbt.get("Version") {
+    if let Some(Value::Int(v)) = data.get("Version") {
         metadata.format_version = Some(*v);
     }
 
     // Get metadata compound
-    if let Some(Value::Compound(meta)) = nbt.get("Metadata") {
-        // Author
-        if let Some(Value::String(author)) = meta.get("Author") {
-            metadata.author = Some(author.clone());
+    if let Some(Value::Compound(meta)) = data.get("Metadata") {
+        // Author - check multiple possible keys used by different tools
+        let author_keys = ["Author", "author", "WESchematicAuthor", "Creator", "creator"];
+        for key in author_keys {
+            if let Some(Value::String(author)) = meta.get(key) {
+                if !author.is_empty() {
+                    metadata.author = Some(author.clone());
+                    break;
+                }
+            }
         }
-
-        // Minecraft version (WorldEdit stores it)
-        // WorldEdit doesn't store MC version directly in WEOriginX, it's coordinates
-        // MC version comes from DataVersion instead
 
         // Check for name as author fallback
         if metadata.author.is_none() {
             if let Some(Value::String(name)) = meta.get("Name") {
-                metadata.author = Some(name.clone());
+                if !name.is_empty() {
+                    metadata.author = Some(name.clone());
+                }
+            }
+        }
+    }
+
+    // Also check for author at root level (some tools put it there)
+    if metadata.author.is_none() {
+        let root_author_keys = ["Author", "author", "Creator", "creator"];
+        for key in root_author_keys {
+            if let Some(Value::String(author)) = data.get(key) {
+                if !author.is_empty() {
+                    metadata.author = Some(author.clone());
+                    break;
+                }
             }
         }
     }
 
     // DataVersion can indicate Minecraft version
-    if let Some(Value::Int(data_ver)) = nbt.get("DataVersion") {
+    if let Some(Value::Int(data_ver)) = data.get("DataVersion") {
         metadata.mc_version = data_version_to_mc_version(*data_ver);
     }
 

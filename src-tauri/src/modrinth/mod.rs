@@ -279,6 +279,7 @@ impl<'a> ModrinthClient<'a> {
     /// Get multiple projects by IDs (batch request)
     /// This is more efficient than calling get_project multiple times
     /// Includes retry logic with exponential backoff for rate limiting (429)
+    #[allow(dead_code)]
     pub async fn get_projects(&self, ids: &[&str]) -> Result<Vec<Project>, ModrinthError> {
         if ids.is_empty() {
             return Ok(Vec::new());

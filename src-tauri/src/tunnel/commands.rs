@@ -40,9 +40,9 @@ pub async fn get_tunnel_config(
 ) -> AppResult<Option<TunnelConfig>> {
     let state = state.read().await;
 
-    let row = sqlx::query_as::<_, (String, String, String, i64, i64, Option<String>, Option<String>, i64, Option<String>)>(
+    let row = sqlx::query_as::<_, (String, String, String, i64, i64, Option<String>, Option<String>, i64, Option<String>, Option<String>)>(
         r#"
-        SELECT id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url
+        SELECT id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url, bore_servers
         FROM tunnel_configs
         WHERE instance_id = ?
         "#,
@@ -62,6 +62,7 @@ pub async fn get_tunnel_config(
             ngrok_authtoken,
             target_port,
             tunnel_url,
+            bore_servers,
         )| {
             // Decrypt secrets if they are encrypted
             let decrypted_playit = playit_secret_key.and_then(|s| {
@@ -80,6 +81,9 @@ pub async fn get_tunnel_config(
                 }
             });
 
+            // Parse bore_servers JSON
+            let bore_servers = bore_servers.and_then(|s| serde_json::from_str(&s).ok());
+
             TunnelConfig {
                 id,
                 instance_id,
@@ -90,6 +94,7 @@ pub async fn get_tunnel_config(
                 ngrok_authtoken: decrypted_ngrok,
                 target_port: target_port as i32,
                 tunnel_url,
+                bore_servers,
             }
         },
     ))
@@ -114,10 +119,15 @@ pub async fn save_tunnel_config(
         None => None,
     };
 
+    // Serialize bore_servers to JSON
+    let bore_servers_json = config.bore_servers.as_ref().map(|servers| {
+        serde_json::to_string(servers).unwrap_or_else(|_| "[]".to_string())
+    });
+
     sqlx::query(
         r#"
-        INSERT INTO tunnel_configs (id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO tunnel_configs (id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url, bore_servers)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(instance_id) DO UPDATE SET
             provider = excluded.provider,
             enabled = excluded.enabled,
@@ -125,7 +135,8 @@ pub async fn save_tunnel_config(
             playit_secret_key = excluded.playit_secret_key,
             ngrok_authtoken = excluded.ngrok_authtoken,
             target_port = excluded.target_port,
-            tunnel_url = excluded.tunnel_url
+            tunnel_url = excluded.tunnel_url,
+            bore_servers = excluded.bore_servers
         "#,
     )
     .bind(&config.id)
@@ -137,6 +148,7 @@ pub async fn save_tunnel_config(
     .bind(&encrypted_ngrok)
     .bind(config.target_port as i64)
     .bind(&config.tunnel_url)
+    .bind(&bore_servers_json)
     .execute(&state.db)
     .await?;
 
@@ -212,9 +224,9 @@ pub async fn start_tunnel(
         let state = state.read().await;
 
         // Get config from database
-        let row = sqlx::query_as::<_, (String, String, String, i64, i64, Option<String>, Option<String>, i64, Option<String>)>(
+        let row = sqlx::query_as::<_, (String, String, String, i64, i64, Option<String>, Option<String>, i64, Option<String>, Option<String>)>(
             r#"
-            SELECT id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url
+            SELECT id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url, bore_servers
             FROM tunnel_configs
             WHERE instance_id = ?
             "#,
@@ -235,7 +247,11 @@ pub async fn start_tunnel(
                     ngrok_authtoken,
                     target_port,
                     tunnel_url,
+                    bore_servers,
                 )| {
+                    // Parse bore_servers JSON
+                    let bore_servers = bore_servers.and_then(|s| serde_json::from_str(&s).ok());
+
                     TunnelConfig {
                         id,
                         instance_id,
@@ -246,6 +262,7 @@ pub async fn start_tunnel(
                         ngrok_authtoken,
                         target_port: target_port as i32,
                         tunnel_url,
+                        bore_servers,
                     }
                 },
             )
@@ -318,4 +335,20 @@ pub async fn delete_tunnel_config(
         .await?;
 
     Ok(())
+}
+
+/// Check health of bore servers
+#[tauri::command]
+pub async fn check_bore_servers_health(
+    servers: Vec<String>,
+    timeout_secs: Option<u64>,
+) -> AppResult<Vec<crate::tunnel::health::HealthCheckResult>> {
+    let timeout = timeout_secs.unwrap_or(10);
+    Ok(crate::tunnel::health::check_all_bore_servers(&servers, timeout).await)
+}
+
+/// Get default bore servers list
+#[tauri::command]
+pub async fn get_default_bore_servers() -> AppResult<Vec<String>> {
+    Ok(crate::tunnel::health::get_default_bore_servers())
 }

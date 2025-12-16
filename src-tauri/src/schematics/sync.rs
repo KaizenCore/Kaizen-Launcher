@@ -113,6 +113,9 @@ pub async fn import_to_library(
         .map(|(n, _)| n.to_string())
         .unwrap_or_else(|| filename.clone());
 
+    // Author is locked if extracted from file (protects original creator)
+    let author_locked = nbt_metadata.author.is_some();
+
     let schematic = Schematic {
         id: Uuid::new_v4().to_string(),
         name,
@@ -123,6 +126,7 @@ pub async fn import_to_library(
         library_path: Some(library_filename),
         dimensions: nbt_metadata.dimensions,
         author: nbt_metadata.author,
+        author_locked,
         description: None,
         mc_version: nbt_metadata.mc_version,
         is_favorite: false,
@@ -166,6 +170,7 @@ async fn get_unique_filename(dir: &Path, filename: &str) -> AppResult<String> {
 }
 
 /// Synchronize library with instances - full scan
+#[allow(dead_code)]
 pub async fn sync_library_with_instances(
     db: &SqlitePool,
     library_dir: &Path,
@@ -239,6 +244,7 @@ pub async fn sync_library_with_instances(
 }
 
 /// Result of sync operation
+#[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct SyncResult {
     pub new_in_library: u32,

@@ -11,7 +11,7 @@ pub async fn get_all_schematics(db: &SqlitePool) -> AppResult<Vec<Schematic>> {
     let rows = sqlx::query(
         r#"
         SELECT id, name, filename, format, file_hash, file_size_bytes, library_path,
-               width, height, length, author, description, mc_version,
+               width, height, length, author, author_locked, description, mc_version,
                is_favorite, tags, created_at, updated_at
         FROM schematics
         ORDER BY name ASC
@@ -33,7 +33,7 @@ pub async fn get_schematic_by_id(db: &SqlitePool, id: &str) -> AppResult<Option<
     let row = sqlx::query(
         r#"
         SELECT id, name, filename, format, file_hash, file_size_bytes, library_path,
-               width, height, length, author, description, mc_version,
+               width, height, length, author, author_locked, description, mc_version,
                is_favorite, tags, created_at, updated_at
         FROM schematics
         WHERE id = ?
@@ -51,7 +51,7 @@ pub async fn get_schematic_by_hash(db: &SqlitePool, hash: &str) -> AppResult<Opt
     let row = sqlx::query(
         r#"
         SELECT id, name, filename, format, file_hash, file_size_bytes, library_path,
-               width, height, length, author, description, mc_version,
+               width, height, length, author, author_locked, description, mc_version,
                is_favorite, tags, created_at, updated_at
         FROM schematics
         WHERE file_hash = ?
@@ -84,6 +84,7 @@ fn row_to_schematic(row: &sqlx::sqlite::SqliteRow) -> Schematic {
 
     let format_str: String = row.get("format");
     let is_favorite: i32 = row.try_get("is_favorite").unwrap_or(0);
+    let author_locked: i32 = row.try_get("author_locked").unwrap_or(0);
     let file_size: i64 = row.get("file_size_bytes");
 
     Schematic {
@@ -96,6 +97,7 @@ fn row_to_schematic(row: &sqlx::sqlite::SqliteRow) -> Schematic {
         library_path: row.try_get("library_path").ok(),
         dimensions,
         author: row.try_get("author").ok(),
+        author_locked: author_locked != 0,
         description: row.try_get("description").ok(),
         mc_version: row.try_get("mc_version").ok(),
         is_favorite: is_favorite != 0,
@@ -121,15 +123,16 @@ pub async fn insert_schematic(db: &SqlitePool, schematic: &Schematic) -> AppResu
         })
         .unwrap_or((None, None, None));
     let is_favorite: i32 = if schematic.is_favorite { 1 } else { 0 };
+    let author_locked: i32 = if schematic.author_locked { 1 } else { 0 };
     let tags = serde_json::to_string(&schematic.tags).unwrap_or_else(|_| "[]".to_string());
 
     sqlx::query(
         r#"
         INSERT INTO schematics (
             id, name, filename, format, file_hash, file_size_bytes, library_path,
-            width, height, length, author, description, mc_version,
+            width, height, length, author, author_locked, description, mc_version,
             is_favorite, tags, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(&schematic.id)
@@ -143,6 +146,7 @@ pub async fn insert_schematic(db: &SqlitePool, schematic: &Schematic) -> AppResu
     .bind(height)
     .bind(length)
     .bind(&schematic.author)
+    .bind(author_locked)
     .bind(&schematic.description)
     .bind(&schematic.mc_version)
     .bind(is_favorite)
@@ -436,6 +440,7 @@ pub async fn update_link_status(
 }
 
 /// Delete a link
+#[allow(dead_code)]
 pub async fn delete_link(db: &SqlitePool, schematic_id: &str, instance_id: &str) -> AppResult<()> {
     sqlx::query("DELETE FROM schematic_instance_links WHERE schematic_id = ? AND instance_id = ?")
         .bind(schematic_id)
@@ -472,6 +477,7 @@ pub async fn get_conflicts(db: &SqlitePool) -> AppResult<Vec<SchematicInstanceLi
 // ========== Cloud Sync ==========
 
 /// Get cloud sync status for a schematic
+#[allow(dead_code)]
 pub async fn get_cloud_sync(
     db: &SqlitePool,
     schematic_id: &str,
@@ -501,6 +507,7 @@ pub async fn get_cloud_sync(
 }
 
 /// Insert or update cloud sync record
+#[allow(dead_code)]
 pub async fn upsert_cloud_sync(db: &SqlitePool, sync: &SchematicCloudSync) -> AppResult<()> {
     sqlx::query(
         r#"

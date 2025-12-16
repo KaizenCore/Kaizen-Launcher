@@ -28,6 +28,7 @@ export interface Schematic {
   library_path: string | null
   dimensions: SchematicDimensions | null
   author: string | null
+  author_locked: boolean // True if author was extracted from file (cannot be modified)
   description: string | null
   mc_version: string | null
   is_favorite: boolean

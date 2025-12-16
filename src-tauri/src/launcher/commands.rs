@@ -16,6 +16,8 @@ use tokio::fs;
 
 // Windows-specific: CREATE_NO_WINDOW flag to hide console window
 #[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+#[cfg(target_os = "windows")]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Helper to get loader version from instance or return an error
@@ -656,10 +658,7 @@ async fn install_forge_server(
 
     // On Windows, hide the console window
     #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    cmd.creation_flags(CREATE_NO_WINDOW);
 
     let output = cmd
         .output()
@@ -863,10 +862,7 @@ async fn install_neoforge_server(
         .current_dir(instance_dir);
 
     #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
+    cmd.creation_flags(CREATE_NO_WINDOW);
 
     let output = cmd
         .output()
@@ -1651,7 +1647,7 @@ pub async fn launch_instance(
         let session_lock = instance_dir.join("world").join("session.lock");
         if session_lock.exists() {
             // Try to check if file is locked by attempting to open it exclusively
-            if let Ok(file) = std::fs::OpenOptions::new().write(true).open(&session_lock) {
+            if let Ok(_file) = std::fs::OpenOptions::new().write(true).open(&session_lock) {
                 // Try to get exclusive lock
                 #[cfg(unix)]
                 {

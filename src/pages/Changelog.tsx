@@ -58,6 +58,35 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.6.1",
+    date: "2025-12-16",
+    highlights: [
+      "Forge 1.18+ Fix",
+      "Bug Fixes",
+      "Code Quality",
+    ],
+    features: [
+      {
+        icon: <Blocks className="h-5 w-5" />,
+        title: "Forge 1.18+ Launch Fix",
+        description: "Fixed 'Missing required option(s) [fml.mcpVersion]' error when launching Forge modpacks. The launcher now correctly uses --fml.mcpVersion instead of --fml.neoFormVersion for Forge, and adds the required --fml.forgeGroup argument.",
+        tag: "fix",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Schematics Instance List Truncation",
+        description: "Instance names in the 'By Instance' view now properly truncate with ellipsis when too long, preventing layout overflow.",
+        tag: "fix",
+      },
+      {
+        icon: <Wrench className="h-5 w-5" />,
+        title: "Rust Compiler Warnings",
+        description: "Fixed 22 compiler warnings: removed unused imports, prefixed intentionally unused variables, and added #[allow(dead_code)] for future-use functions.",
+        tag: "fix",
+      },
+    ],
+  },
+  {
     version: "0.6.0",
     date: "2025-12-14",
     isMajor: true,

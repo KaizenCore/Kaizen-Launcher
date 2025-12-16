@@ -301,6 +301,8 @@ pub fn run() {
             tunnel::commands::get_tunnel_status,
             tunnel::commands::is_tunnel_running,
             tunnel::commands::delete_tunnel_config,
+            tunnel::commands::check_bore_servers_health,
+            tunnel::commands::get_default_bore_servers,
             // DevTools commands
             devtools::get_app_metrics,
             devtools::is_dev_mode,

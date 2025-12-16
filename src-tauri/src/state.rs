@@ -256,6 +256,11 @@ impl AppState {
             .execute(db)
             .await;
 
+        // Migration: Add bore_servers column for fallback support
+        let _ = sqlx::query("ALTER TABLE tunnel_configs ADD COLUMN bore_servers TEXT")
+            .execute(db)
+            .await;
+
         // Migration: Cloud storage configuration (global - one per app)
         sqlx::query(
             r#"
@@ -454,6 +459,12 @@ impl AppState {
         )
         .execute(db)
         .await?;
+
+        // Migration: Add author_locked column to schematics
+        let _ =
+            sqlx::query("ALTER TABLE schematics ADD COLUMN author_locked INTEGER DEFAULT 0")
+                .execute(db)
+                .await;
 
         Ok(())
     }

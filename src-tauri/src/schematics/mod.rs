@@ -28,6 +28,7 @@ impl SchematicFormat {
         }
     }
 
+    #[allow(dead_code)]
     pub fn extension(&self) -> &'static str {
         match self {
             Self::Schem => "schem",
@@ -37,6 +38,7 @@ impl SchematicFormat {
         }
     }
 
+    #[allow(dead_code)]
     pub fn display_name(&self) -> &'static str {
         match self {
             Self::Schem => "WorldEdit (Modern)",
@@ -71,6 +73,7 @@ pub struct SchematicDimensions {
 }
 
 impl SchematicDimensions {
+    #[allow(dead_code)]
     pub fn volume(&self) -> i64 {
         self.width as i64 * self.height as i64 * self.length as i64
     }
@@ -88,6 +91,7 @@ pub struct Schematic {
     pub library_path: Option<String>,
     pub dimensions: Option<SchematicDimensions>,
     pub author: Option<String>,
+    pub author_locked: bool, // True if author was extracted from file (cannot be modified)
     pub description: Option<String>,
     pub mc_version: Option<String>,
     pub is_favorite: bool,
@@ -231,6 +235,7 @@ pub struct SchematicInstanceInfo {
 }
 
 /// Cloud sync status for schematics
+#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SchematicCloudSync {
     pub id: String,

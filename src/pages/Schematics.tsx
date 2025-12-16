@@ -24,6 +24,9 @@ import {
   Share2,
   Link,
   Download,
+  Pencil,
+  User,
+  Lock,
 } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslation } from "@/i18n"
@@ -180,6 +183,10 @@ export function Schematics() {
   const [editingTags, setEditingTags] = useState<string[]>([])
   const [newTag, setNewTag] = useState("")
   const [allTags, setAllTags] = useState<string[]>([])
+
+  // Author editing state
+  const [isEditingAuthor, setIsEditingAuthor] = useState(false)
+  const [editingAuthor, setEditingAuthor] = useState("")
 
   // Sharing state
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
@@ -513,6 +520,32 @@ export function Schematics() {
     }
   }
 
+  const handleSaveAuthor = async () => {
+    if (!selectedSchematic) return
+
+    try {
+      await invoke("update_schematic_metadata", {
+        schematicId: selectedSchematic.schematic.id,
+        author: editingAuthor.trim() || null,
+      })
+      // Optimistic update
+      setSchematics(prev => prev.map(s =>
+        s.schematic.id === selectedSchematic.schematic.id
+          ? { ...s, schematic: { ...s.schematic, author: editingAuthor.trim() || null } }
+          : s
+      ))
+      setSelectedSchematic(prev => prev ? {
+        ...prev,
+        schematic: { ...prev.schematic, author: editingAuthor.trim() || null }
+      } : prev)
+      setIsEditingAuthor(false)
+      toast.success(t("schematics.authorUpdated"))
+    } catch (err) {
+      console.error("[Schematics] Failed to update author:", err)
+      toast.error(t("schematics.authorError"))
+    }
+  }
+
   const handleOpenFolder = async () => {
     try {
       await invoke("open_schematics_folder")
@@ -740,22 +773,20 @@ export function Schematics() {
                         {instancesWithCounts.map((inst) => (
                           <button
                             key={inst.id}
-                            className={`w-full flex items-center justify-between px-3 py-2 rounded-md text-sm transition-colors ${
+                            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors overflow-hidden ${
                               selectedInstanceId === inst.id
                                 ? "bg-primary text-primary-foreground"
                                 : "hover:bg-secondary"
                             }`}
                             onClick={() => setSelectedInstanceId(inst.id)}
                           >
-                            <span className="flex items-center gap-2 truncate">
-                              {inst.is_server ? (
-                                <Server className="h-4 w-4 flex-shrink-0" />
-                              ) : (
-                                <Gamepad2 className="h-4 w-4 flex-shrink-0" />
-                              )}
-                              <span className="truncate">{inst.name}</span>
-                            </span>
-                            <div className="flex gap-1 ml-2">
+                            {inst.is_server ? (
+                              <Server className="h-4 w-4 flex-shrink-0" />
+                            ) : (
+                              <Gamepad2 className="h-4 w-4 flex-shrink-0" />
+                            )}
+                            <span className="truncate w-0 flex-1 text-left">{inst.name}</span>
+                            <div className="flex gap-1 flex-shrink-0">
                               {inst.schematicCount > 0 && (
                                 <Badge variant="secondary">
                                   {inst.schematicCount}
@@ -946,16 +977,69 @@ export function Schematics() {
                 </div>
 
                 {/* Author */}
-                {selectedSchematic.schematic.author && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
                       {t("schematics.author")}
+                      {selectedSchematic.schematic.author_locked && (
+                        <Tooltip>
+                          <TooltipTrigger>
+                            <Lock className="h-3 w-3 text-amber-500" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {t("schematics.authorProtected")}
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </p>
-                    <p className="text-sm font-medium">
+                    {!selectedSchematic.schematic.author_locked && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => {
+                          setEditingAuthor(selectedSchematic.schematic.author || "")
+                          setIsEditingAuthor(true)
+                        }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                  {isEditingAuthor && !selectedSchematic.schematic.author_locked ? (
+                    <div className="flex gap-1">
+                      <Input
+                        value={editingAuthor}
+                        onChange={(e) => setEditingAuthor(e.target.value)}
+                        placeholder={t("schematics.authorPlaceholder")}
+                        className="h-8 text-sm"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            handleSaveAuthor()
+                          } else if (e.key === "Escape") {
+                            setIsEditingAuthor(false)
+                          }
+                        }}
+                      />
+                      <Button size="icon" className="h-8 w-8" onClick={handleSaveAuthor}>
+                        <Check className="h-3 w-3" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => setIsEditingAuthor(false)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : selectedSchematic.schematic.author ? (
+                    <p className="text-sm font-medium flex items-center gap-1">
+                      <User className="h-3 w-3 text-muted-foreground" />
                       {selectedSchematic.schematic.author}
                     </p>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">
+                      {t("schematics.noAuthor")}
+                    </p>
+                  )}
+                </div>
 
                 {/* MC Version */}
                 {selectedSchematic.schematic.mc_version && (

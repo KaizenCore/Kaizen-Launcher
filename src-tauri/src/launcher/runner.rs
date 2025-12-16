@@ -147,20 +147,23 @@ pub async fn launch_minecraft(
                 game_args.push(format!("--fml.fmlVersion={}", fml_version));
             }
         } else if loader == "forge" {
-            // Required FML arguments for BootstrapLauncher
+            // Required FML arguments for BootstrapLauncher (Forge 1.18+)
             game_args.push("--launchTarget".to_string());
             game_args.push("forgeclient".to_string());
             game_args.push(format!("--fml.mcVersion={}", instance.mc_version));
 
-            // Read neoform version from metadata file
-            let neoform_version = read_neoform_version(instance_dir)
+            // Read MCP version from metadata file (Forge uses mcpVersion, not neoFormVersion)
+            let mcp_version = read_mcp_version(instance_dir)
                 .await
                 .unwrap_or_else(|| instance.mc_version.clone());
-            game_args.push(format!("--fml.neoFormVersion={}", neoform_version));
+            game_args.push(format!("--fml.mcpVersion={}", mcp_version));
 
             if let Some(ref loader_ver) = instance.loader_version {
                 game_args.push(format!("--fml.forgeVersion={}", loader_ver));
             }
+
+            // Required for Forge to locate its libraries
+            game_args.push("--fml.forgeGroup=net.minecraftforge".to_string());
         }
     }
 
@@ -706,6 +709,20 @@ async fn read_fml_version(instance_dir: &Path) -> Option<String> {
     None
 }
 
+/// Read MCP version from instance metadata file (for Forge 1.18+)
+async fn read_mcp_version(instance_dir: &Path) -> Option<String> {
+    let meta_path = instance_dir.join("forge_meta.json");
+    if let Ok(contents) = tokio::fs::read_to_string(&meta_path).await {
+        if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
+            return json
+                .get("mcp_version")
+                .and_then(|v| v.as_str())
+                .map(|s| s.to_string());
+        }
+    }
+    None
+}
+
 /// Launch a server instance (Vanilla, Paper, Fabric, Forge, NeoForge, Velocity, BungeeCord, Waterfall)
 pub async fn launch_server(
     instance_dir: &Path,
@@ -1056,9 +1073,9 @@ async fn get_tunnel_config_if_autostart(
     db: &SqlitePool,
     instance_id: &str,
 ) -> Option<TunnelConfig> {
-    let row = sqlx::query_as::<_, (String, String, String, i64, i64, Option<String>, Option<String>, i64, Option<String>)>(
+    let row = sqlx::query_as::<_, (String, String, String, i64, i64, Option<String>, Option<String>, i64, Option<String>, Option<String>)>(
         r#"
-        SELECT id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url
+        SELECT id, instance_id, provider, enabled, auto_start, playit_secret_key, ngrok_authtoken, target_port, tunnel_url, bore_servers
         FROM tunnel_configs
         WHERE instance_id = ? AND enabled = 1 AND auto_start = 1
         "#,
@@ -1079,7 +1096,10 @@ async fn get_tunnel_config_if_autostart(
             ngrok_authtoken,
             target_port,
             tunnel_url,
+            bore_servers,
         )| {
+            // Parse bore_servers JSON
+            let bore_servers = bore_servers.and_then(|s| serde_json::from_str(&s).ok());
             TunnelConfig {
                 id,
                 instance_id,
@@ -1090,6 +1110,7 @@ async fn get_tunnel_config_if_autostart(
                 ngrok_authtoken,
                 target_port: target_port as i32,
                 tunnel_url,
+                bore_servers,
             }
         },
     )

@@ -2,6 +2,7 @@ pub mod agent;
 pub mod bore;
 pub mod cloudflare;
 pub mod commands;
+pub mod health;
 pub mod manager;
 pub mod ngrok;
 pub mod playit;
@@ -75,6 +76,10 @@ pub struct TunnelConfig {
     pub ngrok_authtoken: Option<String>,
     pub target_port: i32,
     pub tunnel_url: Option<String>,
+    /// List of bore servers to try (in order of priority)
+    /// If None, uses default servers from health module
+    #[serde(default)]
+    pub bore_servers: Option<Vec<String>>,
 }
 
 impl TunnelConfig {
@@ -90,6 +95,7 @@ impl TunnelConfig {
             ngrok_authtoken: None,
             target_port: 25565,
             tunnel_url: None,
+            bore_servers: None,
         }
     }
 }

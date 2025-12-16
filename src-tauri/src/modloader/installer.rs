@@ -221,6 +221,9 @@ async fn install_forge(
     let (version_profile, libraries) =
         extract_forge_profile(&installer_bytes, mc_version, loader_version)?;
 
+    // Extract MCP version from install_profile.json (for Forge 1.18+)
+    let mcp_version = extract_forge_mcp_version(&installer_bytes);
+
     emit_loader_progress(
         app,
         "loader",
@@ -241,6 +244,22 @@ async fn install_forge(
         95,
     )
     .await?;
+
+    // Save Forge metadata (MCP version required for launch arguments)
+    if let Some(ref mcp_ver) = mcp_version {
+        let forge_meta_path = instance_dir.join("forge_meta.json");
+        let meta_json = serde_json::json!({
+            "mcp_version": mcp_ver,
+            "mc_version": mc_version,
+            "loader_version": loader_version,
+        });
+        let meta_content = serde_json::to_string_pretty(&meta_json)
+            .map_err(|e| AppError::Io(format!("Failed to serialize forge metadata: {}", e)))?;
+        tokio::fs::write(&forge_meta_path, meta_content)
+            .await
+            .map_err(|e| AppError::Io(format!("Failed to save forge metadata: {}", e)))?;
+        println!("[FORGE] Saved MCP version: {}", mcp_ver);
+    }
 
     emit_loader_progress(app, "loader", 100, 100, "Forge installe!");
 
@@ -503,6 +522,40 @@ fn extract_forge_profile(
     };
 
     Ok((profile, version.libraries))
+}
+
+/// Extract MCP version from Forge installer's install_profile.json
+/// Returns the MCP_VERSION data entry value (required for Forge 1.18+ launch arguments)
+fn extract_forge_mcp_version(installer_bytes: &[u8]) -> Option<String> {
+    let cursor = Cursor::new(installer_bytes);
+    let mut archive = match ZipArchive::new(cursor) {
+        Ok(a) => a,
+        Err(_) => return None,
+    };
+
+    // Try to read install_profile.json
+    let mut file = match archive.by_name("install_profile.json") {
+        Ok(f) => f,
+        Err(_) => return None,
+    };
+
+    let mut contents = String::new();
+    if file.read_to_string(&mut contents).is_err() {
+        return None;
+    }
+
+    // Parse as JSON and extract MCP_VERSION
+    let json: serde_json::Value = match serde_json::from_str(&contents) {
+        Ok(j) => j,
+        Err(_) => return None,
+    };
+
+    // The MCP_VERSION is in data.MCP_VERSION.client (format: "'20220805.130853'")
+    json.get("data")
+        .and_then(|data| data.get("MCP_VERSION"))
+        .and_then(|mcp| mcp.get("client"))
+        .and_then(|client| client.as_str())
+        .map(|s| s.trim_matches('\'').to_string())
 }
 
 /// Extract NeoForge profile from installer JAR

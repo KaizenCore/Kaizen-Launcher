@@ -1,8 +1,9 @@
 use crate::error::{AppError, AppResult};
 use crate::state::SharedState;
 use crate::tunnel::{
-    agent::get_agent_binary_path, RunningTunnel, TunnelConfig, TunnelProvider, TunnelStatus,
-    TunnelStatusEvent, TunnelUrlEvent,
+    agent::get_agent_binary_path,
+    health::{find_available_bore_server, get_default_bore_servers},
+    RunningTunnel, TunnelConfig, TunnelProvider, TunnelStatus, TunnelStatusEvent, TunnelUrlEvent,
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -13,7 +14,7 @@ use tauri::{AppHandle, Emitter, Manager};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::RwLock;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 // Windows-specific: CREATE_NO_WINDOW flag to hide console window
 #[cfg(target_os = "windows")]
@@ -24,8 +25,9 @@ const CREATE_NO_WINDOW: u32 = 0x08000000;
 // Pre-compiled regex patterns for bore output parsing
 static URL_REGEX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"listening at ([a-zA-Z0-9.-]+:\d+)").expect("Invalid bore URL regex"));
+// Match any bore server hostname with port (e.g., bore.pub:12345, bore.digital:54321)
 static HOST_PORT_REGEX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"bore\.pub:\d+").expect("Invalid bore host:port regex"));
+    Lazy::new(|| Regex::new(r"([a-zA-Z0-9.-]+:\d+)").expect("Invalid bore host:port regex"));
 
 /// Start a bore tunnel
 pub async fn start_bore_tunnel(
@@ -44,10 +46,46 @@ pub async fn start_bore_tunnel(
         config.target_port
     );
 
+    // Get list of bore servers to try (from config or defaults)
+    let servers = config
+        .bore_servers
+        .clone()
+        .unwrap_or_else(get_default_bore_servers);
+
+    if servers.is_empty() {
+        return Err(AppError::Custom(
+            "No bore servers configured".to_string(),
+        ));
+    }
+
+    info!("[BORE] Checking {} bore servers for availability...", servers.len());
+
+    // Find an available server (10s timeout, 3 retries per server)
+    let available_server = find_available_bore_server(&servers, 10, 3).await;
+
+    let bore_server = match available_server {
+        Some(server) => {
+            info!("[BORE] Using available server: {}", server);
+            server
+        }
+        None => {
+            warn!("[BORE] No available servers found, trying first server anyway: {}", servers[0]);
+            servers[0].clone()
+        }
+    };
+
     // Start bore tunnel
-    // bore local <PORT> --to bore.pub
+    // bore local <PORT> --to <SERVER> --local-host 127.0.0.1
+    // We explicitly use 127.0.0.1 instead of localhost to avoid IPv6 resolution issues on Windows
     let mut cmd = Command::new(&binary_path);
-    cmd.args(["local", &config.target_port.to_string(), "--to", "bore.pub"])
+    cmd.args([
+        "local",
+        &config.target_port.to_string(),
+        "--to",
+        &bore_server,
+        "--local-host",
+        "127.0.0.1",
+    ])
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
 

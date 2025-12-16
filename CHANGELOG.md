@@ -2,6 +2,48 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.6.1] - 2025-12-16
+
+### Fixed
+- **Forge 1.18+ Launch Fix** - Fixed `Missing required option(s) [fml.mcpVersion]` error when launching Forge modpacks
+  - Changed FML argument from `--fml.neoFormVersion` to `--fml.mcpVersion` for Forge (NeoForge uses different args)
+  - Added missing `--fml.forgeGroup=net.minecraftforge` argument
+  - MCP version now extracted and saved during Forge installation (`forge_meta.json`)
+- Instance names now properly truncate with ellipsis in Schematics "By Instance" view
+
+### Technical
+- Removed unused Rust imports and variables (22 compiler warnings fixed)
+- Added `extract_forge_mcp_version()` function to extract MCP_VERSION from Forge installer
+- Added `read_mcp_version()` function to read MCP version at launch time
+
+## [0.6.0] - 2025-12-14
+
+### Added
+- **Schematics Manager** - Complete schematic library management system
+  - Import, organize, and manage .schem, .schematic, .litematic, and .nbt files
+  - View dimensions, format, author, and metadata extracted from NBT
+  - Tags and favorites system for organization
+  - Search and filter by format
+- **Bidirectional Sync** - Sync schematics between library and instances
+  - Copy schematics to WorldEdit, Litematica, Axiom, or Create folders
+  - Import schematics from instances back to library
+  - Automatic conflict detection and resolution
+- **Smart Scanning** - Scan all instances for existing schematics
+  - Detects schematics in client and server folders
+  - Parallel scanning for fast results
+- **Schematic Sharing** - Share schematics via HTTP tunnel (Bore or Cloudflare)
+  - Password protection support
+  - Download counter
+  - Integration with sharing system
+- **Cloud Ready** - Upload schematics to cloud storage providers
+
+### Technical
+- Streaming hash calculation for large files
+- Parallel instance scanning
+- N+1 query elimination in database
+- React memoization and debounced search
+- Stable translation hooks
+
 ## [0.5.4] - 2025-12-12
 
 ### Added

@@ -65,7 +65,9 @@ impl Account {
             r#"
             INSERT INTO accounts (id, uuid, username, access_token, refresh_token, expires_at, skin_url, is_active)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id) DO UPDATE SET
+            ON CONFLICT(uuid) DO UPDATE SET
+                id = excluded.id,
+                username = excluded.username,
                 access_token = excluded.access_token,
                 refresh_token = excluded.refresh_token,
                 expires_at = excluded.expires_at,
