@@ -1647,7 +1647,7 @@ pub async fn launch_instance(
         let session_lock = instance_dir.join("world").join("session.lock");
         if session_lock.exists() {
             // Try to check if file is locked by attempting to open it exclusively
-            if let Ok(_file) = std::fs::OpenOptions::new().write(true).open(&session_lock) {
+            if let Ok(file) = std::fs::OpenOptions::new().write(true).open(&session_lock) {
                 // Try to get exclusive lock
                 #[cfg(unix)]
                 {

@@ -324,7 +324,7 @@ pub async fn install_agent(
 }
 
 /// Extract a tarball
-async fn extract_tarball(_archive_path: &Path, _dest_dir: &Path) -> AppResult<()> {
+async fn extract_tarball(archive_path: &Path, dest_dir: &Path) -> AppResult<()> {
     #[cfg(any(target_os = "macos", target_os = "linux"))]
     {
         use std::process::Command;
