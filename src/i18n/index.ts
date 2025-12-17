@@ -1,6 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
 import { useCallback, useMemo } from "react";
+import { invoke } from "@tauri-apps/api/core";
 
 import frTranslations from "./locales/fr.json";
 import enTranslations from "./locales/en.json";
@@ -20,20 +20,45 @@ const translations: Record<Locale, TranslationKeys> = {
 
 interface I18nState {
   locale: Locale;
+  _isLoaded: boolean;
   setLocale: (locale: Locale) => void;
+  loadFromBackend: () => Promise<void>;
 }
 
-export const useI18nStore = create<I18nState>()(
-  persist(
-    (set) => ({
-      locale: "en",
-      setLocale: (locale) => set({ locale }),
-    }),
-    {
-      name: "kaizen-i18n",
+export const useI18nStore = create<I18nState>()((set, get) => ({
+  locale: "en",
+  _isLoaded: false,
+
+  setLocale: (locale) => {
+    set({ locale });
+    // Save to backend
+    invoke("save_appearance_setting", { key: "locale", value: locale }).catch(
+      (err) => console.error("Failed to save locale:", err)
+    );
+  },
+
+  loadFromBackend: async () => {
+    if (get()._isLoaded) return;
+    try {
+      const settings = await invoke<{
+        locale: string;
+        theme: string;
+        custom_theme: unknown;
+      }>("get_appearance_settings");
+      const validLocales: Locale[] = ["fr", "en", "de", "nl"];
+      const locale = validLocales.includes(settings.locale as Locale)
+        ? (settings.locale as Locale)
+        : "en";
+      set({ locale, _isLoaded: true });
+    } catch (err) {
+      console.error("Failed to load locale from backend:", err);
+      set({ _isLoaded: true });
     }
-  )
-);
+  },
+}));
+
+// Initialize the store from backend on module load
+useI18nStore.getState().loadFromBackend();
 
 type NestedKeyOf<T> = T extends object
   ? {

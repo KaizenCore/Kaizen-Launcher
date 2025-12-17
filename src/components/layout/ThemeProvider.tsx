@@ -1,4 +1,5 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { ThemeContext, Theme } from "@/lib/themes";
 import { useCustomThemeStore } from "@/stores/customThemeStore";
 import { applyCustomColors } from "@/lib/colorUtils";
@@ -11,25 +12,39 @@ function getSystemTheme(): "light" | "dark" {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(() => {
-    const stored = localStorage.getItem("theme");
-    if (stored === "light" || stored === "dark" || stored === "system") {
-      return stored;
-    }
-    return "system";
-  });
+  const [theme, setThemeState] = useState<Theme>("system");
+  const loadedRef = useRef(false);
 
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() => {
-    const stored = localStorage.getItem("theme");
-    if (stored === "light" || stored === "dark") {
-      return stored;
-    }
     return getSystemTheme();
   });
 
+  // Load theme from backend on mount
+  useEffect(() => {
+    if (loadedRef.current) return;
+    loadedRef.current = true;
+
+    invoke<{ locale: string; theme: string; custom_theme: unknown }>(
+      "get_appearance_settings"
+    )
+      .then((settings) => {
+        const validThemes: Theme[] = ["light", "dark", "system"];
+        const savedTheme = validThemes.includes(settings.theme as Theme)
+          ? (settings.theme as Theme)
+          : "system";
+        setThemeState(savedTheme);
+      })
+      .catch((err) => {
+        console.error("Failed to load theme from backend:", err);
+      });
+  }, []);
+
   const setTheme = useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-    localStorage.setItem("theme", newTheme);
+    // Save to backend
+    invoke("save_appearance_setting", { key: "theme", value: newTheme }).catch(
+      (err) => console.error("Failed to save theme:", err)
+    );
   }, []);
 
   // Update resolved theme when theme changes or system preference changes
@@ -65,15 +80,22 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   // Apply custom colors when theme or colors change
   const colors = useCustomThemeStore((state) => state.colors);
+  const hasHydrated = useCustomThemeStore((state) => state._hasHydrated);
 
+  // Apply colors when hydrated or when colors/theme change
   useEffect(() => {
-    applyCustomColors(colors, resolvedTheme);
-  }, [colors, resolvedTheme]);
+    // Only apply colors after hydration to avoid flash of default colors
+    if (hasHydrated) {
+      applyCustomColors(colors, resolvedTheme);
+    }
+  }, [colors, resolvedTheme, hasHydrated]);
 
   // Subscribe to store changes for real-time updates
   useEffect(() => {
     const unsubscribe = useCustomThemeStore.subscribe((state) => {
-      applyCustomColors(state.colors, resolvedTheme);
+      if (state._hasHydrated) {
+        applyCustomColors(state.colors, resolvedTheme);
+      }
     });
     return unsubscribe;
   }, [resolvedTheme]);

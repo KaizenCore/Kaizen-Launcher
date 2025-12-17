@@ -289,6 +289,7 @@ pub fn run() {
             modrinth::commands::lookup_mod_by_hash,
             modrinth::commands::enrich_instance_mods,
             modrinth::commands::analyze_mods_for_server_detailed,
+            modrinth::commands::sync_mods_metadata,
             // Tunnel commands
             tunnel::commands::check_tunnel_agent,
             tunnel::commands::install_tunnel_agent,
@@ -408,6 +409,10 @@ pub fn run() {
             schematics::commands::get_schematic_shares,
             schematics::commands::download_shared_schematic,
             schematics::commands::fetch_schematic_share_info,
+            // Appearance settings commands
+            db::settings::get_appearance_settings,
+            db::settings::save_appearance_setting,
+            db::settings::save_custom_theme_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

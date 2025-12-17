@@ -413,18 +413,9 @@ export function Schematics() {
 
     setIsCopying(true)
     try {
-      const instanceList = Array.from(selectedInstancesForCopy).map(id => {
-        const inst = instances.find(i => i.id === id)
-        return {
-          id,
-          name: inst?.name || "",
-          is_server: inst?.is_server || false
-        }
-      })
-
       await invoke("copy_schematic_to_instances", {
         schematicId: selectedSchematic.schematic.id,
-        instances: instanceList,
+        instanceIds: Array.from(selectedInstancesForCopy),
         targetFolder,
       })
 

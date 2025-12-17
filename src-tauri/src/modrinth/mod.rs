@@ -440,6 +440,80 @@ impl<'a> ModrinthClient<'a> {
             .map_err(|e| ModrinthError::Parse(e.to_string()))
     }
 
+    /// Look up a version by file hash (SHA-1)
+    /// Returns the version info if found on Modrinth
+    #[allow(dead_code)]
+    pub async fn get_version_by_hash_sha1(&self, sha1: &str) -> Result<Version, ModrinthError> {
+        let url = format!(
+            "{}/version_file/{}?algorithm=sha1",
+            MODRINTH_API_BASE, sha1
+        );
+
+        let response = self
+            .http_client
+            .get(&url)
+            .send()
+            .await
+            .map_err(|e| ModrinthError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(ModrinthError::Api(format!(
+                "API returned status {}",
+                response.status()
+            )));
+        }
+
+        response
+            .json::<Version>()
+            .await
+            .map_err(|e| ModrinthError::Parse(e.to_string()))
+    }
+
+    /// Batch lookup versions by multiple hashes
+    /// Returns a map of hash -> Version for found files
+    pub async fn get_versions_by_hashes(
+        &self,
+        hashes: &[String],
+        algorithm: &str,
+    ) -> Result<std::collections::HashMap<String, Version>, ModrinthError> {
+        if hashes.is_empty() {
+            return Ok(std::collections::HashMap::new());
+        }
+
+        let url = format!("{}/version_files", MODRINTH_API_BASE);
+
+        #[derive(Serialize)]
+        struct HashLookupRequest {
+            hashes: Vec<String>,
+            algorithm: String,
+        }
+
+        let request_body = HashLookupRequest {
+            hashes: hashes.to_vec(),
+            algorithm: algorithm.to_string(),
+        };
+
+        let response = self
+            .http_client
+            .post(&url)
+            .json(&request_body)
+            .send()
+            .await
+            .map_err(|e| ModrinthError::Network(e.to_string()))?;
+
+        if !response.status().is_success() {
+            return Err(ModrinthError::Api(format!(
+                "API returned status {}",
+                response.status()
+            )));
+        }
+
+        response
+            .json::<std::collections::HashMap<String, Version>>()
+            .await
+            .map_err(|e| ModrinthError::Parse(e.to_string()))
+    }
+
     /// Download a mod file to the specified path
     pub async fn download_file(
         &self,

@@ -2,6 +2,42 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.6.3] - 2025-12-17
+
+### Added
+- **Mods List Refactor** - Complete redesign of the mods tab in instance details
+  - Infinite scroll replaces pagination for smoother browsing
+  - View modes: List and Grid layouts
+  - Sort options: Name (A-Z, Z-A), Enabled first, Disabled first, Updates first
+  - Filter options: All, Enabled only, Disabled only, With updates
+  - Improved performance with lazy loading
+- **Mod Sync from Modrinth** - Identify and restore mod metadata for imported modpacks
+  - Multi-technique identification: SHA-512 hash, SHA-1 hash, filename parsing + search
+  - Similarity scoring algorithm finds best matches on Modrinth
+  - Restores icons, descriptions, and project links for unidentified mods
+  - Progress indicator shows sync status in real-time
+  - Useful for imported modpacks where mods lack metadata
+
+### Fixed
+- **Schematics Copy to Instance** - Fixed "missing required key instanceIds" error when copying schematics to instances from the library
+- **Settings Persistence** - Fixed appearance settings not persisting after app restart
+  - Language, theme, and custom colors now stored in SQLite database instead of browser localStorage
+  - Tauri webview localStorage was not persistent between app sessions
+  - Migration from Zustand persist middleware to backend Tauri commands
+- **Custom Theme Persistence** - Custom theme colors and presets now correctly persist across app restarts
+- **Language Settings Persistence** - Selected language no longer resets to English on every app restart
+
+### Technical
+- New `ModsList.tsx` component with IntersectionObserver-based infinite scroll
+- New `sync_mods_metadata` Tauri command with batch hash lookups
+- Added `get_versions_by_hashes` method to Modrinth client for batch operations
+- Progress events via `mod-sync-progress` Tauri event
+- Added `get_appearance_settings`, `save_appearance_setting`, and `save_custom_theme_settings` Tauri commands
+- Modified `customThemeStore.ts` to use backend storage instead of localStorage
+- Modified `ThemeProvider.tsx` to load/save theme via backend
+- Modified `i18n/index.ts` to use backend storage for locale preference
+- All appearance settings now use the existing `settings` SQLite table
+
 ## [0.6.2] - 2025-12-17
 
 ### Added

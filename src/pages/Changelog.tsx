@@ -58,6 +58,53 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.6.3",
+    date: "2025-12-17",
+    highlights: [
+      "Mods List Refactor",
+      "Mod Sync from Modrinth",
+      "Settings Persistence Fix",
+    ],
+    features: [
+      {
+        icon: <LayoutGrid className="h-5 w-5" />,
+        title: "Mods List Refactor",
+        description: "Complete redesign of the mods tab with infinite scroll, view modes (list/grid), sorting (name, enabled, updates), and filtering options. Smoother browsing experience with lazy loading.",
+        tag: "improved",
+      },
+      {
+        icon: <RefreshCw className="h-5 w-5" />,
+        title: "Mod Sync from Modrinth",
+        description: "Identify and restore mod metadata for imported modpacks. Uses SHA-512/SHA-1 hashes and smart search to find mods on Modrinth, restoring icons and descriptions for unidentified mods.",
+        tag: "new",
+      },
+      {
+        icon: <Database className="h-5 w-5" />,
+        title: "Settings Persistence Fix",
+        description: "Fixed appearance settings (language, theme, custom colors) not persisting after app restart. Settings are now stored in SQLite database instead of browser localStorage.",
+        tag: "fix",
+      },
+      {
+        icon: <Palette className="h-5 w-5" />,
+        title: "Custom Theme Persistence",
+        description: "Your custom theme colors and presets now correctly persist across app restarts. The Tauri webview localStorage was not persistent, so we migrated to backend storage.",
+        tag: "fix",
+      },
+      {
+        icon: <Globe className="h-5 w-5" />,
+        title: "Language Settings Persistence",
+        description: "Selected language now persists correctly after closing and reopening the app. No more reverting to English on every restart.",
+        tag: "fix",
+      },
+      {
+        icon: <Boxes className="h-5 w-5" />,
+        title: "Schematics Copy to Instance",
+        description: "Fixed 'missing required key instanceIds' error when copying schematics to instances from the library.",
+        tag: "fix",
+      },
+    ],
+  },
+  {
     version: "0.6.2",
     date: "2025-12-17",
     highlights: [

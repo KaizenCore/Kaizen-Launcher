@@ -6,7 +6,7 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { toast } from "sonner"
 import { useInstallationStore } from "@/stores/installationStore"
 import { useTourStore, TourStep } from "@/stores/tourStore"
-import { ArrowLeft, Settings, Package, Loader2, FolderOpen, Search, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, ArrowUp, Trash2, ChevronLeft, ChevronRight, Share2, RefreshCw, Settings2, Cpu, Archive } from "lucide-react"
+import { ArrowLeft, Settings, Package, Loader2, FolderOpen, Search, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, Share2, Settings2, Cpu, Archive } from "lucide-react"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,17 +15,6 @@ import { Label } from "@/components/ui/label"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
-import { Checkbox } from "@/components/ui/checkbox"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
 import {
   Tooltip,
   TooltipContent,
@@ -47,6 +36,7 @@ const ServerPropertiesEditor = lazy(() => import("@/components/config/ServerProp
 const ServerStats = lazy(() => import("@/components/server/ServerStats").then(m => ({ default: m.ServerStats })))
 const TunnelConfig = lazy(() => import("@/components/tunnel/TunnelConfig").then(m => ({ default: m.TunnelConfig })))
 const WorldsTab = lazy(() => import("@/components/instances/WorldsTab").then(m => ({ default: m.WorldsTab })))
+const ModsList = lazy(() => import("@/components/instances/ModsList").then(m => ({ default: m.ModsList })))
 const ExportInstanceDialog = lazy(() => import("@/components/sharing/ExportInstanceDialog").then(m => ({ default: m.ExportInstanceDialog })))
 
 // Loading fallback for lazy components
@@ -76,31 +66,8 @@ interface Instance {
   is_proxy: boolean
 }
 
-interface ModInfo {
-  name: string
-  version: string
-  filename: string
-  enabled: boolean
-  icon_url: string | null
-  project_id: string | null
-}
-
-interface ModUpdateInfo {
-  project_id: string
-  filename: string
-  current_version: string
-  current_version_id: string | null
-  latest_version: string
-  latest_version_id: string
-  name: string
-  icon_url: string | null
-}
-
 // Determine what type of content this server/instance supports
 type ContentType = "mods" | "plugins" | "none"
-
-// Constants - defined outside component to avoid recreation on each render
-const MODS_PER_PAGE = 10
 
 function getContentType(loader: string | null, _isServer: boolean): ContentType {
   if (!loader) {
@@ -164,17 +131,8 @@ export function InstanceDetails() {
   const contentType = useMemo(() => getContentType(instance?.loader || null, instance?.is_server || false), [instance?.loader, instance?.is_server])
   const contentLabel = useMemo(() => getContentLabel(contentType), [contentType])
 
-  // Mods state
-  const [mods, setMods] = useState<ModInfo[]>([])
-  const [isLoadingMods, setIsLoadingMods] = useState(false)
-  const [modUpdates, setModUpdates] = useState<ModUpdateInfo[]>([])
-  const [isCheckingUpdates, setIsCheckingUpdates] = useState(false)
-  const [updatingMods, setUpdatingMods] = useState<Set<string>>(new Set())
-  const [modsPage, setModsPage] = useState(1)
-  const [modSearchQuery, setModSearchQuery] = useState("")
-  const [selectedMods, setSelectedMods] = useState<Set<string>>(new Set())
-  const [isDeletingSelected, setIsDeletingSelected] = useState(false)
-  const [modToDelete, setModToDelete] = useState<string | null>(null)
+  // Mods refresh key - used to trigger ModsList reload when content changes
+  const [modsRefreshKey, setModsRefreshKey] = useState(0)
 
   // Settings form state
   const [name, setName] = useState("")
@@ -292,51 +250,6 @@ export function InstanceDetails() {
     }
   }
 
-  // Load mods for this instance - memoized to prevent unnecessary re-renders
-  const loadMods = useCallback(async () => {
-    if (!instanceId) return
-    console.log(`[InstanceDetails] Loading mods for instance: ${instanceId}`)
-    setIsLoadingMods(true)
-    try {
-      const modsData = await invoke<ModInfo[]>("get_instance_mods", { instanceId })
-      console.log(`[InstanceDetails] Loaded ${modsData.length} mods`)
-      setMods(modsData)
-    } catch (err) {
-      console.error("[InstanceDetails] Failed to load mods:", err)
-    } finally {
-      setIsLoadingMods(false)
-    }
-  }, [instanceId])
-
-  const handleToggleMod = useCallback(async (filename: string, enabled: boolean) => {
-    if (!instanceId) return
-    console.log(`[InstanceDetails] Toggling mod: ${filename} -> ${enabled ? "enabled" : "disabled"}`)
-    try {
-      await invoke("toggle_mod", { instanceId, filename, enabled })
-      toast.success(enabled ? t("instanceDetails.modEnabled") : t("instanceDetails.modDisabled"))
-      loadMods()
-    } catch (err) {
-      toast.error(t("instanceDetails.modToggleError"))
-      console.error("[InstanceDetails] Failed to toggle mod:", err)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instanceId, loadMods])
-
-  const confirmDeleteMod = useCallback(async () => {
-    if (!instanceId || !modToDelete) return
-    try {
-      await invoke("delete_mod", { instanceId, filename: modToDelete })
-      toast.success(t("notifications.modDeleted"))
-      loadMods()
-    } catch (err) {
-      toast.error(t("instanceDetails.modDeleteError"))
-      console.error("Failed to delete mod:", err)
-    } finally {
-      setModToDelete(null)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instanceId, modToDelete, loadMods])
-
   const handleOpenModsFolder = useCallback(async () => {
     if (!instanceId) return
     try {
@@ -359,159 +272,10 @@ export function InstanceDetails() {
     }
   }, [instanceId])
 
-  // Check for mod updates - memoized
-  const checkModUpdates = useCallback(async () => {
-    if (!instanceId) return
-    setIsCheckingUpdates(true)
-    try {
-      const updates = await invoke<ModUpdateInfo[]>("check_mod_updates", {
-        instanceId,
-        projectType: contentType === "plugins" ? "plugin" : "mod",
-      })
-      setModUpdates(updates)
-      if (updates.length > 0) {
-        toast.success(t("instanceDetails.updatesFound", { count: String(updates.length) }))
-      } else {
-        toast.success(t("instanceDetails.noUpdatesFound"))
-      }
-    } catch (err) {
-      console.error("Failed to check updates:", err)
-      toast.error(t("instanceDetails.checkUpdatesError"))
-    } finally {
-      setIsCheckingUpdates(false)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instanceId, contentType])
-
-  // Update a single mod - memoized
-  const handleUpdateMod = useCallback(async (update: ModUpdateInfo) => {
-    if (!instanceId) return
-    setUpdatingMods(prev => new Set(prev).add(update.project_id))
-    try {
-      await invoke("update_mod", {
-        instanceId,
-        projectId: update.project_id,
-        currentFilename: update.filename,
-        newVersionId: update.latest_version_id,
-        projectType: contentType === "plugins" ? "plugin" : "mod",
-      })
-      toast.success(t("instanceDetails.modUpdated", { name: update.name }))
-      // Remove from updates list
-      setModUpdates(prev => prev.filter(u => u.project_id !== update.project_id))
-      // Reload mods list
-      loadMods()
-    } catch (err) {
-      console.error("Failed to update mod:", err)
-      toast.error(t("instanceDetails.modUpdateError", { name: update.name }))
-    } finally {
-      setUpdatingMods(prev => {
-        const newSet = new Set(prev)
-        newSet.delete(update.project_id)
-        return newSet
-      })
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instanceId, contentType, loadMods])
-
-  // Update all mods - uses ref to avoid stale closure
-  const modUpdatesRef = useRef(modUpdates)
-  modUpdatesRef.current = modUpdates
-
-  const handleUpdateAllMods = useCallback(async () => {
-    for (const update of modUpdatesRef.current) {
-      await handleUpdateMod(update)
-    }
-  }, [handleUpdateMod])
-
-  // Toggle mod selection
-  const toggleModSelection = useCallback((filename: string) => {
-    setSelectedMods(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(filename)) {
-        newSet.delete(filename)
-      } else {
-        newSet.add(filename)
-      }
-      return newSet
-    })
-  }, [])
-
-  // Deselect all mods
-  const deselectAllMods = useCallback(() => {
-    setSelectedMods(new Set())
-  }, [])
-
-  // Check if a mod has an update available - memoized
-  const getModUpdate = useCallback((mod: ModInfo): ModUpdateInfo | undefined => {
-    if (!mod.project_id) return undefined
-    return modUpdates.find(u => u.project_id === mod.project_id)
-  }, [modUpdates])
-
-  // Filter mods by search query
-  const filteredMods = useMemo(() => {
-    if (!modSearchQuery.trim()) return mods
-    const query = modSearchQuery.toLowerCase()
-    return mods.filter(mod =>
-      mod.name.toLowerCase().includes(query) ||
-      mod.filename.toLowerCase().includes(query)
-    )
-  }, [mods, modSearchQuery])
-
-  // Pagination for mods - memoized
-  const totalModsPages = useMemo(() => Math.ceil(filteredMods.length / MODS_PER_PAGE), [filteredMods.length])
-  const paginatedMods = useMemo(() => {
-    const start = (modsPage - 1) * MODS_PER_PAGE
-    return filteredMods.slice(start, start + MODS_PER_PAGE)
-  }, [filteredMods, modsPage])
-
-  // Select all filtered mods (defined after filteredMods)
-  const selectAllMods = useCallback(() => {
-    setSelectedMods(new Set(filteredMods.map(m => m.filename)))
-  }, [filteredMods])
-
-  // Delete selected mods
-  const handleDeleteSelectedMods = useCallback(async () => {
-    if (!instanceId || selectedMods.size === 0) return
-    setIsDeletingSelected(true)
-    try {
-      let deleted = 0
-      for (const filename of selectedMods) {
-        await invoke("delete_mod", { instanceId, filename })
-        deleted++
-      }
-      toast.success(t("instanceDetails.modsDeleted", { count: String(deleted) }))
-      setSelectedMods(new Set())
-      loadMods()
-    } catch (err) {
-      toast.error(t("instanceDetails.modDeleteError"))
-      console.error("Failed to delete mods:", err)
-    } finally {
-      setIsDeletingSelected(false)
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [instanceId, selectedMods, loadMods])
-
-  // Update selected mods (only those with updates available)
-  const handleUpdateSelectedMods = useCallback(async () => {
-    const selectedUpdates = modUpdates.filter(u => {
-      const mod = mods.find(m => m.project_id === u.project_id)
-      return mod && selectedMods.has(mod.filename)
-    })
-    if (selectedUpdates.length === 0) {
-      toast.info(t("instanceDetails.noUpdatesForSelected"))
-      return
-    }
-    for (const update of selectedUpdates) {
-      await handleUpdateMod(update)
-    }
-    setSelectedMods(new Set())
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [modUpdates, mods, selectedMods, handleUpdateMod])
-
-  // Callback when content is changed - memoized
+  // Callback when content is changed - triggers ModsList reload
   const handleContentChanged = useCallback(() => {
-    loadMods()
-  }, [loadMods])
+    setModsRefreshKey(prev => prev + 1)
+  }, [])
 
   const checkInstallation = async () => {
     if (!instanceId) return
@@ -650,7 +414,6 @@ export function InstanceDetails() {
       checkRunningStatus(),
       loadActiveAccount(),
       loadIcon(),
-      loadMods(),
       loadTunnelUrl(),
       loadAutoBackup(),
     ]).catch(console.error)
@@ -1219,7 +982,7 @@ export function InstanceDetails() {
                   isServer={instance?.is_server || instance?.is_proxy || false}
                   mcVersion={instance?.mc_version}
                   loader={instance?.loader}
-                  onModInstalled={() => loadMods()}
+                  onModInstalled={handleContentChanged}
                 />
               </Suspense>
             </CardContent>
@@ -1637,257 +1400,17 @@ export function InstanceDetails() {
         {/* Installed Mods/Plugins Tab */}
         {contentType !== "none" && (
         <TabsContent value="mods">
-          <Card className="flex flex-col flex-1 min-h-0">
-            <CardHeader className="flex-shrink-0 pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CardTitle className="flex items-center gap-2">
-                    {t("instanceDetails.installedMods")}
-                    {mods.length > 0 && (
-                      <Badge variant="secondary">{mods.length}</Badge>
-                    )}
-                  </CardTitle>
-                  {modUpdates.length > 0 && (
-                    <Badge variant="default" className="bg-green-500 hover:bg-green-600">
-                      {modUpdates.length} {t("instanceDetails.updatesAvailable")}
-                    </Badge>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {modUpdates.length > 0 && (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={handleUpdateAllMods}
-                      disabled={updatingMods.size > 0}
-                      className="gap-2 bg-green-500 hover:bg-green-600"
-                    >
-                      <ArrowUp className="h-4 w-4" />
-                      {t("instanceDetails.updateAll")}
-                    </Button>
-                  )}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={checkModUpdates}
-                    disabled={isCheckingUpdates || mods.length === 0}
-                    className="gap-2"
-                  >
-                    {isCheckingUpdates ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <RefreshCw className="h-4 w-4" />
-                    )}
-                    {t("instanceDetails.checkUpdates")}
-                  </Button>
-                  <Button variant="outline" size="sm" onClick={handleOpenModsFolder} className="gap-2">
-                    <FolderOpen className="h-4 w-4" />
-                    {t("common.openFolder")}
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="flex-1 flex flex-col min-h-0 pt-0">
-              {/* Search bar and batch actions for mods */}
-              {mods.length > 0 && (
-                <div className="space-y-3 mb-3">
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      placeholder={t("instanceDetails.searchMods")}
-                      value={modSearchQuery}
-                      onChange={(e) => {
-                        setModSearchQuery(e.target.value)
-                        setModsPage(1) // Reset to first page when searching
-                      }}
-                      className="pl-9"
-                    />
-                  </div>
-                  {/* Batch actions bar */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className="flex items-center gap-2">
-                      <Checkbox
-                        id="select-all-mods"
-                        checked={selectedMods.size > 0 && selectedMods.size === filteredMods.length}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            selectAllMods()
-                          } else {
-                            deselectAllMods()
-                          }
-                        }}
-                      />
-                      <label htmlFor="select-all-mods" className="text-muted-foreground cursor-pointer">
-                        {selectedMods.size > 0
-                          ? t("instanceDetails.selectedCount", { count: String(selectedMods.size) })
-                          : t("instanceDetails.selectAll")}
-                      </label>
-                    </div>
-                    {selectedMods.size > 0 && (
-                      <div className="flex items-center gap-2 ml-auto">
-                        {modUpdates.some(u => {
-                          const mod = mods.find(m => m.project_id === u.project_id)
-                          return mod && selectedMods.has(mod.filename)
-                        }) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleUpdateSelectedMods}
-                            disabled={updatingMods.size > 0}
-                            className="gap-1 h-7 text-xs"
-                          >
-                            <ArrowUp className="h-3 w-3" />
-                            {t("instanceDetails.updateSelected")}
-                          </Button>
-                        )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={handleDeleteSelectedMods}
-                          disabled={isDeletingSelected}
-                          className="gap-1 h-7 text-xs text-destructive hover:text-destructive"
-                        >
-                          {isDeletingSelected ? (
-                            <Loader2 className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3 w-3" />
-                          )}
-                          {t("instanceDetails.deleteSelected")}
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-              {isLoadingMods ? (
-                <div className="flex items-center justify-center py-8 flex-1">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : mods.length === 0 ? (
-                <div className="text-center py-8 flex-1 flex flex-col items-center justify-center">
-                  <Package className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground mb-2">{t("instanceDetails.noModInstalled")}</p>
-                  <p className="text-sm text-muted-foreground">{t("instanceDetails.useModrinth")}</p>
-                </div>
-              ) : filteredMods.length === 0 ? (
-                <div className="text-center py-8 flex-1 flex flex-col items-center justify-center">
-                  <Search className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                  <p className="text-muted-foreground">{t("instances.noResults")}</p>
-                </div>
-              ) : (
-                <div className="flex flex-col flex-1 min-h-0">
-                  <div className="flex-1 min-h-0 overflow-auto">
-                    <div className="space-y-2 pr-2">
-                      {paginatedMods.map((mod) => {
-                        const update = getModUpdate(mod)
-                        const isUpdating = mod.project_id ? updatingMods.has(mod.project_id) : false
-
-                        return (
-                          <div
-                            key={mod.filename}
-                            className={`flex items-center gap-3 p-3 rounded-lg border transition-colors ${
-                              !mod.enabled ? "opacity-50 bg-muted/30" : ""
-                            } ${update ? "border-green-500/50 bg-green-500/5" : ""} ${
-                              selectedMods.has(mod.filename) ? "bg-accent/50 border-primary/50" : ""
-                            }`}
-                          >
-                            <Checkbox
-                              checked={selectedMods.has(mod.filename)}
-                              onCheckedChange={() => toggleModSelection(mod.filename)}
-                              className="flex-shrink-0"
-                            />
-                            {mod.icon_url ? (
-                              <img
-                                src={mod.icon_url}
-                                alt={mod.name}
-                                className="w-10 h-10 rounded-md object-cover flex-shrink-0"
-                              />
-                            ) : (
-                              <div className="w-10 h-10 rounded-md bg-muted flex items-center justify-center flex-shrink-0">
-                                <Package className="h-5 w-5 text-muted-foreground" />
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">{mod.name}</p>
-                              <div className="flex items-center gap-2">
-                                <p className="text-xs text-muted-foreground truncate">{mod.version}</p>
-                                {update && (
-                                  <Badge variant="outline" className="text-xs text-green-500 border-green-500/50">
-                                    → {update.latest_version}
-                                  </Badge>
-                                )}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-3 flex-shrink-0">
-                              {update && (
-                                <Button
-                                  variant="default"
-                                  size="sm"
-                                  onClick={() => handleUpdateMod(update)}
-                                  disabled={isUpdating}
-                                  className="gap-1 bg-green-500 hover:bg-green-600"
-                                >
-                                  {isUpdating ? (
-                                    <Loader2 className="h-3 w-3 animate-spin" />
-                                  ) : (
-                                    <ArrowUp className="h-3 w-3" />
-                                  )}
-                                  {t("common.update")}
-                                </Button>
-                              )}
-                              <Switch
-                                checked={mod.enabled}
-                                onCheckedChange={(checked) => handleToggleMod(mod.filename, checked)}
-                              />
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => setModToDelete(mod.filename)}
-                                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                                aria-label={t("instanceDetails.confirmDeleteMod")}
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                  {/* Pagination */}
-                  {totalModsPages > 1 && (
-                    <div className="flex items-center justify-between pt-4 border-t mt-4">
-                      <p className="text-sm text-muted-foreground">
-                        {t("modpack.page", { current: String(modsPage), total: String(totalModsPages) })}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setModsPage(p => Math.max(1, p - 1))}
-                          disabled={modsPage === 1}
-                          className="h-8 w-8"
-                          aria-label={t("common.previous")}
-                        >
-                          <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => setModsPage(p => Math.min(totalModsPages, p + 1))}
-                          disabled={modsPage === totalModsPages}
-                          className="h-8 w-8"
-                          aria-label={t("common.next")}
-                        >
-                          <ChevronRight className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <ErrorBoundary>
+            <Suspense fallback={<ComponentLoader />}>
+              <ModsList
+                key={modsRefreshKey}
+                instanceId={instanceId!}
+                contentType={contentType}
+                onOpenFolder={handleOpenModsFolder}
+                onModsChange={handleContentChanged}
+              />
+            </Suspense>
+          </ErrorBoundary>
         </TabsContent>
         )}
 
@@ -1965,26 +1488,6 @@ export function InstanceDetails() {
         </Suspense>
       )}
 
-      {/* Delete Mod Confirmation Dialog */}
-      <AlertDialog open={!!modToDelete} onOpenChange={(open) => !open && setModToDelete(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("instanceDetails.confirmDeleteMod")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("instanceDetails.confirmDeleteModDesc", { name: modToDelete || "" })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("common.cancel")}</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDeleteMod}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {t("common.delete")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

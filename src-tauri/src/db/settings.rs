@@ -1,3 +1,6 @@
+use crate::error::AppResult;
+use crate::state::SharedState;
+use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 
 #[derive(FromRow)]
@@ -48,4 +51,83 @@ pub async fn get_all_settings(db: &SqlitePool) -> sqlx::Result<Vec<(String, Stri
         .await?;
 
     Ok(rows.into_iter().map(|r| (r.key, r.value)).collect())
+}
+
+// ============================================================================
+// Appearance Settings - Tauri Commands
+// ============================================================================
+
+/// Appearance settings structure
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppearanceSettings {
+    pub locale: String,
+    pub theme: String,
+    pub custom_theme: Option<CustomThemeSettings>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CustomThemeSettings {
+    pub primary_hue: i32,
+    pub primary_saturation: i32,
+    pub secondary_hue: i32,
+    pub secondary_saturation: i32,
+    pub active_preset_id: Option<String>,
+}
+
+/// Get all appearance settings at once
+#[tauri::command]
+pub async fn get_appearance_settings(
+    state: tauri::State<'_, SharedState>,
+) -> AppResult<AppearanceSettings> {
+    let state = state.read().await;
+
+    let locale = get_setting(&state.db, "appearance_locale")
+        .await?
+        .unwrap_or_else(|| "en".to_string());
+
+    let theme = get_setting(&state.db, "appearance_theme")
+        .await?
+        .unwrap_or_else(|| "system".to_string());
+
+    let custom_theme = if let Some(json) = get_setting(&state.db, "appearance_custom_theme").await?
+    {
+        serde_json::from_str(&json).ok()
+    } else {
+        None
+    };
+
+    Ok(AppearanceSettings {
+        locale,
+        theme,
+        custom_theme,
+    })
+}
+
+/// Save a single appearance setting
+#[tauri::command]
+pub async fn save_appearance_setting(
+    state: tauri::State<'_, SharedState>,
+    key: String,
+    value: String,
+) -> AppResult<()> {
+    let state = state.read().await;
+
+    let db_key = format!("appearance_{}", key);
+    set_setting(&state.db, &db_key, &value).await?;
+
+    Ok(())
+}
+
+/// Save custom theme settings
+#[tauri::command]
+pub async fn save_custom_theme_settings(
+    state: tauri::State<'_, SharedState>,
+    settings: CustomThemeSettings,
+) -> AppResult<()> {
+    let state = state.read().await;
+
+    let json = serde_json::to_string(&settings)?;
+    set_setting(&state.db, "appearance_custom_theme", &json).await?;
+
+    Ok(())
 }

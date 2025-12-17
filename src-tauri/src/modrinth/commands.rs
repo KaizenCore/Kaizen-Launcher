@@ -2029,3 +2029,623 @@ pub async fn update_mod(
 
     Ok(file.filename.clone())
 }
+
+/// Result of syncing mod metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncResult {
+    pub total_mods: usize,
+    pub synced_by_hash: usize,
+    pub synced_by_search: usize,
+    pub already_synced: usize,
+    pub not_found: usize,
+    pub errors: Vec<String>,
+    pub synced_mods: Vec<SyncedModInfo>,
+}
+
+/// Info about a synced mod
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SyncedModInfo {
+    pub filename: String,
+    pub name: String,
+    pub project_id: String,
+    pub method: String, // "hash_sha512", "hash_sha1", "search", "existing"
+    pub confidence: f32, // 0.0 to 1.0 for search matches
+}
+
+/// Parse a mod filename to extract potential mod name and version
+/// Returns (mod_name, mod_version, mc_version, loader)
+fn parse_mod_filename(filename: &str) -> (String, Option<String>, Option<String>, Option<String>) {
+    // Remove extension
+    let base = filename
+        .trim_end_matches(".disabled")
+        .trim_end_matches(".jar");
+
+    // Common patterns:
+    // modname-1.0.0.jar
+    // modname-1.0.0-1.20.4.jar
+    // modname-1.0.0+1.20.4.jar
+    // modname-mc1.20.4-1.0.0.jar
+    // modname-1.0.0-fabric.jar
+    // modname-fabric-1.20.4-1.0.0.jar
+    // sodium-fabric-0.5.8+mc1.20.4.jar
+
+    let mut name = base.to_string();
+    let mut mod_version: Option<String> = None;
+    let mut mc_version: Option<String> = None;
+    let mut loader: Option<String> = None;
+
+    // Remove loader suffixes
+    let loaders = ["fabric", "forge", "neoforge", "quilt", "bukkit", "spigot", "paper", "velocity"];
+    for l in loaders {
+        let patterns = [
+            format!("-{}", l),
+            format!("_{}", l),
+            format!("+{}", l),
+            format!("-{}-", l),
+        ];
+        for p in patterns {
+            if name.to_lowercase().contains(&p) {
+                loader = Some(l.to_string());
+                name = name.replace(&p, "-").replace(&p.to_uppercase(), "-");
+                // Also try with capitalized first letter
+                let cap = format!("{}{}", l[..1].to_uppercase(), &l[1..]);
+                name = name.replace(&cap, "");
+            }
+        }
+    }
+
+    // Extract MC version patterns
+    let mc_patterns = [
+        r"[_\-+]mc?1\.(\d+)(?:\.(\d+))?",
+        r"[_\-+]1\.(\d+)(?:\.(\d+))?(?:[_\-+]|$)",
+    ];
+    for pattern in mc_patterns {
+        if let Ok(re) = regex::Regex::new(pattern) {
+            if let Some(caps) = re.captures(&name) {
+                if let Some(m) = caps.get(0) {
+                    let ver_str = m.as_str();
+                    // Extract clean version
+                    if ver_str.contains("1.") {
+                        let clean = ver_str.trim_start_matches(|c: char| !c.is_ascii_digit());
+                        mc_version = Some(clean.trim_end_matches(|c: char| !c.is_ascii_digit()).to_string());
+                    }
+                    name = name.replace(m.as_str(), "-");
+                }
+            }
+        }
+    }
+
+    // Extract mod version (numbers with dots at the end or after separator)
+    if let Ok(re) = regex::Regex::new(r"[_\-+]v?(\d+\.\d+(?:\.\d+)?(?:[_\-+]?\w+)?)$") {
+        if let Some(caps) = re.captures(&name) {
+            if let Some(m) = caps.get(1) {
+                mod_version = Some(m.as_str().to_string());
+            }
+            if let Some(m) = caps.get(0) {
+                name = name[..name.len() - m.as_str().len()].to_string();
+            }
+        }
+    }
+
+    // Clean up the name
+    name = name
+        .replace("--", "-")
+        .replace("__", "_")
+        .trim_matches(|c: char| c == '-' || c == '_' || c == '+')
+        .to_string();
+
+    // Convert common separators to spaces for search
+    let search_name = name
+        .replace('-', " ")
+        .replace('_', " ")
+        .split_whitespace()
+        .collect::<Vec<_>>()
+        .join(" ");
+
+    (search_name, mod_version, mc_version, loader)
+}
+
+/// Calculate similarity score between two strings (0.0 to 1.0)
+fn calculate_similarity(a: &str, b: &str) -> f32 {
+    let a_lower = a.to_lowercase();
+    let b_lower = b.to_lowercase();
+
+    // Exact match
+    if a_lower == b_lower {
+        return 1.0;
+    }
+
+    // One contains the other
+    if a_lower.contains(&b_lower) || b_lower.contains(&a_lower) {
+        let max_len = a_lower.len().max(b_lower.len()) as f32;
+        let min_len = a_lower.len().min(b_lower.len()) as f32;
+        return min_len / max_len * 0.9;
+    }
+
+    // Word overlap
+    let a_words: std::collections::HashSet<_> = a_lower.split_whitespace().collect();
+    let b_words: std::collections::HashSet<_> = b_lower.split_whitespace().collect();
+
+    if a_words.is_empty() || b_words.is_empty() {
+        return 0.0;
+    }
+
+    let intersection = a_words.intersection(&b_words).count();
+    let union = a_words.union(&b_words).count();
+
+    (intersection as f32 / union as f32) * 0.8
+}
+
+/// Sync metadata for all mods in an instance
+/// Uses multiple techniques: hash lookup (SHA-512, SHA-1), filename parsing + search
+#[tauri::command]
+pub async fn sync_mods_metadata(
+    state: State<'_, SharedState>,
+    app: tauri::AppHandle,
+    instance_id: String,
+    force: bool, // If true, re-sync even mods that have metadata
+) -> AppResult<SyncResult> {
+    use sha2::Digest;
+    use tauri::Emitter;
+
+    let state_guard = state.read().await;
+    let client = ModrinthClient::new(&state_guard.http_client);
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let folder_name = get_content_folder(Some("mod"), instance.loader.as_deref(), instance.is_server);
+    let instance_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir);
+    let content_dir = instance_dir.join(folder_name);
+
+    if !content_dir.exists() {
+        return Ok(SyncResult {
+            total_mods: 0,
+            synced_by_hash: 0,
+            synced_by_search: 0,
+            already_synced: 0,
+            not_found: 0,
+            errors: vec![],
+            synced_mods: vec![],
+        });
+    }
+
+    // Collect all mod files
+    let mut entries = tokio::fs::read_dir(&content_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read mods directory: {}", e)))?;
+
+    #[derive(Clone)]
+    struct ModFile {
+        filename: String,
+        path: std::path::PathBuf,
+        meta_path: std::path::PathBuf,
+        has_metadata: bool,
+        sha512: Option<String>,
+        sha1: Option<String>,
+    }
+
+    let mut mod_files: Vec<ModFile> = vec![];
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
+        let filename = entry.file_name().to_string_lossy().to_string();
+        if filename.ends_with(".jar") || filename.ends_with(".jar.disabled") {
+            let base_name = filename
+                .trim_end_matches(".disabled")
+                .trim_end_matches(".jar");
+            let meta_path = content_dir.join(format!("{}.meta.json", base_name));
+            let has_metadata = meta_path.exists();
+
+            mod_files.push(ModFile {
+                filename: filename.clone(),
+                path: content_dir.join(&filename),
+                meta_path,
+                has_metadata,
+                sha512: None,
+                sha1: None,
+            });
+        }
+    }
+
+    let total_mods = mod_files.len();
+    let mut synced_by_hash = 0;
+    let mut synced_by_search = 0;
+    let mut not_found = 0;
+    let mut errors: Vec<String> = vec![];
+    let mut synced_mods: Vec<SyncedModInfo> = vec![];
+
+    // Filter mods that need syncing
+    let mut mods_to_sync: Vec<ModFile> = if force {
+        mod_files.clone()
+    } else {
+        mod_files
+            .iter()
+            .filter(|m| !m.has_metadata)
+            .cloned()
+            .collect()
+    };
+
+    let already_synced = total_mods - mods_to_sync.len();
+
+    if mods_to_sync.is_empty() {
+        return Ok(SyncResult {
+            total_mods,
+            synced_by_hash: 0,
+            synced_by_search: 0,
+            already_synced,
+            not_found: 0,
+            errors: vec![],
+            synced_mods: vec![],
+        });
+    }
+
+    // Emit progress event
+    let mods_to_sync_count = mods_to_sync.len();
+    let _ = app.emit("mod-sync-progress", serde_json::json!({
+        "stage": "hashing",
+        "current": 0,
+        "total": mods_to_sync_count,
+        "message": "Calculating file hashes..."
+    }));
+
+    // Calculate hashes for all mods
+    for (i, mod_file) in mods_to_sync.iter_mut().enumerate() {
+        match tokio::fs::read(&mod_file.path).await {
+            Ok(bytes) => {
+                let mut sha512_hasher = sha2::Sha512::new();
+                sha512_hasher.update(&bytes);
+                mod_file.sha512 = Some(format!("{:x}", sha512_hasher.finalize()));
+
+                let mut sha1_hasher = sha1::Sha1::new();
+                sha1_hasher.update(&bytes);
+                mod_file.sha1 = Some(format!("{:x}", sha1_hasher.finalize()));
+            }
+            Err(e) => {
+                errors.push(format!("Failed to read {}: {}", mod_file.filename, e));
+            }
+        }
+
+        if i % 10 == 0 {
+            let _ = app.emit("mod-sync-progress", serde_json::json!({
+                "stage": "hashing",
+                "current": i + 1,
+                "total": mods_to_sync_count,
+                "message": format!("Hashing {} of {}", i + 1, mods_to_sync_count)
+            }));
+        }
+    }
+
+    // Collect hashes for batch lookup
+    let sha512_hashes: Vec<String> = mods_to_sync
+        .iter()
+        .filter_map(|m| m.sha512.clone())
+        .collect();
+
+    let _ = app.emit("mod-sync-progress", serde_json::json!({
+        "stage": "lookup_hash",
+        "current": 0,
+        "total": mods_to_sync.len(),
+        "message": "Looking up mods by hash on Modrinth..."
+    }));
+
+    // Batch lookup by SHA-512
+    let hash_results = client
+        .get_versions_by_hashes(&sha512_hashes, "sha512")
+        .await
+        .unwrap_or_default();
+
+    // Process hash results and identify remaining mods
+    let mut remaining_mods: Vec<ModFile> = vec![];
+
+    for mod_file in &mods_to_sync {
+        if let Some(sha512) = &mod_file.sha512 {
+            if let Some(version) = hash_results.get(sha512) {
+                // Found by SHA-512 hash
+                match client.get_project(&version.project_id).await {
+                    Ok(project) => {
+                        if save_mod_metadata(
+                            &mod_file.meta_path,
+                            &project,
+                            version,
+                        )
+                        .await
+                        .is_ok()
+                        {
+                            synced_by_hash += 1;
+                            synced_mods.push(SyncedModInfo {
+                                filename: mod_file.filename.clone(),
+                                name: project.title,
+                                project_id: version.project_id.clone(),
+                                method: "hash_sha512".to_string(),
+                                confidence: 1.0,
+                            });
+                            continue;
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("Failed to get project for {}: {}", mod_file.filename, e);
+                    }
+                }
+            }
+        }
+        remaining_mods.push(mod_file.clone());
+    }
+
+    // Try SHA-1 for remaining mods
+    if !remaining_mods.is_empty() {
+        let sha1_hashes: Vec<String> = remaining_mods
+            .iter()
+            .filter_map(|m| m.sha1.clone())
+            .collect();
+
+        let sha1_results = client
+            .get_versions_by_hashes(&sha1_hashes, "sha1")
+            .await
+            .unwrap_or_default();
+
+        let mut still_remaining: Vec<ModFile> = vec![];
+
+        for mod_file in &remaining_mods {
+            if let Some(sha1) = &mod_file.sha1 {
+                if let Some(version) = sha1_results.get(sha1) {
+                    match client.get_project(&version.project_id).await {
+                        Ok(project) => {
+                            if save_mod_metadata(
+                                &mod_file.meta_path,
+                                &project,
+                                version,
+                            )
+                            .await
+                            .is_ok()
+                            {
+                                synced_by_hash += 1;
+                                synced_mods.push(SyncedModInfo {
+                                    filename: mod_file.filename.clone(),
+                                    name: project.title,
+                                    project_id: version.project_id.clone(),
+                                    method: "hash_sha1".to_string(),
+                                    confidence: 1.0,
+                                });
+                                continue;
+                            }
+                        }
+                        Err(e) => {
+                            log::warn!("Failed to get project for {}: {}", mod_file.filename, e);
+                        }
+                    }
+                }
+            }
+            still_remaining.push(mod_file.clone());
+        }
+        remaining_mods = still_remaining;
+    }
+
+    // Search for remaining mods by filename
+    if !remaining_mods.is_empty() {
+        let _ = app.emit("mod-sync-progress", serde_json::json!({
+            "stage": "search",
+            "current": 0,
+            "total": remaining_mods.len(),
+            "message": "Searching for mods by name..."
+        }));
+
+        let mc_version = Some(instance.mc_version.as_str());
+        let loader = instance.loader.as_deref();
+
+        for (i, mod_file) in remaining_mods.iter().enumerate() {
+            let _ = app.emit("mod-sync-progress", serde_json::json!({
+                "stage": "search",
+                "current": i + 1,
+                "total": remaining_mods.len(),
+                "message": format!("Searching: {}", mod_file.filename)
+            }));
+
+            let (search_name, _mod_version, _parsed_mc, _parsed_loader) =
+                parse_mod_filename(&mod_file.filename);
+
+            if search_name.is_empty() || search_name.len() < 2 {
+                not_found += 1;
+                continue;
+            }
+
+            // Build search query with facets for MC version and loader
+            let mut facets_parts = vec![r#"["project_type:mod"]"#.to_string()];
+            if let Some(mc) = mc_version {
+                facets_parts.push(format!(r#"["versions:{}"]"#, mc));
+            }
+            if let Some(l) = loader {
+                facets_parts.push(format!(r#"["categories:{}"]"#, l.to_lowercase()));
+            }
+            let facets = format!("[{}]", facets_parts.join(","));
+
+            let query = SearchQuery::new(&search_name)
+                .with_facets(&facets)
+                .with_limit(10);
+
+            match client.search(&query).await {
+                Ok(results) => {
+                    if results.hits.is_empty() {
+                        // Try broader search without facets
+                        let broad_query = SearchQuery::new(&search_name)
+                            .with_facets(r#"[["project_type:mod"]]"#)
+                            .with_limit(10);
+
+                        match client.search(&broad_query).await {
+                            Ok(broad_results) => {
+                                if let Some((project, version, confidence)) =
+                                    find_best_match(&client, &broad_results.hits, &search_name, mc_version, loader).await
+                                {
+                                    if confidence >= 0.5 {
+                                        if save_mod_metadata(&mod_file.meta_path, &project, &version)
+                                            .await
+                                            .is_ok()
+                                        {
+                                            synced_by_search += 1;
+                                            synced_mods.push(SyncedModInfo {
+                                                filename: mod_file.filename.clone(),
+                                                name: project.title,
+                                                project_id: project.id,
+                                                method: "search".to_string(),
+                                                confidence,
+                                            });
+                                            continue;
+                                        }
+                                    }
+                                }
+                            }
+                            Err(_) => {}
+                        }
+                        not_found += 1;
+                    } else {
+                        if let Some((project, version, confidence)) =
+                            find_best_match(&client, &results.hits, &search_name, mc_version, loader).await
+                        {
+                            if confidence >= 0.5 {
+                                if save_mod_metadata(&mod_file.meta_path, &project, &version)
+                                    .await
+                                    .is_ok()
+                                {
+                                    synced_by_search += 1;
+                                    synced_mods.push(SyncedModInfo {
+                                        filename: mod_file.filename.clone(),
+                                        name: project.title,
+                                        project_id: project.id,
+                                        method: "search".to_string(),
+                                        confidence,
+                                    });
+                                    continue;
+                                }
+                            }
+                        }
+                        not_found += 1;
+                    }
+                }
+                Err(e) => {
+                    errors.push(format!("Search failed for {}: {}", mod_file.filename, e));
+                    not_found += 1;
+                }
+            }
+
+            // Small delay to avoid rate limiting
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+    }
+
+    let _ = app.emit("mod-sync-progress", serde_json::json!({
+        "stage": "complete",
+        "current": total_mods,
+        "total": total_mods,
+        "message": "Sync complete"
+    }));
+
+    Ok(SyncResult {
+        total_mods,
+        synced_by_hash,
+        synced_by_search,
+        already_synced,
+        not_found,
+        errors,
+        synced_mods,
+    })
+}
+
+/// Find the best matching project from search results
+async fn find_best_match(
+    client: &ModrinthClient<'_>,
+    hits: &[super::SearchHit],
+    search_name: &str,
+    mc_version: Option<&str>,
+    loader: Option<&str>,
+) -> Option<(super::Project, super::Version, f32)> {
+    let mut best_match: Option<(super::Project, super::Version, f32)> = None;
+    let mut best_score: f32 = 0.0;
+
+    for hit in hits.iter().take(5) {
+        // Calculate name similarity
+        let title_similarity = calculate_similarity(search_name, &hit.title);
+        let slug_similarity = calculate_similarity(search_name, &hit.slug);
+        let name_score = title_similarity.max(slug_similarity);
+
+        if name_score < 0.3 {
+            continue;
+        }
+
+        // Get project details and compatible version
+        if let Ok(project) = client.get_project(&hit.project_id).await {
+            let loaders: Option<Vec<&str>> = loader.map(|l| vec![l]);
+            let versions: Option<Vec<&str>> = mc_version.map(|v| vec![v]);
+
+            let project_versions = client
+                .get_project_versions(
+                    &hit.project_id,
+                    loaders.as_deref(),
+                    versions.as_deref(),
+                )
+                .await;
+
+            if let Ok(versions) = project_versions {
+                if let Some(version) = versions.first() {
+                    // Bonus for having compatible versions
+                    let version_score = if versions.is_empty() { 0.0 } else { 0.2 };
+
+                    // Bonus for download count (popular mods more likely correct)
+                    let popularity_score = (hit.downloads as f32).log10() / 10.0;
+                    let popularity_score = popularity_score.min(0.1);
+
+                    let total_score = name_score * 0.7 + version_score + popularity_score;
+
+                    if total_score > best_score {
+                        best_score = total_score;
+                        best_match = Some((project.clone(), version.clone(), total_score));
+                    }
+                }
+            }
+        }
+    }
+
+    best_match
+}
+
+/// Save mod metadata to file
+async fn save_mod_metadata(
+    meta_path: &std::path::Path,
+    project: &super::Project,
+    version: &super::Version,
+) -> Result<(), std::io::Error> {
+    let dependencies: Vec<StoredDependency> = version
+        .dependencies
+        .iter()
+        .filter(|d| d.dependency_type == "required" || d.dependency_type == "optional")
+        .filter_map(|d| {
+            d.project_id.as_ref().map(|pid| StoredDependency {
+                project_id: pid.clone(),
+                dependency_type: d.dependency_type.clone(),
+            })
+        })
+        .collect();
+
+    let metadata = ModMetadata {
+        name: project.title.clone(),
+        version: version.version_number.clone(),
+        project_id: project.id.clone(),
+        version_id: Some(version.id.clone()),
+        icon_url: project.icon_url.clone(),
+        server_side: Some(project.server_side.clone()),
+        client_side: Some(project.client_side.clone()),
+        dependencies,
+    };
+
+    let meta_json = serde_json::to_string_pretty(&metadata)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+
+    tokio::fs::write(meta_path, meta_json).await
+}
