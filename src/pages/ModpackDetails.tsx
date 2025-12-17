@@ -110,7 +110,7 @@ export function ModpackDetails() {
   const { t } = useTranslation()
 
   // Global installation store
-  const { startInstallation, isInstalling: checkIsInstalling } = useInstallationStore()
+  const { startInstallation, isProjectInstalling, isInstalling: checkIsInstalling } = useInstallationStore()
 
   const [project, setProject] = useState<Project | null>(null)
   const [versions, setVersions] = useState<ModpackVersion[]>([])
@@ -121,8 +121,8 @@ export function ModpackDetails() {
   const [galleryOpen, setGalleryOpen] = useState(false)
   const [selectedImage, setSelectedImage] = useState<string | null>(null)
 
-  // Check if this modpack is currently installing
-  const isInstalling = projectId ? checkIsInstalling(`modpack_${projectId}`) : false
+  // Check if this modpack is currently installing (check both by projectId and trackingId)
+  const isInstalling = projectId ? (isProjectInstalling(projectId) || checkIsInstalling(`modpack_${projectId}`)) : false
 
   const formatNumber = (num: number): string => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
@@ -191,11 +191,22 @@ export function ModpackDetails() {
   const handleInstall = async () => {
     if (!projectId || !selectedVersion || !project) return
 
+    // Check if already installing this modpack
+    if (isProjectInstalling(projectId)) {
+      toast.info(t("modpack.alreadyInstalling"))
+      return
+    }
+
     console.log(`[ModpackDetails] Installing modpack: ${project.title} (version: ${selectedVersion})`)
 
     // Start tracking in global store with modpack prefix
     const trackingId = `modpack_${projectId}`
-    startInstallation(trackingId, project.title, "modpack")
+    const started = startInstallation(trackingId, project.title, "modpack", projectId)
+
+    if (!started) {
+      toast.info(t("modpack.alreadyInstalling"))
+      return
+    }
 
     try {
       // Step 1: Install modpack files
@@ -370,8 +381,17 @@ export function ModpackDetails() {
                   disabled={!selectedVersion || isInstalling}
                   className="gap-2"
                 >
-                  <Download className="h-4 w-4" />
-                  {t("common.install")}
+                  {isInstalling ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      {t("instances.installing")}
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-4 w-4" />
+                      {t("common.install")}
+                    </>
+                  )}
                 </Button>
               </div>
               {selectedVersionData && (

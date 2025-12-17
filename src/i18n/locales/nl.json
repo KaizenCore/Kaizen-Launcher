@@ -53,7 +53,10 @@
     "license": "Licentie",
     "developedBy": "Ontwikkeld door",
     "install": "Installeren",
-    "update": "Bijwerken"
+    "update": "Bijwerken",
+    "active": "actief",
+    "viewDetails": "Details bekijken",
+    "dismiss": "Sluiten"
   },
   "nav": {
     "home": "Home",
@@ -478,10 +481,10 @@
     "restartOnboardingButton": "Herstarten",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Wat is nieuw in v0.6.1",
-    "whatsNewForgeFix": "Forge 1.18+ opstartfout opgelost (Ontbrekende fml.mcpVersion)",
-    "whatsNewTruncation": "Instantienaam afkapping in Schematics weergave opgelost",
-    "whatsNewWarnings": "22 Rust compiler waarschuwingen opgelost voor schonere builds",
+    "whatsNew": "Wat is nieuw in v0.6.2",
+    "whatsNewParallelDownloads": "60% snellere modpack-installatie met parallelle downloads",
+    "whatsNewInstallFooter": "Nieuwe installatie-footer met bestandenteller",
+    "whatsNewBranding": "Nieuw Kaizen-branding-thema met officiële merkenkleuren",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -1296,7 +1299,15 @@
     "links": "Links",
     "description": "Beschrijving",
     "license": "Licentie",
-    "viewDetails": "Details Bekijken"
+    "viewDetails": "Details Bekijken",
+    "alreadyInstalling": "Dit modpack wordt al geinstalleerd"
+  },
+  "installation": {
+    "inProgress": "{count} installatie(s) bezig",
+    "minimize": "Minimaliseren",
+    "expand": "Uitbreiden",
+    "downloadingFile": "{filename} downloaden",
+    "filesProgress": "{current}/{total} bestanden"
   },
   "config": {
     "loadError": "Fout bij laden",

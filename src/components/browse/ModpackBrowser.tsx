@@ -156,7 +156,7 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
   const totalPages = Math.ceil(totalHits / ITEMS_PER_PAGE)
 
   // Global installation store
-  const { startInstallation } = useInstallationStore()
+  const { startInstallation, isProjectInstalling } = useInstallationStore()
 
   // Version selection dialog
   const [selectedModpack, setSelectedModpack] = useState<ModpackSearchResult | null>(null)
@@ -326,11 +326,22 @@ export function ModpackBrowser({ onInstalled }: ModpackBrowserProps) {
   const handleInstall = async () => {
     if (!selectedModpack || !selectedVersion) return
 
+    // Check if already installing this modpack
+    if (isProjectInstalling(selectedModpack.project_id)) {
+      toast.info(t("modpack.alreadyInstalling"))
+      return
+    }
+
     console.log(`[ModpackBrowser] Installing modpack: ${selectedModpack.title} (version: ${selectedVersion})`)
 
     // Start tracking in global store with modpack prefix
     const trackingId = `modpack_${selectedModpack.project_id}`
-    startInstallation(trackingId, selectedModpack.title, "modpack")
+    const started = startInstallation(trackingId, selectedModpack.title, "modpack", selectedModpack.project_id)
+
+    if (!started) {
+      toast.info(t("modpack.alreadyInstalling"))
+      return
+    }
 
     // Close the version selection dialog
     setSelectedModpack(null)

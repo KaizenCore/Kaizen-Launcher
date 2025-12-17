@@ -1,9 +1,14 @@
 import { Outlet } from "react-router-dom"
 import { TitleBar } from "./TitleBar"
 import { Sidebar } from "./Sidebar"
-import { InstallationNotification } from "@/components/notifications/InstallationNotification"
+import { InstallationFooter } from "@/components/notifications/InstallationFooter"
+import { useInstallationStore } from "@/stores/installationStore"
 
 export function MainLayout() {
+  const hasActiveInstallations = useInstallationStore(
+    (state) => state.hasActiveInstallations
+  )
+
   return (
     <div className="h-screen flex flex-col overflow-hidden">
       {/* Custom title bar */}
@@ -15,13 +20,17 @@ export function MainLayout() {
         <Sidebar />
 
         {/* Page content - pages manage their own scroll internally */}
-        <main className="flex-1 flex flex-col p-6 overflow-hidden">
+        {/* Add bottom padding when installation footer is visible */}
+        <main
+          className="flex-1 flex flex-col p-6 overflow-hidden transition-[padding] duration-300"
+          style={{ paddingBottom: hasActiveInstallations() ? "6rem" : "1.5rem" }}
+        >
           <Outlet />
         </main>
       </div>
 
-      {/* Global installation progress notification */}
-      <InstallationNotification />
+      {/* Global installation progress footer */}
+      <InstallationFooter />
     </div>
   )
 }

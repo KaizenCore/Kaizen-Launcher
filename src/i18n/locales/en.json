@@ -53,7 +53,10 @@
     "license": "License",
     "developedBy": "Developed by",
     "install": "Install",
-    "update": "Update"
+    "update": "Update",
+    "active": "active",
+    "viewDetails": "View details",
+    "dismiss": "Dismiss"
   },
   "nav": {
     "home": "Home",
@@ -478,10 +481,10 @@
     "restartOnboardingButton": "Restart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "What's New in v0.6.1",
-    "whatsNewForgeFix": "Fixed Forge 1.18+ launch error (Missing fml.mcpVersion)",
-    "whatsNewTruncation": "Fixed instance name truncation in Schematics view",
-    "whatsNewWarnings": "Fixed 22 Rust compiler warnings for cleaner builds",
+    "whatsNew": "What's New in v0.6.2",
+    "whatsNewParallelDownloads": "60% faster modpack installation with parallel downloads",
+    "whatsNewInstallFooter": "New installation progress footer with file counter",
+    "whatsNewBranding": "New Kaizen branding theme with official brand colors",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -1257,7 +1260,15 @@
     "links": "Links",
     "description": "Description",
     "license": "License",
-    "viewDetails": "View Details"
+    "viewDetails": "View Details",
+    "alreadyInstalling": "This modpack is already being installed"
+  },
+  "installation": {
+    "inProgress": "{count} installation(s) in progress",
+    "minimize": "Minimize",
+    "expand": "Expand",
+    "downloadingFile": "Downloading {filename}",
+    "filesProgress": "{current}/{total} files"
   },
   "config": {
     "loadError": "Error loading",

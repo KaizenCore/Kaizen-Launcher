@@ -324,26 +324,31 @@ pub async fn install_agent(
 }
 
 /// Extract a tarball
+#[cfg(any(target_os = "macos", target_os = "linux"))]
 async fn extract_tarball(archive_path: &Path, dest_dir: &Path) -> AppResult<()> {
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
-    {
-        use std::process::Command;
+    use std::process::Command;
 
-        let status = Command::new("tar")
-            .args([
-                "-xzf",
-                &archive_path.to_string_lossy(),
-                "-C",
-                &dest_dir.to_string_lossy(),
-            ])
-            .status()
-            .map_err(|e| AppError::Io(format!("Failed to extract archive: {}", e)))?;
+    let status = Command::new("tar")
+        .args([
+            "-xzf",
+            &archive_path.to_string_lossy(),
+            "-C",
+            &dest_dir.to_string_lossy(),
+        ])
+        .status()
+        .map_err(|e| AppError::Io(format!("Failed to extract archive: {}", e)))?;
 
-        if !status.success() {
-            return Err(AppError::Io("Failed to extract agent archive".to_string()));
-        }
+    if !status.success() {
+        return Err(AppError::Io("Failed to extract agent archive".to_string()));
     }
 
+    Ok(())
+}
+
+/// Extract a tarball (Windows stub - not used)
+#[cfg(target_os = "windows")]
+#[allow(dead_code)]
+async fn extract_tarball(_archive_path: &Path, _dest_dir: &Path) -> AppResult<()> {
     Ok(())
 }
 

@@ -58,6 +58,53 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.6.2",
+    date: "2025-12-17",
+    highlights: [
+      "60% Faster Modpacks",
+      "Installation Footer",
+      "Kaizen Branding",
+    ],
+    features: [
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "60% Faster Modpack Installation",
+        description: "Modpacks now install in ~44 seconds instead of ~2 minutes. 8 parallel mod downloads, parallel metadata fetching, and real-time file counter showing progress like '420/483 files'.",
+        tag: "improved",
+      },
+      {
+        icon: <Download className="h-5 w-5" />,
+        title: "Installation Progress Footer",
+        description: "New minimizable footer slides up from the bottom showing real-time installation progress. Track multiple installations at once, see file counts, and click to navigate to instance details.",
+        tag: "new",
+      },
+      {
+        icon: <Shield className="h-5 w-5" />,
+        title: "Installation Queue System",
+        description: "Prevents duplicate installations by disabling the install button while a modpack is already downloading. No more accidental double-clicks starting multiple downloads.",
+        tag: "new",
+      },
+      {
+        icon: <Palette className="h-5 w-5" />,
+        title: "Kaizen Branding Theme",
+        description: "New default theme using official Kaizen brand colors. Warm beige/gold color palette (#E8D3AA light, #312E21 dark) replaces the previous blue theme. Applied to both light and dark modes.",
+        tag: "new",
+      },
+      {
+        icon: <Sparkles className="h-5 w-5" />,
+        title: "Butler Icon in TitleBar",
+        description: "Added the Kaizen butler mascot icon next to the app name in the title bar for better brand recognition.",
+        tag: "new",
+      },
+      {
+        icon: <Package className="h-5 w-5" />,
+        title: "WebTorrent Removal",
+        description: "Removed unused WebTorrent P2P dependency and related Node.js polyfills. The launcher now uses HTTP tunnels exclusively for sharing, resulting in a lighter bundle (-122 packages).",
+        tag: "improved",
+      },
+    ],
+  },
+  {
     version: "0.6.1",
     date: "2025-12-16",
     highlights: [

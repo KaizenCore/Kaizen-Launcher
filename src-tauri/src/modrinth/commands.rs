@@ -794,6 +794,7 @@ pub async fn install_modrinth_modpack(
     instance_name: Option<String>,
 ) -> AppResult<ModpackInstallResult> {
     use crate::db::instances::Instance;
+    use crate::download::client::download_files_parallel_with_progress;
     use sha1::{Digest, Sha1};
     use tauri::Emitter;
 
@@ -1081,11 +1082,8 @@ pub async fn install_modrinth_modpack(
         None
     }
 
-    // Download all files from the index
-    let total_files = index.files.len();
-    let mut downloaded = 0;
-
-    // Collect mod files that need metadata (files in mods/ folder)
+    // Collect all files to download and prepare for parallel download
+    let mut files_to_download: Vec<(String, std::path::PathBuf, Option<String>)> = Vec::new();
     let mut mod_files_to_fetch: Vec<(String, String, String)> = Vec::new(); // (project_id, version_id, filename)
 
     for file in &index.files {
@@ -1098,99 +1096,143 @@ pub async fn install_modrinth_modpack(
 
         let file_path = instance_dir.join(&file.path);
 
-        // Create parent directory
+        // Create parent directory upfront
         if let Some(parent) = file_path.parent() {
             tokio::fs::create_dir_all(parent)
                 .await
                 .map_err(|e| AppError::Io(format!("Failed to create directory: {}", e)))?;
         }
 
-        // Try each download URL
-        let mut success = false;
-        let mut used_url: Option<String> = None;
-        for url in &file.downloads {
-            match http_client.get(url).send().await {
-                Ok(response) if response.status().is_success() => {
-                    if let Ok(bytes) = response.bytes().await {
-                        // Verify hash
-                        let mut hasher = Sha1::new();
-                        hasher.update(&bytes);
-                        let file_hash = format!("{:x}", hasher.finalize());
+        // Get the first download URL
+        if let Some(url) = file.downloads.first() {
+            files_to_download.push((
+                url.clone(),
+                file_path,
+                Some(file.hashes.sha1.clone()),
+            ));
 
-                        if file_hash == file.hashes.sha1
-                            && tokio::fs::write(&file_path, &bytes).await.is_ok()
-                        {
-                            success = true;
-                            used_url = Some(url.clone());
-                            break;
-                        }
-                    }
-                }
-                _ => continue,
-            }
-        }
-
-        if !success {
-            log::warn!("Failed to download: {}", file.path);
-        } else {
-            // If this is a mod file, extract project info for metadata
+            // Pre-extract modrinth IDs for mod metadata fetching
             if file.path.starts_with("mods/") && file.path.ends_with(".jar") {
-                if let Some(url) = used_url {
-                    if let Some((project_id, version_id)) = extract_modrinth_ids(&url) {
-                        let filename = file
-                            .path
-                            .rsplit('/')
-                            .next()
-                            .unwrap_or(&file.path)
-                            .to_string();
-                        mod_files_to_fetch.push((project_id, version_id, filename));
-                    }
+                if let Some((mod_project_id, mod_version_id)) = extract_modrinth_ids(url) {
+                    let filename = file
+                        .path
+                        .rsplit('/')
+                        .next()
+                        .unwrap_or(&file.path)
+                        .to_string();
+                    mod_files_to_fetch.push((mod_project_id, mod_version_id, filename));
                 }
             }
         }
+    }
 
-        downloaded += 1;
-        let progress = 30 + ((downloaded as f32 / total_files as f32) * 45.0) as u32;
-        let _ = app.emit(
-            "modpack-progress",
-            serde_json::json!({
-                "stage": "downloading_mods",
-                "message": format!("Telechargement des mods ({}/{})", downloaded, total_files),
-                "progress": progress,
-                "project_id": &project_id,
-                "instance_id": &instance.id
-            }),
-        );
+    // Download all files in parallel (8 concurrent downloads)
+    let total_files = files_to_download.len();
+    log::info!(
+        "Starting parallel download of {} files for modpack {}",
+        total_files,
+        project_id
+    );
+
+    // Emit initial download progress
+    let _ = app.emit(
+        "modpack-progress",
+        serde_json::json!({
+            "stage": "downloading_mods",
+            "message": format!("Downloading {} files...", total_files),
+            "progress": 30,
+            "current": 0,
+            "total": total_files,
+            "project_id": &project_id,
+            "instance_id": &instance.id
+        }),
+    );
+
+    if !files_to_download.is_empty() {
+        let app_clone = app.clone();
+        let project_id_for_progress = project_id.clone();
+        let instance_id_for_progress = instance.id.clone();
+
+        download_files_parallel_with_progress(
+            &http_client,
+            files_to_download,
+            8, // 8 concurrent downloads for optimal performance
+            move |completed, total| {
+                let progress = 30 + ((completed as f32 / total as f32) * 45.0) as u32;
+                let _ = app_clone.emit(
+                    "modpack-progress",
+                    serde_json::json!({
+                        "stage": "downloading_mods",
+                        "message": format!("Downloading mods ({}/{})", completed, total),
+                        "progress": progress,
+                        "current": completed,
+                        "total": total,
+                        "project_id": project_id_for_progress.clone(),
+                        "instance_id": instance_id_for_progress.clone()
+                    }),
+                );
+            },
+        )
+        .await?;
+
+        log::info!("Parallel download completed for modpack {}", project_id);
     }
 
     // Save modpack project_id before it gets shadowed in the loop
     let modpack_project_id = project_id.clone();
 
-    // Fetch metadata for mods (icons, names, etc.)
+    // Fetch metadata for mods in parallel (icons, names, etc.)
     if !mod_files_to_fetch.is_empty() {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use std::sync::Arc;
+        use futures_util::stream::{FuturesUnordered, StreamExt};
+        use tokio::sync::Semaphore;
+
+        let total_mods = mod_files_to_fetch.len();
+        log::info!("Fetching metadata for {} mods in parallel", total_mods);
+
         let _ = app.emit(
             "modpack-progress",
             serde_json::json!({
                 "stage": "fetching_metadata",
-                "message": "Recuperation des informations des mods...",
+                "message": format!("Fetching mod metadata (0/{})...", total_mods),
                 "progress": 78,
+                "current": 0,
+                "total": total_mods,
                 "project_id": &modpack_project_id,
                 "instance_id": &instance.id
             }),
         );
 
-        let total_mods = mod_files_to_fetch.len();
-        let mut fetched = 0;
+        let fetched_count = Arc::new(AtomicUsize::new(0));
+        let semaphore = Arc::new(Semaphore::new(10)); // Limit to 10 concurrent API requests
+        let mut futures = FuturesUnordered::new();
 
-        for (project_id, version_id, filename) in mod_files_to_fetch {
-            // Fetch project info for icon, name, and compatibility
-            match client.get_project(&project_id).await {
-                Ok(project_info) => {
+        for (mod_project_id, version_id, filename) in mod_files_to_fetch {
+            let http_client = http_client.clone();
+            let mods_dir = mods_dir.clone();
+            let app = app.clone();
+            let modpack_project_id = modpack_project_id.clone();
+            let instance_id = instance.id.clone();
+            let fetched_count = Arc::clone(&fetched_count);
+            let semaphore = Arc::clone(&semaphore);
+            let total_mods_copy = total_mods;
+
+            futures.push(async move {
+                let _permit = semaphore.acquire().await.ok()?;
+                let client = ModrinthClient::new(&http_client);
+
+                // Fetch project and version info concurrently
+                let project_future = client.get_project(&mod_project_id);
+                let version_future = client.get_version(&version_id);
+                let (project_result, version_result): (Result<super::Project, _>, Result<super::Version, _>) =
+                    tokio::join!(project_future, version_future);
+
+                if let Ok(project_info) = project_result {
                     let meta_filename = format!("{}.meta.json", filename.trim_end_matches(".jar"));
                     let meta_path = mods_dir.join(&meta_filename);
 
-                    // Also fetch version for dependencies
-                    let dependencies = match client.get_version(&version_id).await {
+                    let dependencies = match version_result {
                         Ok(version_info) => version_info
                             .dependencies
                             .iter()
@@ -1207,8 +1249,8 @@ pub async fn install_modrinth_modpack(
 
                     let metadata = ModMetadata {
                         name: project_info.title,
-                        version: "".to_string(), // Version already in filename
-                        project_id: project_id.clone(),
+                        version: "".to_string(),
+                        project_id: mod_project_id.clone(),
                         version_id: Some(version_id.clone()),
                         icon_url: project_info.icon_url,
                         server_side: Some(project_info.server_side),
@@ -1220,23 +1262,29 @@ pub async fn install_modrinth_modpack(
                         let _ = tokio::fs::write(&meta_path, meta_json).await;
                     }
                 }
-                Err(e) => {
-                    log::debug!("Failed to fetch metadata for {}: {}", project_id, e);
-                }
-            }
 
-            fetched += 1;
-            if fetched % 5 == 0 || fetched == total_mods {
-                let progress = 78 + ((fetched as f32 / total_mods as f32) * 7.0) as u32;
-                let _ = app.emit("modpack-progress", serde_json::json!({
-                    "stage": "fetching_metadata",
-                    "message": format!("Recuperation des metadonnees ({}/{})", fetched, total_mods),
-                    "progress": progress,
-                    "project_id": &modpack_project_id,
-                    "instance_id": &instance.id
-                }));
-            }
+                let current = fetched_count.fetch_add(1, Ordering::SeqCst) + 1;
+                if current % 5 == 0 || current == total_mods_copy {
+                    let progress = 78 + ((current as f32 / total_mods_copy as f32) * 7.0) as u32;
+                    let _ = app.emit("modpack-progress", serde_json::json!({
+                        "stage": "fetching_metadata",
+                        "message": format!("Fetching mod metadata ({}/{})", current, total_mods_copy),
+                        "progress": progress,
+                        "current": current,
+                        "total": total_mods_copy,
+                        "project_id": modpack_project_id,
+                        "instance_id": instance_id
+                    }));
+                }
+
+                Some(())
+            });
         }
+
+        // Wait for all metadata fetches to complete
+        while futures.next().await.is_some() {}
+
+        log::info!("Metadata fetching completed for {} mods", total_mods);
     }
 
     let _ = app.emit(

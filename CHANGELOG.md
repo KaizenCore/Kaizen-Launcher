@@ -2,6 +2,44 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.6.2] - 2025-12-17
+
+### Added
+- **Kaizen Branding Theme** - New default theme using official Kaizen brand colors
+  - Warm beige/gold color palette (#E8D3AA light, #312E21 dark)
+  - Replaces the previous blue default theme
+  - Applied to both light and dark modes
+- **Butler Icon in TitleBar** - Added the Kaizen butler mascot icon next to the app name
+- **Installation Footer** - New minimizable footer showing real-time installation progress
+  - Slides up from the bottom of the screen
+  - Shows multiple installations simultaneously
+  - Displays file counter (e.g., "420/483 files")
+  - Click to navigate to instance details
+
+### Changed
+- **Parallel Modpack Downloads** - Modpack installation is now ~60% faster
+  - 8 simultaneous mod downloads instead of sequential
+  - Parallel metadata fetching for all mods
+  - Installation time reduced from ~2 min to ~44s for large modpacks
+- **Installation Queue System** - Prevents duplicate installations
+  - Install button disabled while modpack is already installing
+  - Shows loading spinner during installation
+- **WebTorrent Removal** - Removed unused WebTorrent P2P dependency and related Node.js polyfills
+  - HTTP tunnels are now the exclusive sharing method (more reliable, better firewall compatibility)
+  - Reduced bundle size by 122 packages
+  - Removed `vite-plugin-node-polyfills` dependency
+  - Deleted `bittorrent-dht` stub file
+
+### Technical
+- Simplified `vite.config.ts` by removing nodePolyfills plugin configuration
+- Cleaned up `src/lib/stubs/` directory
+- Updated `src/index.css` with new Kaizen brand color variables
+- Updated `src/lib/customTheme.ts` with new default color values (hue 40, saturation 55)
+- Backend: `download_files_parallel_with_progress()` for mod downloads
+- Backend: Semaphore-limited parallel metadata fetching with `FuturesUnordered`
+- Frontend: New `InstallationFooter` component replacing `InstallationNotification`
+- Frontend: Enhanced `installationStore` with `isProjectInstalling()` and queue management
+
 ## [0.6.1] - 2025-12-16
 
 ### Fixed

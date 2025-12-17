@@ -17,22 +17,22 @@ export interface ThemePreset {
 }
 
 export const DEFAULT_COLORS: CustomThemeColors = {
-  primaryHue: 221,
-  primarySaturation: 83,
-  secondaryHue: 210,
-  secondarySaturation: 40,
+  primaryHue: 40,
+  primarySaturation: 55,
+  secondaryHue: 45,
+  secondarySaturation: 25,
 };
 
 export const THEME_PRESETS: ThemePreset[] = [
   {
     id: "default",
-    name: "Default",
+    name: "Kaizen",
     nameKey: "theme.presetDefault",
     colors: {
-      primaryHue: 221,
-      primarySaturation: 83,
-      secondaryHue: 210,
-      secondarySaturation: 40,
+      primaryHue: 40,
+      primarySaturation: 55,
+      secondaryHue: 45,
+      secondarySaturation: 25,
     },
   },
   {

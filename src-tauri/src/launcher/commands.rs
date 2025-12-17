@@ -16,8 +16,10 @@ use tokio::fs;
 
 // Windows-specific: CREATE_NO_WINDOW flag to hide console window
 #[cfg(target_os = "windows")]
+#[allow(unused_imports)]
 use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 /// Helper to get loader version from instance or return an error
@@ -1647,12 +1649,12 @@ pub async fn launch_instance(
         let session_lock = instance_dir.join("world").join("session.lock");
         if session_lock.exists() {
             // Try to check if file is locked by attempting to open it exclusively
-            if let Ok(file) = std::fs::OpenOptions::new().write(true).open(&session_lock) {
+            if let Ok(_file) = std::fs::OpenOptions::new().write(true).open(&session_lock) {
                 // Try to get exclusive lock
                 #[cfg(unix)]
                 {
                     use std::os::unix::io::AsRawFd;
-                    let fd = file.as_raw_fd();
+                    let fd = _file.as_raw_fd();
                     let result = unsafe { libc::flock(fd, libc::LOCK_EX | libc::LOCK_NB) };
                     if result != 0 {
                         return Err(AppError::Instance(

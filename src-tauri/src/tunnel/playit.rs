@@ -17,8 +17,10 @@ use tracing::{debug, info};
 
 // Windows-specific: CREATE_NO_WINDOW flag to hide console window
 #[cfg(target_os = "windows")]
+#[allow(unused_imports)]
 use std::os::windows::process::CommandExt;
 #[cfg(target_os = "windows")]
+#[allow(dead_code)]
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 // Pre-compiled regex patterns for playit output parsing

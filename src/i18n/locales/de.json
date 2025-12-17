@@ -53,7 +53,10 @@
     "license": "Lizenz",
     "developedBy": "Entwickelt von",
     "install": "Installieren",
-    "update": "Aktualisieren"
+    "update": "Aktualisieren",
+    "active": "aktiv",
+    "viewDetails": "Details anzeigen",
+    "dismiss": "Schliessen"
   },
   "nav": {
     "home": "Startseite",
@@ -478,10 +481,10 @@
     "restartOnboardingButton": "Neustart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Was ist neu in v0.6.1",
-    "whatsNewForgeFix": "Forge 1.18+ Startfehler behoben (Fehlendes fml.mcpVersion)",
-    "whatsNewTruncation": "Instanznamen-Kürzung in der Schematic-Ansicht behoben",
-    "whatsNewWarnings": "22 Rust-Compiler-Warnungen für sauberere Builds behoben",
+    "whatsNew": "Was ist neu in v0.6.2",
+    "whatsNewParallelDownloads": "60% schnellere Modpack-Installation mit parallelen Downloads",
+    "whatsNewInstallFooter": "Neuer Installations-Footer mit Dateizähler",
+    "whatsNewBranding": "Neues Kaizen-Branding-Theme mit offiziellen Markenfarben",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -1296,7 +1299,15 @@
     "links": "Links",
     "description": "Beschreibung",
     "license": "Lizenz",
-    "viewDetails": "Details anzeigen"
+    "viewDetails": "Details anzeigen",
+    "alreadyInstalling": "Dieses Modpack wird bereits installiert"
+  },
+  "installation": {
+    "inProgress": "{count} Installation(en) im Gange",
+    "minimize": "Minimieren",
+    "expand": "Erweitern",
+    "downloadingFile": "{filename} wird heruntergeladen",
+    "filesProgress": "{current}/{total} Dateien"
   },
   "config": {
     "loadError": "Fehler beim Laden",
