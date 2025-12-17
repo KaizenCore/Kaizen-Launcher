@@ -481,11 +481,10 @@
     "restartOnboardingButton": "Relancer",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Nouveautés v0.6.3",
-    "whatsNewModsListRefactor": "Liste de mods refaite avec défilement infini, modes d'affichage et tri",
-    "whatsNewModSync": "Synchronisation des métadonnées de mods depuis Modrinth",
-    "whatsNewSettingsPersistence": "Correction de la persistance des paramètres au redémarrage",
-    "whatsNewSchematicsCopyFix": "Correction de la copie de schematics vers les instances",
+    "whatsNew": "Nouveautés v0.6.4",
+    "whatsNewSkinViewerBackground": "Fond personnalisable pour le viewer de skin (thème, couleur ou image)",
+    "whatsNewThemeAwareBackground": "Le fond utilise maintenant les couleurs du thème au lieu du bleu",
+    "whatsNewBackgroundImage": "Téléchargez des images de fond personnalisées pour le viewer",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -1498,7 +1497,17 @@
     "resetCamera": "Réinitialiser la caméra",
     "screenshot": "Prendre une capture",
     "screenshotSaved": "Capture sauvegardée !",
-    "screenshotError": "Échec de la sauvegarde"
+    "screenshotError": "Échec de la sauvegarde",
+    "background": "Arrière-plan",
+    "backgroundSettings": "Paramètres d'arrière-plan",
+    "bgTheme": "Thème",
+    "bgColor": "Couleur",
+    "bgImage": "Image",
+    "selectColor": "Sélectionner une couleur",
+    "selectImage": "Sélectionner une image",
+    "uploadImage": "Cliquer pour importer",
+    "changeImage": "Changer l'image",
+    "backgroundImageError": "Échec du chargement de l'image"
   },
   "modsList": {
     "viewList": "Vue liste",

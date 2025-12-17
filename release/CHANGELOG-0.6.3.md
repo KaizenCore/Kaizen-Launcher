@@ -34,6 +34,10 @@ Click the "Sync Mods" button next to "Check Updates" to identify mods on Modrint
 
 ## Bug Fixes
 
+### Skins Manager Scroll
+
+Fixed missing scroll in Skins page tabs (Favorites, Browse, Upload). The page now uses flexbox layout like other pages for proper height adaptation to screen size.
+
 ### Schematics Copy to Instance
 
 Fixed "missing required key instanceIds" error when copying schematics to instances from the library. The frontend was passing the wrong parameter name to the backend command.
@@ -79,6 +83,7 @@ Fixed appearance settings not persisting after app restart:
 - `src-tauri/src/db/settings.rs` - Appearance settings commands
 - `src/pages/InstanceDetails.tsx` - Integration of ModsList component
 - `src/pages/Schematics.tsx` - Fixed instanceIds parameter for copy command
+- `src/pages/Skins.tsx` - Fixed scroll with flexbox layout refactor
 - `src/stores/customThemeStore.ts` - Backend storage migration
 - `src/components/layout/ThemeProvider.tsx` - Backend storage migration
 - `src/i18n/index.ts` - Backend storage migration

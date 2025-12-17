@@ -40,6 +40,7 @@ import {
   Tag,
   FolderSync,
   PartyPopper,
+  Paintbrush,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -57,6 +58,35 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.6.4",
+    date: "2025-12-17",
+    highlights: [
+      "Skin Viewer Background",
+      "Theme Integration",
+      "Custom Images",
+    ],
+    features: [
+      {
+        icon: <Palette className="h-5 w-5" />,
+        title: "Skin Viewer Background Customization",
+        description: "Customize the 3D skin viewer background with three modes: Theme (uses your current theme colors), Color (pick any custom color with presets), or Image (upload your own background image).",
+        tag: "new",
+      },
+      {
+        icon: <Paintbrush className="h-5 w-5" />,
+        title: "Theme-Aware Background",
+        description: "The default background now dynamically uses your theme's card color instead of a hardcoded blue. Automatically updates when switching between light and dark themes.",
+        tag: "improved",
+      },
+      {
+        icon: <Camera className="h-5 w-5" />,
+        title: "Background Image Support",
+        description: "Upload PNG, JPG, WebP, or GIF images as custom backgrounds for your skin viewer. Images are stored locally and persist across sessions.",
+        tag: "new",
+      },
+    ],
+  },
   {
     version: "0.6.3",
     date: "2025-12-17",
@@ -100,6 +130,12 @@ const changelog: ChangelogEntry[] = [
         icon: <Boxes className="h-5 w-5" />,
         title: "Schematics Copy to Instance",
         description: "Fixed 'missing required key instanceIds' error when copying schematics to instances from the library.",
+        tag: "fix",
+      },
+      {
+        icon: <Layout className="h-5 w-5" />,
+        title: "Skins Manager Scroll",
+        description: "Fixed missing scroll in Skins page tabs (Favorites, Browse, Upload). Refactored to use flexbox layout like other pages for proper height adaptation.",
         tag: "fix",
       },
     ],

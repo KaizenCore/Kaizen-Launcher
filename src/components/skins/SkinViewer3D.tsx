@@ -35,6 +35,7 @@ interface SkinViewer3DProps {
   slim?: boolean
   className?: string
   background?: string
+  backgroundImage?: string
   fillContainer?: boolean
   onLoad?: () => void
 }
@@ -50,6 +51,7 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
   slim = false,
   className = "",
   background = "transparent",
+  backgroundImage,
   fillContainer = false,
   onLoad,
 }, ref) => {
@@ -132,7 +134,8 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
 
     try {
       // skinview3d/Three.js doesn't understand "transparent" - use undefined for transparent background
-      const bgColor = background === "transparent" ? undefined : background
+      // When using a background image, make the canvas transparent so the CSS background shows through
+      const bgColor = backgroundImage || background === "transparent" ? undefined : background
 
       // Convert skin URL to CORS-compatible URL
       const corsCompatibleSkinUrl = getCorsCompatibleSkinUrl(skinUrl)
@@ -199,7 +202,7 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
     }
     // Note: skinUrl and capeUrl are handled by separate effects for efficiency
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dimensions.width, dimensions.height, width, height, animation, controls, zoom, slim, background, onLoad])
+  }, [dimensions.width, dimensions.height, width, height, animation, controls, zoom, slim, background, backgroundImage, onLoad])
 
   // Update skin dynamically without recreating the viewer
   useEffect(() => {
@@ -222,11 +225,25 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
     }
   }, [capeUrl])
 
+  // Build container style with optional background image
+  const containerStyle: React.CSSProperties = fillContainer
+    ? { width: "100%", height: "100%" }
+    : { width, height }
+
+  if (backgroundImage) {
+    containerStyle.backgroundImage = `url(${backgroundImage})`
+    containerStyle.backgroundSize = "cover"
+    containerStyle.backgroundPosition = "center"
+    containerStyle.backgroundRepeat = "no-repeat"
+  } else if (background && background !== "transparent") {
+    containerStyle.backgroundColor = background
+  }
+
   return (
     <div
       ref={containerRef}
       className={`relative ${className}`}
-      style={fillContainer ? { width: "100%", height: "100%" } : { width, height }}
+      style={containerStyle}
     >
       <canvas
         ref={canvasRef}

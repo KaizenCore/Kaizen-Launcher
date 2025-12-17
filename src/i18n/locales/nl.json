@@ -481,11 +481,10 @@
     "restartOnboardingButton": "Herstarten",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Wat is nieuw in v0.6.3",
-    "whatsNewModsListRefactor": "Mod-lijst vernieuwd met oneindig scrollen, weergavemodi en sortering",
-    "whatsNewModSync": "Mod-metadata synchroniseren van Modrinth voor geïmporteerde modpacks",
-    "whatsNewSettingsPersistence": "Instellingen worden nu opgeslagen na herstart van de app",
-    "whatsNewSchematicsCopyFix": "Schematics kopiëren naar instantie fout opgelost",
+    "whatsNew": "Wat is nieuw in v0.6.4",
+    "whatsNewSkinViewerBackground": "Aanpasbare skin viewer achtergrond (thema, kleur of afbeelding)",
+    "whatsNewThemeAwareBackground": "Achtergrond gebruikt nu thema-kleuren in plaats van vast blauw",
+    "whatsNewBackgroundImage": "Upload aangepaste achtergrondafbeeldingen voor de skin viewer",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -735,7 +734,17 @@
     "resetCamera": "Camera resetten",
     "screenshot": "Screenshot maken",
     "screenshotSaved": "Screenshot opgeslagen!",
-    "screenshotError": "Kon screenshot niet opslaan"
+    "screenshotError": "Kon screenshot niet opslaan",
+    "background": "Achtergrond",
+    "backgroundSettings": "Achtergrondinstellingen",
+    "bgTheme": "Thema",
+    "bgColor": "Kleur",
+    "bgImage": "Afbeelding",
+    "selectColor": "Selecteer een kleur",
+    "selectImage": "Selecteer een afbeelding",
+    "uploadImage": "Klik om te uploaden",
+    "changeImage": "Afbeelding wijzigen",
+    "backgroundImageError": "Kon afbeelding niet laden"
   },
   "content": {
     "browseMods": "Mods Bladeren",

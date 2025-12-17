@@ -2,6 +2,26 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.6.4] - 2025-12-17
+
+### Added
+- **Skin Viewer Background Customization** - New background settings for the 3D skin viewer
+  - Three modes: Theme (uses current theme colors), Color (custom color picker), Image (custom background image)
+  - Color mode includes preset colors and hex input
+  - Image mode supports PNG, JPG, WebP, and GIF formats
+  - Settings persist in localStorage across sessions
+
+### Changed
+- **Theme-Aware Background** - Default skin viewer background now uses your theme's card color instead of hardcoded blue
+  - Automatically updates when switching between light and dark themes
+  - Dynamically reads CSS custom properties for accurate theming
+
+### Technical
+- Added `backgroundImage` prop to `SkinViewer3D` component
+- HSL to hex conversion for CSS custom property colors
+- Background preferences stored in localStorage with key `kaizen-skin-viewer-background`
+- New translation keys for background settings UI in all 4 locales
+
 ## [0.6.3] - 2025-12-17
 
 ### Added
@@ -19,6 +39,7 @@ All notable changes to Kaizen Launcher will be documented in this file.
   - Useful for imported modpacks where mods lack metadata
 
 ### Fixed
+- **Skins Manager Scroll** - Fixed missing scroll in Skins page tabs (Favorites, Browse, Upload). Refactored to use flexbox layout like other pages for proper height adaptation
 - **Schematics Copy to Instance** - Fixed "missing required key instanceIds" error when copying schematics to instances from the library
 - **Settings Persistence** - Fixed appearance settings not persisting after app restart
   - Language, theme, and custom colors now stored in SQLite database instead of browser localStorage

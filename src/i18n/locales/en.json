@@ -481,11 +481,10 @@
     "restartOnboardingButton": "Restart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "What's New in v0.6.3",
-    "whatsNewModsListRefactor": "Mods list refactored with infinite scroll, view modes & sorting",
-    "whatsNewModSync": "Sync mod metadata from Modrinth for imported modpacks",
-    "whatsNewSettingsPersistence": "Fixed settings not persisting after app restart",
-    "whatsNewSchematicsCopyFix": "Fixed schematics copy to instance error",
+    "whatsNew": "What's New in v0.6.4",
+    "whatsNewSkinViewerBackground": "Customizable skin viewer background (theme, color, or image)",
+    "whatsNewThemeAwareBackground": "Background now uses theme colors instead of hardcoded blue",
+    "whatsNewBackgroundImage": "Upload custom background images for skin viewer",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -1498,7 +1497,17 @@
     "resetCamera": "Reset camera",
     "screenshot": "Take screenshot",
     "screenshotSaved": "Screenshot saved!",
-    "screenshotError": "Failed to save screenshot"
+    "screenshotError": "Failed to save screenshot",
+    "background": "Background",
+    "backgroundSettings": "Background Settings",
+    "bgTheme": "Theme",
+    "bgColor": "Color",
+    "bgImage": "Image",
+    "selectColor": "Select a color",
+    "selectImage": "Select an image",
+    "uploadImage": "Click to upload",
+    "changeImage": "Change image",
+    "backgroundImageError": "Failed to load image"
   },
   "modsList": {
     "viewList": "List view",

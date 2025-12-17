@@ -21,7 +21,13 @@ import {
   Pause,
   ZoomIn,
   ZoomOut,
+  Paintbrush,
+  ImageIcon,
+  Palette,
+  X,
 } from "lucide-react"
+import { open as openDialog } from "@tauri-apps/plugin-dialog"
+import { readFile } from "@tauri-apps/plugin-fs"
 import { toast } from "sonner"
 import { useTranslation } from "@/i18n"
 import { useTheme } from "@/hooks/useTheme"
@@ -55,6 +61,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
 
 interface Account {
   id: string
@@ -115,6 +126,124 @@ export function Skins() {
   // My Skin viewer controls
   const [mySkinAnimation, setMySkinAnimation] = useState<AnimationType>("idle")
   const [zoomLevel, setZoomLevel] = useState(0.9)
+
+  // Background customization
+  type BackgroundMode = "theme" | "color" | "image"
+  const STORAGE_KEY = "kaizen-skin-viewer-background"
+
+  // Load saved background preferences
+  const loadBackgroundPrefs = (): { mode: BackgroundMode; color: string; image: string | null } => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY)
+      if (saved) {
+        return JSON.parse(saved)
+      }
+    } catch {
+      // Ignore parse errors
+    }
+    return { mode: "theme", color: "#1a1a2e", image: null }
+  }
+
+  const savedPrefs = loadBackgroundPrefs()
+  const [backgroundMode, setBackgroundMode] = useState<BackgroundMode>(savedPrefs.mode)
+  const [customColor, setCustomColor] = useState(savedPrefs.color)
+  const [customImage, setCustomImage] = useState<string | null>(savedPrefs.image)
+
+  // Save background preferences
+  const saveBackgroundPrefs = useCallback((mode: BackgroundMode, color: string, image: string | null) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ mode, color, image }))
+    } catch {
+      // Ignore storage errors
+    }
+  }, [])
+
+  // Get theme color from CSS custom properties
+  const getThemeColor = useCallback(() => {
+    if (typeof window === "undefined") return "#1a1a2e"
+    const style = getComputedStyle(document.documentElement)
+    // Use --card color for a slightly different shade than the page background
+    const hsl = style.getPropertyValue("--card").trim()
+    if (!hsl) return "#1a1a2e"
+    // Convert HSL to hex (hsl is in format "h s% l%")
+    const [h, s, l] = hsl.split(" ").map((v) => parseFloat(v))
+    // HSL to RGB conversion
+    const sNorm = s / 100
+    const lNorm = l / 100
+    const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1))
+    const m = lNorm - c / 2
+    let r = 0, g = 0, b = 0
+    if (h < 60) { r = c; g = x; b = 0 }
+    else if (h < 120) { r = x; g = c; b = 0 }
+    else if (h < 180) { r = 0; g = c; b = x }
+    else if (h < 240) { r = 0; g = x; b = c }
+    else if (h < 300) { r = x; g = 0; b = c }
+    else { r = c; g = 0; b = x }
+    const toHex = (n: number) => Math.round((n + m) * 255).toString(16).padStart(2, "0")
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`
+  }, [])
+
+  // Compute effective background based on mode
+  // resolvedTheme is included to trigger re-render when theme changes
+  const getEffectiveBackground = useCallback(() => {
+    switch (backgroundMode) {
+      case "color":
+        return { color: customColor, image: undefined }
+      case "image":
+        return { color: undefined, image: customImage || undefined }
+      case "theme":
+      default:
+        return { color: getThemeColor(), image: undefined }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backgroundMode, customColor, customImage, getThemeColor, resolvedTheme])
+
+  const effectiveBackground = getEffectiveBackground()
+
+  // Handle background mode change
+  const handleBackgroundModeChange = (mode: BackgroundMode) => {
+    setBackgroundMode(mode)
+    saveBackgroundPrefs(mode, customColor, customImage)
+  }
+
+  // Handle custom color change
+  const handleColorChange = (color: string) => {
+    setCustomColor(color)
+    saveBackgroundPrefs(backgroundMode, color, customImage)
+  }
+
+  // Handle custom image upload
+  const handleImageUpload = async () => {
+    try {
+      const selected = await openDialog({
+        multiple: false,
+        filters: [{ name: "Images", extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+      })
+
+      if (selected) {
+        // Read file and convert to data URL for storage
+        const data = await readFile(selected)
+        const blob = new Blob([data])
+        const reader = new FileReader()
+        reader.onload = () => {
+          const dataUrl = reader.result as string
+          setCustomImage(dataUrl)
+          saveBackgroundPrefs(backgroundMode, customColor, dataUrl)
+        }
+        reader.readAsDataURL(blob)
+      }
+    } catch (err) {
+      console.error("[Skins] Failed to load background image:", err)
+      toast.error(t("skins.backgroundImageError"))
+    }
+  }
+
+  // Clear custom image
+  const handleClearImage = () => {
+    setCustomImage(null)
+    saveBackgroundPrefs(backgroundMode, customColor, null)
+  }
 
   // Browse tab state
   const [searchQuery, setSearchQuery] = useState("")
@@ -526,12 +655,24 @@ export function Skins() {
   }
 
   return (
-    <>
-    <Tabs defaultValue="my-skin" className="flex flex-col gap-4">
-      {/* Header with Tabs */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <div className="flex flex-col flex-1 min-h-0">
+      {/* Header */}
+      <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
         <h1 className="text-xl font-semibold">{t("skins.title")}</h1>
-        <TabsList className="grid w-full grid-cols-4 sm:flex sm:w-auto h-9">
+      </div>
+
+      {/* Offline Warning */}
+      {isOfflineAccount && (
+        <Card className="flex-shrink-0 border-yellow-500/50 bg-yellow-500/10 mb-4">
+          <CardContent className="flex items-center gap-3 py-2">
+            <AlertCircle className="h-4 w-4 text-yellow-500" />
+            <p className="text-xs">{t("skins.offlineNotSupported")}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Tabs defaultValue="my-skin" className="flex flex-col flex-1 min-h-0">
+        <TabsList className="flex-shrink-0 grid w-full grid-cols-4 sm:flex sm:w-auto h-9 mb-4">
           <TabsTrigger value="my-skin" className="text-xs sm:text-sm px-3">{t("skins.mySkin")}</TabsTrigger>
           <TabsTrigger value="favorites" className="gap-1.5 text-xs sm:text-sm px-3">
             <Heart className="h-3.5 w-3.5" />
@@ -542,23 +683,12 @@ export function Skins() {
             {t("skins.upload")}
           </TabsTrigger>
         </TabsList>
-      </div>
 
-      {/* Offline Warning */}
-      {isOfflineAccount && (
-        <Card className="border-yellow-500/50 bg-yellow-500/10">
-          <CardContent className="flex items-center gap-3 py-2">
-            <AlertCircle className="h-4 w-4 text-yellow-500" />
-            <p className="text-xs">{t("skins.offlineNotSupported")}</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* My Skin Tab */}
-      <TabsContent value="my-skin" className="mt-0 h-[calc(100vh-180px)] min-h-[500px]">
-          <div className="grid gap-6 lg:grid-cols-[1fr,280px] h-full">
+        {/* My Skin Tab */}
+        <TabsContent value="my-skin" className="mt-0 flex-1 min-h-0">
+          <div className="grid gap-6 lg:grid-cols-[1fr,280px] h-full min-h-0">
             {/* 3D Viewer - Full space */}
-            <Card className="overflow-hidden h-full">
+            <Card className="overflow-hidden min-h-[400px]">
               <div className="relative h-full flex flex-col">
                 <CardContent className="flex-1 p-0 relative">
                   <SkinViewer3D
@@ -568,7 +698,8 @@ export function Skins() {
                     animation={mySkinAnimation}
                     slim={profile?.current_skin?.variant === "slim"}
                     fillContainer
-                    background={resolvedTheme === "dark" ? "#1a1a2e" : "#e8e8f0"}
+                    background={effectiveBackground.color}
+                    backgroundImage={effectiveBackground.image}
                   />
                 </CardContent>
 
@@ -717,6 +848,144 @@ export function Skins() {
                           <p>{t("skins.screenshot")}</p>
                         </TooltipContent>
                       </Tooltip>
+                      <div className="w-px h-6 bg-border mx-1" />
+                      <Popover>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <PopoverTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8"
+                              >
+                                <Paintbrush className="h-4 w-4" />
+                              </Button>
+                            </PopoverTrigger>
+                          </TooltipTrigger>
+                          <TooltipContent side="top">
+                            <p>{t("skins.background")}</p>
+                          </TooltipContent>
+                        </Tooltip>
+                        <PopoverContent side="top" align="end" className="w-72">
+                          <div className="space-y-4">
+                            <h4 className="font-medium text-sm">{t("skins.backgroundSettings")}</h4>
+
+                            {/* Mode selection */}
+                            <div className="flex gap-1 p-1 bg-muted rounded-lg">
+                              <button
+                                onClick={() => handleBackgroundModeChange("theme")}
+                                className={`flex-1 flex items-center justify-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium transition-colors ${
+                                  backgroundMode === "theme"
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                <Palette className="h-3.5 w-3.5" />
+                                {t("skins.bgTheme")}
+                              </button>
+                              <button
+                                onClick={() => handleBackgroundModeChange("color")}
+                                className={`flex-1 flex items-center justify-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium transition-colors ${
+                                  backgroundMode === "color"
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                <Paintbrush className="h-3.5 w-3.5" />
+                                {t("skins.bgColor")}
+                              </button>
+                              <button
+                                onClick={() => handleBackgroundModeChange("image")}
+                                className={`flex-1 flex items-center justify-center gap-1.5 h-8 px-3 rounded-md text-xs font-medium transition-colors ${
+                                  backgroundMode === "image"
+                                    ? "bg-background text-foreground shadow-sm"
+                                    : "text-muted-foreground hover:text-foreground"
+                                }`}
+                              >
+                                <ImageIcon className="h-3.5 w-3.5" />
+                                {t("skins.bgImage")}
+                              </button>
+                            </div>
+
+                            {/* Color picker */}
+                            {backgroundMode === "color" && (
+                              <div className="space-y-2">
+                                <Label className="text-xs">{t("skins.selectColor")}</Label>
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="color"
+                                    value={customColor}
+                                    onChange={(e) => handleColorChange(e.target.value)}
+                                    className="w-10 h-10 rounded cursor-pointer border-0 p-0"
+                                  />
+                                  <Input
+                                    value={customColor}
+                                    onChange={(e) => handleColorChange(e.target.value)}
+                                    className="h-8 font-mono text-sm"
+                                    placeholder="#000000"
+                                  />
+                                </div>
+                                {/* Preset colors */}
+                                <div className="flex flex-wrap gap-1.5">
+                                  {["#1a1a2e", "#16213e", "#0f3460", "#533483", "#2d4059", "#1b1b2f", "#162447", "#1f4068"].map((color) => (
+                                    <button
+                                      key={color}
+                                      onClick={() => handleColorChange(color)}
+                                      className="w-6 h-6 rounded border border-border hover:scale-110 transition-transform"
+                                      style={{ backgroundColor: color }}
+                                      title={color}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Image upload */}
+                            {backgroundMode === "image" && (
+                              <div className="space-y-2">
+                                <Label className="text-xs">{t("skins.selectImage")}</Label>
+                                {customImage ? (
+                                  <div className="relative">
+                                    <div
+                                      className="w-full h-20 rounded border border-border bg-cover bg-center"
+                                      style={{ backgroundImage: `url(${customImage})` }}
+                                    />
+                                    <Button
+                                      size="icon"
+                                      variant="destructive"
+                                      className="absolute top-1 right-1 h-6 w-6"
+                                      onClick={handleClearImage}
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </Button>
+                                  </div>
+                                ) : (
+                                  <Button
+                                    variant="outline"
+                                    onClick={handleImageUpload}
+                                    className="w-full h-20 border-dashed"
+                                  >
+                                    <div className="flex flex-col items-center gap-1">
+                                      <ImageIcon className="h-6 w-6 text-muted-foreground" />
+                                      <span className="text-xs text-muted-foreground">{t("skins.uploadImage")}</span>
+                                    </div>
+                                  </Button>
+                                )}
+                                {customImage && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={handleImageUpload}
+                                    className="w-full"
+                                  >
+                                    {t("skins.changeImage")}
+                                  </Button>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                 </TooltipProvider>
@@ -781,7 +1050,7 @@ export function Skins() {
         </TabsContent>
 
         {/* Favorites Tab */}
-        <TabsContent value="favorites" className="mt-6">
+        <TabsContent value="favorites" className="mt-0 flex-1 min-h-0 overflow-auto">
           <div className="space-y-4">
             {isLoadingFavorites ? (
               <div className="flex items-center justify-center py-12">
@@ -831,7 +1100,7 @@ export function Skins() {
         </TabsContent>
 
         {/* Browse Tab */}
-        <TabsContent value="browse" className="mt-4">
+        <TabsContent value="browse" className="mt-0 flex-1 min-h-0 overflow-auto">
           <div className="space-y-4">
             {/* Unified Toolbar */}
             <div className="flex flex-wrap items-center gap-3 p-3 bg-card border rounded-lg">
@@ -954,7 +1223,7 @@ export function Skins() {
         </TabsContent>
 
         {/* Upload Tab */}
-        <TabsContent value="upload" className="mt-6">
+        <TabsContent value="upload" className="mt-0 flex-1 min-h-0 overflow-auto">
           <div className="grid gap-6 md:grid-cols-2">
             {/* Upload from File */}
             <Card>
@@ -1146,6 +1415,6 @@ export function Skins() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </div>
   )
 }

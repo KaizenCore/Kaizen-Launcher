@@ -481,11 +481,10 @@
     "restartOnboardingButton": "Neustart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Was ist neu in v0.6.3",
-    "whatsNewModsListRefactor": "Mod-Liste mit endlosem Scrollen, Ansichtsmodi und Sortierung",
-    "whatsNewModSync": "Mod-Metadaten von Modrinth für importierte Modpacks synchronisieren",
-    "whatsNewSettingsPersistence": "Einstellungen werden jetzt nach Neustart gespeichert",
-    "whatsNewSchematicsCopyFix": "Fehler beim Kopieren von Schematics in Instanzen behoben",
+    "whatsNew": "Was ist neu in v0.6.4",
+    "whatsNewSkinViewerBackground": "Anpassbarer Skin-Viewer-Hintergrund (Thema, Farbe oder Bild)",
+    "whatsNewThemeAwareBackground": "Hintergrund verwendet jetzt Themenfarben statt festem Blau",
+    "whatsNewBackgroundImage": "Laden Sie eigene Hintergrundbilder für den Skin-Viewer hoch",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -735,7 +734,17 @@
     "resetCamera": "Kamera zuruecksetzen",
     "screenshot": "Screenshot aufnehmen",
     "screenshotSaved": "Screenshot gespeichert!",
-    "screenshotError": "Screenshot konnte nicht gespeichert werden"
+    "screenshotError": "Screenshot konnte nicht gespeichert werden",
+    "background": "Hintergrund",
+    "backgroundSettings": "Hintergrundeinstellungen",
+    "bgTheme": "Thema",
+    "bgColor": "Farbe",
+    "bgImage": "Bild",
+    "selectColor": "Farbe auswählen",
+    "selectImage": "Bild auswählen",
+    "uploadImage": "Klicken zum Hochladen",
+    "changeImage": "Bild ändern",
+    "backgroundImageError": "Bild konnte nicht geladen werden"
   },
   "content": {
     "browseMods": "Mods durchsuchen",
