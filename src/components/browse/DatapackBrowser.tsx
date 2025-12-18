@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { toast } from "sonner"
+import { useBrowseCache } from "@/hooks/useBrowseCache"
 import {
   Search,
   Download,
@@ -14,14 +15,13 @@ import {
   RefreshCw,
   LayoutGrid,
   List,
-  LayoutList
+  LayoutList,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { BrowseInstance, isModCompatible } from "@/pages/Browse"
 import {
   Select,
   SelectContent,
@@ -44,10 +44,10 @@ import {
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useTranslation } from "@/i18n"
-import { useBrowseCache } from "@/hooks/useBrowseCache"
+import { BrowseInstance, isDatapackCompatible } from "@/pages/Browse"
 
 // Types
-interface ModSearchResult {
+interface DatapackSearchResult {
   project_id: string
   slug: string
   title: string
@@ -60,7 +60,7 @@ interface ModSearchResult {
   loaders: string[]
 }
 
-interface ModVersionInfo {
+interface DatapackVersionInfo {
   id: string
   name: string
   version_number: string
@@ -71,8 +71,7 @@ interface ModVersionInfo {
   date_published: string
 }
 
-// Props interface
-interface ModBrowserProps {
+interface DatapackBrowserProps {
   selectedInstance: BrowseInstance | null
 }
 
@@ -86,14 +85,7 @@ const SORT_OPTIONS = [
   { value: "updated", labelKey: "modrinth.sortUpdated" as const },
 ]
 
-const LOADER_FILTERS = [
-  { value: "fabric", label: "Fabric" },
-  { value: "forge", label: "Forge" },
-  { value: "neoforge", label: "NeoForge" },
-  { value: "quilt", label: "Quilt" },
-]
-
-const MOD_CATEGORIES = [
+const DATAPACK_CATEGORIES = [
   { value: "adventure", label: "Adventure" },
   { value: "cursed", label: "Cursed" },
   { value: "decoration", label: "Decoration" },
@@ -117,7 +109,7 @@ const MOD_CATEGORIES = [
 
 // View modes
 type ViewMode = "grid" | "list" | "compact"
-const VIEW_MODE_STORAGE_KEY = "kaizen_browse_mods_view_mode"
+const VIEW_MODE_STORAGE_KEY = "kaizen_browse_datapacks_view_mode"
 
 function getStoredViewMode(): ViewMode {
   try {
@@ -142,13 +134,13 @@ function formatDownloads(count: number): string {
   return count.toString()
 }
 
-export function ModBrowser({ selectedInstance }: ModBrowserProps) {
+export function DatapackBrowser({ selectedInstance }: DatapackBrowserProps) {
   const { t } = useTranslation()
-  const { searchWithCache, getVersionsWithCache, getInstalledWithCache, invalidateInstalledCache } = useBrowseCache<ModSearchResult, ModVersionInfo>()
-  const isCompatible = isModCompatible(selectedInstance)
+  const isCompatible = isDatapackCompatible(selectedInstance)
+  const { searchWithCache, getVersionsWithCache, getInstalledWithCache, invalidateInstalledCache } = useBrowseCache<DatapackSearchResult, DatapackVersionInfo>()
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
-  const [searchResults, setSearchResults] = useState<ModSearchResult[]>([])
+  const [searchResults, setSearchResults] = useState<DatapackSearchResult[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [totalHits, setTotalHits] = useState(0)
   const [hasSearched, setHasSearched] = useState(false)
@@ -166,12 +158,11 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
     }
   }, [])
 
-  // Installed mods tracking
-  const [installedModIds, setInstalledModIds] = useState<Set<string>>(new Set())
+  // Installed datapacks tracking
+  const [installedDatapackIds, setInstalledDatapackIds] = useState<Set<string>>(new Set())
 
   // Filters
   const [sortBy, setSortBy] = useState("relevance")
-  const [selectedLoader, setSelectedLoader] = useState<string | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [filtersOpen, setFiltersOpen] = useState(false)
 
@@ -181,30 +172,30 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
 
   // Install dialog
   const [installDialogOpen, setInstallDialogOpen] = useState(false)
-  const [selectedMod, setSelectedMod] = useState<ModSearchResult | null>(null)
-  const [modVersions, setModVersions] = useState<ModVersionInfo[]>([])
+  const [selectedDatapack, setSelectedDatapack] = useState<DatapackSearchResult | null>(null)
+  const [datapackVersions, setDatapackVersions] = useState<DatapackVersionInfo[]>([])
   const [selectedVersion, setSelectedVersion] = useState<string | null>(null)
   const [isLoadingVersions, setIsLoadingVersions] = useState(false)
   const [isInstalling, setIsInstalling] = useState(false)
 
-  // Load installed mod IDs when instance changes
+  // Load installed datapack IDs when instance changes
   useEffect(() => {
     if (!selectedInstance) {
-      setInstalledModIds(new Set())
+      setInstalledDatapackIds(new Set())
       return
     }
 
-    const loadInstalledMods = async () => {
+    const loadInstalledDatapacks = async () => {
       try {
-        console.log("[ModBrowser] Loading installed mods for instance:", selectedInstance.id)
-        const ids = await getInstalledWithCache(selectedInstance.id, "mod")
-        setInstalledModIds(new Set(ids))
-        console.log("[ModBrowser] Loaded", ids.length, "installed mod IDs")
+        console.log("[DatapackBrowser] Loading installed datapacks for instance:", selectedInstance.id)
+        const ids = await getInstalledWithCache(selectedInstance.id, "datapack")
+        setInstalledDatapackIds(new Set(ids))
+        console.log("[DatapackBrowser] Loaded", ids.length, "installed datapack IDs")
       } catch (error) {
-        console.error("[ModBrowser] Failed to load installed mod IDs:", error)
+        console.error("[DatapackBrowser] Failed to load installed datapack IDs:", error)
       }
     }
-    loadInstalledMods()
+    loadInstalledDatapacks()
   }, [selectedInstance, getInstalledWithCache])
 
   // Debounce search query
@@ -231,14 +222,13 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   useEffect(() => {
     let cancelled = false
 
-    const searchMods = async () => {
+    const searchDatapacks = async () => {
       setIsSearching(true)
       setHasSearched(true)
 
       try {
-        console.log("[ModBrowser] Searching mods:", {
+        console.log("[DatapackBrowser] Searching datapacks:", {
           query: debouncedQuery,
-          loader: selectedLoader || selectedInstance?.loader,
           gameVersion: selectedInstance?.mc_version,
           categories: selectedCategories,
           sortBy,
@@ -247,8 +237,8 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
 
         const response = await searchWithCache({
           query: debouncedQuery,
-          projectType: "mod",
-          loader: selectedLoader || selectedInstance?.loader?.toLowerCase() || null,
+          projectType: "datapack",
+          loader: null,
           mcVersion: selectedInstance?.mc_version || null,
           categories: selectedCategories,
           sort: sortBy,
@@ -260,12 +250,12 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         if (!cancelled) {
           setSearchResults(response.results)
           setTotalHits(response.total_hits)
-          console.log("[ModBrowser] Found", response.total_hits, "mods")
+          console.log("[DatapackBrowser] Found", response.total_hits, "datapacks")
         }
       } catch (error) {
         // Only show error if not cancelled
         if (!cancelled) {
-          console.error("[ModBrowser] Search failed:", error)
+          console.error("[DatapackBrowser] Search failed:", error)
           toast.error(t("modrinth.searchError"))
         }
       } finally {
@@ -275,13 +265,13 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
       }
     }
 
-    searchMods()
+    searchDatapacks()
 
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQuery, selectedInstance?.mc_version, selectedInstance?.loader, selectedLoader, categoriesKey, sortBy, currentPage, searchWithCache])
+  }, [debouncedQuery, selectedInstance?.mc_version, categoriesKey, sortBy, currentPage, searchWithCache])
 
   // Handle category toggle
   const handleCategoryToggle = useCallback((category: string) => {
@@ -295,7 +285,6 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
 
   // Clear filters
   const clearFilters = useCallback(() => {
-    setSelectedLoader(null)
     setSelectedCategories([])
     setSortBy("relevance")
     setCurrentPage(1)
@@ -336,65 +325,61 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   }, [currentPage, totalPages])
 
   // Open install dialog
-  const handleSelectMod = useCallback(async (mod: ModSearchResult) => {
+  const handleSelectDatapack = useCallback(async (datapack: DatapackSearchResult) => {
     if (!selectedInstance) {
       toast.error(t("browse.selectInstance"))
       return
     }
 
-    setSelectedMod(mod)
+    setSelectedDatapack(datapack)
     setInstallDialogOpen(true)
     setIsLoadingVersions(true)
     setSelectedVersion(null)
 
     try {
-      console.log("[ModBrowser] Loading versions for mod:", mod.project_id)
-      const versions = await getVersionsWithCache(
-        mod.project_id,
-        selectedInstance.mc_version,
-        selectedInstance.loader?.toLowerCase()
-      )
-      setModVersions(versions)
+      console.log("[DatapackBrowser] Loading versions for datapack:", datapack.project_id)
+      const versions = await getVersionsWithCache(datapack.project_id, selectedInstance.mc_version, null)
+      setDatapackVersions(versions)
       if (versions.length > 0) {
         setSelectedVersion(versions[0].id)
       }
-      console.log("[ModBrowser] Loaded", versions.length, "versions")
+      console.log("[DatapackBrowser] Loaded", versions.length, "versions")
     } catch (error) {
-      console.error("[ModBrowser] Failed to load versions:", error)
+      console.error("[DatapackBrowser] Failed to load versions:", error)
       toast.error(t("browse.noCompatibleVersion"))
     } finally {
       setIsLoadingVersions(false)
     }
   }, [selectedInstance, t, getVersionsWithCache])
 
-  // Install mod
+  // Install datapack
   const handleInstall = useCallback(async () => {
-    if (!selectedMod || !selectedVersion || !selectedInstance) return
+    if (!selectedDatapack || !selectedVersion || !selectedInstance) return
 
     setIsInstalling(true)
     try {
-      console.log("[ModBrowser] Installing mod:", selectedMod.project_id, "version:", selectedVersion)
+      console.log("[DatapackBrowser] Installing datapack:", selectedDatapack.project_id, "version:", selectedVersion)
       const filename = await invoke<string>("install_modrinth_mod", {
         instanceId: selectedInstance.id,
-        projectId: selectedMod.project_id,
+        projectId: selectedDatapack.project_id,
         versionId: selectedVersion,
-        projectType: "mod",
+        projectType: "datapack",
       })
 
-      toast.success(t("modrinth.modInstalled", { name: selectedMod.title }))
-      setInstalledModIds((prev) => new Set([...prev, selectedMod.project_id]))
-      invalidateInstalledCache(selectedInstance.id, "mod")
+      toast.success(t("modrinth.modInstalled", { name: selectedDatapack.title }))
+      setInstalledDatapackIds((prev) => new Set([...prev, selectedDatapack.project_id]))
+      invalidateInstalledCache(selectedInstance.id, "datapack")
       setInstallDialogOpen(false)
-      console.log("[ModBrowser] Installed:", filename)
+      console.log("[DatapackBrowser] Installed:", filename)
     } catch (error) {
-      console.error("[ModBrowser] Install failed:", error)
+      console.error("[DatapackBrowser] Install failed:", error)
       toast.error(t("browse.installError"))
     } finally {
       setIsInstalling(false)
     }
-  }, [selectedMod, selectedVersion, selectedInstance, t, invalidateInstalledCache])
+  }, [selectedDatapack, selectedVersion, selectedInstance, t, invalidateInstalledCache])
 
-  const hasActiveFilters = selectedLoader || selectedCategories.length > 0
+  const hasActiveFilters = selectedCategories.length > 0
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -403,7 +388,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={t("browse.searchMods")}
+            placeholder={t("browse.searchDatapacks")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -430,39 +415,19 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
               {t("browse.filters")}
               {hasActiveFilters && (
                 <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center">
-                  {(selectedLoader ? 1 : 0) + selectedCategories.length}
+                  {selectedCategories.length}
                 </Badge>
               )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80" align="start">
             <div className="space-y-4">
-              {/* Loader filter */}
-              <div>
-                <h4 className="font-medium mb-2 text-sm">{t("modrinth.loaders")}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {LOADER_FILTERS.map((loader) => (
-                    <Badge
-                      key={loader.value}
-                      variant={selectedLoader === loader.value ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setSelectedLoader(selectedLoader === loader.value ? null : loader.value)
-                        setCurrentPage(1)
-                      }}
-                    >
-                      {loader.label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
               {/* Categories */}
               <div>
                 <h4 className="font-medium mb-2 text-sm">{t("browse.categories")}</h4>
                 <ScrollArea className="h-[200px]">
                   <div className="space-y-2">
-                    {MOD_CATEGORIES.map((cat) => (
+                    {DATAPACK_CATEGORIES.map((cat) => (
                       <div key={cat.value} className="flex items-center space-x-2">
                         <Checkbox
                           id={cat.value}
@@ -534,7 +499,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
       {selectedCategories.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {selectedCategories.map((cat) => {
-            const catInfo = MOD_CATEGORIES.find((c) => c.value === cat)
+            const catInfo = DATAPACK_CATEGORIES.find((c) => c.value === cat)
             return (
               <Badge
                 key={cat}
@@ -569,21 +534,21 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         ) : viewMode === "grid" ? (
           /* Grid View */
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pr-4">
-            {searchResults.map((mod) => {
-              const isInstalled = installedModIds.has(mod.project_id)
+            {searchResults.map((datapack) => {
+              const isInstalled = installedDatapackIds.has(datapack.project_id)
               return (
                 <Card
-                  key={mod.project_id}
+                  key={datapack.project_id}
                   className="overflow-hidden hover:bg-accent/50 transition-colors cursor-pointer group"
-                  onClick={() => handleSelectMod(mod)}
+                  onClick={() => handleSelectDatapack(datapack)}
                 >
                   <CardContent className="p-3">
                     <div className="flex flex-col items-center text-center">
                       <div className="relative mb-2">
-                        {mod.icon_url ? (
+                        {datapack.icon_url ? (
                           <img
-                            src={mod.icon_url}
-                            alt={mod.title}
+                            src={datapack.icon_url}
+                            alt={datapack.title}
                             className="w-16 h-16 rounded-lg object-cover"
                           />
                         ) : (
@@ -597,11 +562,11 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
                           </div>
                         )}
                       </div>
-                      <h4 className="font-medium text-sm truncate w-full">{mod.title}</h4>
-                      <p className="text-xs text-muted-foreground truncate w-full">{mod.author}</p>
+                      <h4 className="font-medium text-sm truncate w-full">{datapack.title}</h4>
+                      <p className="text-xs text-muted-foreground truncate w-full">{datapack.author}</p>
                       <div className="flex items-center gap-1 mt-1.5 flex-wrap justify-center">
                         <Badge variant="outline" className="text-xs">
-                          {formatDownloads(mod.downloads)}
+                          {formatDownloads(datapack.downloads)}
                         </Badge>
                       </div>
                       <Button
@@ -626,19 +591,19 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         ) : viewMode === "compact" ? (
           /* Compact View */
           <div className="space-y-1 pr-4">
-            {searchResults.map((mod) => {
-              const isInstalled = installedModIds.has(mod.project_id)
+            {searchResults.map((datapack) => {
+              const isInstalled = installedDatapackIds.has(datapack.project_id)
               return (
                 <div
-                  key={mod.project_id}
+                  key={datapack.project_id}
                   className="flex items-center gap-3 p-2 rounded-md hover:bg-accent/50 transition-colors cursor-pointer group"
-                  onClick={() => handleSelectMod(mod)}
+                  onClick={() => handleSelectDatapack(datapack)}
                 >
                   <div className="flex-shrink-0 relative">
-                    {mod.icon_url ? (
+                    {datapack.icon_url ? (
                       <img
-                        src={mod.icon_url}
-                        alt={mod.title}
+                        src={datapack.icon_url}
+                        alt={datapack.title}
                         className="w-8 h-8 rounded object-cover"
                       />
                     ) : (
@@ -653,10 +618,10 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
                     )}
                   </div>
                   <div className="flex-1 min-w-0 flex items-center gap-3">
-                    <span className="font-medium text-sm truncate min-w-[120px] max-w-[200px]">{mod.title}</span>
-                    <span className="text-xs text-muted-foreground truncate">{mod.author}</span>
+                    <span className="font-medium text-sm truncate min-w-[120px] max-w-[200px]">{datapack.title}</span>
+                    <span className="text-xs text-muted-foreground truncate">{datapack.author}</span>
                     <Badge variant="outline" className="text-xs flex-shrink-0">
-                      {formatDownloads(mod.downloads)}
+                      {formatDownloads(datapack.downloads)}
                     </Badge>
                   </div>
                   <Button
@@ -674,21 +639,21 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         ) : (
           /* List View (default) */
           <div className="space-y-2 pr-4">
-            {searchResults.map((mod) => {
-              const isInstalled = installedModIds.has(mod.project_id)
+            {searchResults.map((datapack) => {
+              const isInstalled = installedDatapackIds.has(datapack.project_id)
               return (
                 <Card
-                  key={mod.project_id}
+                  key={datapack.project_id}
                   className="overflow-hidden hover:bg-accent/50 transition-colors cursor-pointer"
-                  onClick={() => handleSelectMod(mod)}
+                  onClick={() => handleSelectDatapack(datapack)}
                 >
                   <CardContent className="p-3">
                     <div className="flex gap-3">
                       <div className="flex-shrink-0 relative">
-                        {mod.icon_url ? (
+                        {datapack.icon_url ? (
                           <img
-                            src={mod.icon_url}
-                            alt={mod.title}
+                            src={datapack.icon_url}
+                            alt={datapack.title}
                             className="w-12 h-12 rounded-lg object-cover"
                           />
                         ) : (
@@ -705,8 +670,8 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <h4 className="font-medium text-sm truncate">{mod.title}</h4>
-                            <p className="text-xs text-muted-foreground">{t("modrinth.by")} {mod.author}</p>
+                            <h4 className="font-medium text-sm truncate">{datapack.title}</h4>
+                            <p className="text-xs text-muted-foreground">{t("modrinth.by")} {datapack.author}</p>
                           </div>
                           <Button
                             size="sm"
@@ -715,7 +680,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
                             disabled={!selectedInstance || !isCompatible}
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleSelectMod(mod)
+                              handleSelectDatapack(datapack)
                             }}
                           >
                             {isInstalled ? (
@@ -732,7 +697,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
                           </Button>
                         </div>
                         <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
-                          {mod.description}
+                          {datapack.description}
                         </p>
                         <div className="flex items-center gap-2 mt-2 flex-wrap">
                           {isInstalled && (
@@ -742,9 +707,9 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
                             </Badge>
                           )}
                           <Badge variant="outline" className="text-xs">
-                            {formatDownloads(mod.downloads)} DL
+                            {formatDownloads(datapack.downloads)} DL
                           </Badge>
-                          {mod.categories.slice(0, 2).map((cat) => (
+                          {datapack.categories.slice(0, 2).map((cat) => (
                             <Badge key={cat} variant="secondary" className="text-xs">
                               {cat}
                             </Badge>
@@ -807,14 +772,14 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-3">
-              {selectedMod?.icon_url && (
+              {selectedDatapack?.icon_url && (
                 <img
-                  src={selectedMod.icon_url}
-                  alt={selectedMod.title}
+                  src={selectedDatapack.icon_url}
+                  alt={selectedDatapack.title}
                   className="w-8 h-8 rounded"
                 />
               )}
-              {selectedMod?.title}
+              {selectedDatapack?.title}
             </DialogTitle>
             <DialogDescription>
               {t("modrinth.selectVersion")}
@@ -825,7 +790,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
-          ) : modVersions.length === 0 ? (
+          ) : datapackVersions.length === 0 ? (
             <div className="text-center py-8 text-muted-foreground">
               {t("browse.noCompatibleVersion")}
             </div>
@@ -836,7 +801,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
                   <SelectValue placeholder={t("modrinth.selectVersion")} />
                 </SelectTrigger>
                 <SelectContent>
-                  {modVersions.map((version) => (
+                  {datapackVersions.map((version) => (
                     <SelectItem key={version.id} value={version.id}>
                       <div className="flex items-center gap-2">
                         <span>{version.version_number}</span>

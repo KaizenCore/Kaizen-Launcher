@@ -5,7 +5,7 @@ use crate::error::{AppError, AppResult};
 use crate::state::SharedState;
 use chrono::{Duration, Utc};
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 use tracing::{debug, info};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -74,20 +74,35 @@ pub async fn get_active_account(state: State<'_, SharedState>) -> AppResult<Opti
 #[tauri::command]
 pub async fn set_active_account(
     state: State<'_, SharedState>,
+    app: AppHandle,
     account_id: String,
 ) -> AppResult<()> {
     let state = state.read().await;
     Account::set_active(&state.db, &account_id)
         .await
-        .map_err(AppError::from)
+        .map_err(AppError::from)?;
+
+    // Emit event to notify all listeners that the active account changed
+    let _ = app.emit("active-account-changed", ());
+
+    Ok(())
 }
 
 #[tauri::command]
-pub async fn delete_account(state: State<'_, SharedState>, account_id: String) -> AppResult<()> {
+pub async fn delete_account(
+    state: State<'_, SharedState>,
+    app: AppHandle,
+    account_id: String,
+) -> AppResult<()> {
     let state = state.read().await;
     Account::delete(&state.db, &account_id)
         .await
-        .map_err(AppError::from)
+        .map_err(AppError::from)?;
+
+    // Emit event to notify listeners (in case the deleted account was active)
+    let _ = app.emit("active-account-changed", ());
+
+    Ok(())
 }
 
 /// Start Microsoft login - returns device code for user authentication

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { NavLink, useLocation } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
+import { listen } from "@tauri-apps/api/event"
 import {
   Home,
   Layers,
@@ -131,6 +132,7 @@ export function Sidebar() {
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null
     let isPaused = false
+    let unlisten: (() => void) | null = null
 
     const loadActiveAccount = async () => {
       // Skip if page is hidden (visibility optimization)
@@ -168,6 +170,14 @@ export function Sidebar() {
       }
     }
 
+    // Listen for account change events from the backend
+    listen("active-account-changed", () => {
+      console.log("[Sidebar] Received active-account-changed event")
+      loadActiveAccount()
+    }).then((fn) => {
+      unlisten = fn
+    })
+
     loadActiveAccount()
     startPolling()
 
@@ -179,6 +189,7 @@ export function Sidebar() {
       window.removeEventListener("focus", handleFocus)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       if (interval) clearInterval(interval)
+      if (unlisten) unlisten()
     }
   }, [])
 

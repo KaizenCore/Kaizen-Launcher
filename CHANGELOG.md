@@ -2,6 +2,63 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.6.5] - 2025-12-18
+
+### Added
+- **Extended Browse Page** - 4 new tabs for comprehensive Modrinth content browsing
+  - **Plugins Tab** - Browse and install plugins for server instances (Paper, Spigot, Purpur, etc.)
+  - **Resource Packs Tab** - Browse and install resource packs for client instances
+  - **Shaders Tab** - Browse and install shaders for client instances with mod loaders
+  - **Datapacks Tab** - Browse and install datapacks for any instance
+- **Global Instance Selector** - Single instance selector shared across all Browse tabs
+  - Select once, all tabs adapt automatically
+  - Shows compatibility warnings when content doesn't match instance type
+  - Displays server/client icons, version, and loader badges
+- **Smart Compatibility System** - Install buttons disabled for incompatible instances
+  - Mods: Work on clients AND modded servers (Fabric, Forge, NeoForge, Quilt)
+  - Plugins: Server instances with plugin loaders only
+  - Resource Packs: Client instances only
+  - Shaders: Client instances with mod loaders only
+  - Datapacks: Any instance
+- **Cape Refresh Button** - New refresh button in the Capes section to reload capes from all sources
+- **Cape Source Badges** - Badges showing cape count per source (Mojang, OptiFine, LabyMod, etc.)
+- **Third-Party Cape Preview** - Click on third-party capes to preview them in the 3D viewer
+- **Browse Cache System** - New caching layer for Browse page API calls
+  - Search results, project versions, and installed IDs cached for 5 minutes
+  - Reduces API calls when switching tabs or returning to search
+  - Automatic cache invalidation after installs
+
+### Fixed
+- **Sidebar Account Sync** - The sidebar now updates instantly when switching accounts
+  - Previously required waiting up to 30 seconds or switching windows for the avatar to refresh
+  - Backend now emits `active-account-changed` event when account is set or deleted
+  - Sidebar listens to the event for real-time updates
+- **OptiFine Cape URL** - Fixed HTTP to HTTPS to prevent mixed content issues
+- **Browse Page Re-renders** - Fixed excessive re-renders (42+ reduced to 1-2)
+  - Zustand store subscriptions now use stable selectors for functions
+  - Prevents cascading updates when cache data changes
+  - Added ref guard to prevent duplicate instance loading
+
+### Improved
+- **Cape Selector Redesign** - Complete overhaul of the cape selection UI
+  - Official Mojang capes shown in main section (can be activated via API)
+  - Third-party capes (OptiFine, LabyMod, MinecraftCapes, 5zig) shown in separate preview section
+  - Better duplicate detection: Mojang API capes prioritized over Capes.dev
+  - Tooltips explain that third-party capes are preview-only
+
+### Technical
+- New browser components: `PluginBrowser.tsx`, `ResourcePackBrowser.tsx`, `ShaderBrowser.tsx`, `DatapackBrowser.tsx`
+- Refactored all browsers to accept `selectedInstance` prop from parent `Browse.tsx`
+- Compatibility helper functions exported from `Browse.tsx`: `isModCompatible`, `isPluginCompatible`, etc.
+- Each browser imports its compatibility function to disable install buttons when incompatible
+- New translation keys for search placeholders: `searchPlugins`, `searchResourcePacks`, `searchShaders`, `searchDatapacks`
+- New translation keys for compatibility warnings: `modsNotForServers`, `pluginsOnlyForServers`, etc.
+- Added `AppHandle` and `Emitter` to `set_active_account` and `delete_account` commands
+- Added Tauri event listener in `Sidebar.tsx` for `active-account-changed` event
+- New `browseCacheStore.ts` Zustand store with TTL-based cache (5 min) and max entries (100)
+- New `useBrowseCache.ts` hook with stable selectors for cache functions
+- Individual Zustand selectors prevent re-renders when unrelated cache data changes
+
 ## [0.6.4] - 2025-12-17
 
 ### Added

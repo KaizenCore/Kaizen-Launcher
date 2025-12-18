@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { toast } from "sonner"
+import { useBrowseCache } from "@/hooks/useBrowseCache"
 import {
   Search,
   Download,
@@ -14,14 +15,13 @@ import {
   RefreshCw,
   LayoutGrid,
   List,
-  LayoutList
+  LayoutList,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { BrowseInstance, isModCompatible } from "@/pages/Browse"
 import {
   Select,
   SelectContent,
@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useTranslation } from "@/i18n"
-import { useBrowseCache } from "@/hooks/useBrowseCache"
+import { BrowseInstance, isResourcePackCompatible } from "@/pages/Browse"
 
 // Types
 interface ModSearchResult {
@@ -71,8 +71,7 @@ interface ModVersionInfo {
   date_published: string
 }
 
-// Props interface
-interface ModBrowserProps {
+interface ResourcePackBrowserProps {
   selectedInstance: BrowseInstance | null
 }
 
@@ -86,38 +85,27 @@ const SORT_OPTIONS = [
   { value: "updated", labelKey: "modrinth.sortUpdated" as const },
 ]
 
-const LOADER_FILTERS = [
-  { value: "fabric", label: "Fabric" },
-  { value: "forge", label: "Forge" },
-  { value: "neoforge", label: "NeoForge" },
-  { value: "quilt", label: "Quilt" },
-]
-
-const MOD_CATEGORIES = [
-  { value: "adventure", label: "Adventure" },
-  { value: "cursed", label: "Cursed" },
-  { value: "decoration", label: "Decoration" },
-  { value: "economy", label: "Economy" },
-  { value: "equipment", label: "Equipment" },
-  { value: "food", label: "Food" },
-  { value: "game-mechanics", label: "Game Mechanics" },
-  { value: "library", label: "Library" },
-  { value: "magic", label: "Magic" },
-  { value: "management", label: "Management" },
-  { value: "minigame", label: "Minigames" },
-  { value: "mobs", label: "Mobs" },
-  { value: "optimization", label: "Optimization" },
-  { value: "social", label: "Social" },
-  { value: "storage", label: "Storage" },
-  { value: "technology", label: "Technology" },
-  { value: "transportation", label: "Transportation" },
+const RESOURCEPACK_CATEGORIES = [
+  { value: "8x-", label: "8x-" },
+  { value: "16x", label: "16x" },
+  { value: "32x", label: "32x" },
+  { value: "48x", label: "48x" },
+  { value: "64x", label: "64x" },
+  { value: "128x", label: "128x" },
+  { value: "256x", label: "256x" },
+  { value: "512x+", label: "512x+" },
+  { value: "realistic", label: "Realistic" },
+  { value: "simplistic", label: "Simplistic" },
+  { value: "themed", label: "Themed" },
+  { value: "tweaks", label: "Tweaks" },
+  { value: "font", label: "Font" },
+  { value: "gui", label: "GUI" },
   { value: "utility", label: "Utility" },
-  { value: "worldgen", label: "World Gen" },
 ]
 
 // View modes
 type ViewMode = "grid" | "list" | "compact"
-const VIEW_MODE_STORAGE_KEY = "kaizen_browse_mods_view_mode"
+const VIEW_MODE_STORAGE_KEY = "kaizen_browse_resourcepacks_view_mode"
 
 function getStoredViewMode(): ViewMode {
   try {
@@ -142,10 +130,9 @@ function formatDownloads(count: number): string {
   return count.toString()
 }
 
-export function ModBrowser({ selectedInstance }: ModBrowserProps) {
+export function ResourcePackBrowser({ selectedInstance }: ResourcePackBrowserProps) {
   const { t } = useTranslation()
   const { searchWithCache, getVersionsWithCache, getInstalledWithCache, invalidateInstalledCache } = useBrowseCache<ModSearchResult, ModVersionInfo>()
-  const isCompatible = isModCompatible(selectedInstance)
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ModSearchResult[]>([])
@@ -153,6 +140,8 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   const [totalHits, setTotalHits] = useState(0)
   const [hasSearched, setHasSearched] = useState(false)
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
+
+  const isCompatible = isResourcePackCompatible(selectedInstance)
 
   // View mode with localStorage persistence
   const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode)
@@ -166,12 +155,11 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
     }
   }, [])
 
-  // Installed mods tracking
+  // Installed resource packs tracking
   const [installedModIds, setInstalledModIds] = useState<Set<string>>(new Set())
 
   // Filters
   const [sortBy, setSortBy] = useState("relevance")
-  const [selectedLoader, setSelectedLoader] = useState<string | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [filtersOpen, setFiltersOpen] = useState(false)
 
@@ -187,24 +175,24 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   const [isLoadingVersions, setIsLoadingVersions] = useState(false)
   const [isInstalling, setIsInstalling] = useState(false)
 
-  // Load installed mod IDs when instance changes
+  // Load installed resource pack IDs when instance changes
   useEffect(() => {
     if (!selectedInstance) {
       setInstalledModIds(new Set())
       return
     }
 
-    const loadInstalledMods = async () => {
+    const loadInstalledResourcePacks = async () => {
       try {
-        console.log("[ModBrowser] Loading installed mods for instance:", selectedInstance.id)
-        const ids = await getInstalledWithCache(selectedInstance.id, "mod")
+        console.log("[ResourcePackBrowser] Loading installed resource packs for instance:", selectedInstance.id)
+        const ids = await getInstalledWithCache(selectedInstance.id, "resourcepack")
         setInstalledModIds(new Set(ids))
-        console.log("[ModBrowser] Loaded", ids.length, "installed mod IDs")
+        console.log("[ResourcePackBrowser] Loaded", ids.length, "installed resource pack IDs")
       } catch (error) {
-        console.error("[ModBrowser] Failed to load installed mod IDs:", error)
+        console.error("[ResourcePackBrowser] Failed to load installed resource pack IDs:", error)
       }
     }
-    loadInstalledMods()
+    loadInstalledResourcePacks()
   }, [selectedInstance, getInstalledWithCache])
 
   // Debounce search query
@@ -231,14 +219,13 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   useEffect(() => {
     let cancelled = false
 
-    const searchMods = async () => {
+    const searchResourcePacks = async () => {
       setIsSearching(true)
       setHasSearched(true)
 
       try {
-        console.log("[ModBrowser] Searching mods:", {
+        console.log("[ResourcePackBrowser] Searching resource packs:", {
           query: debouncedQuery,
-          loader: selectedLoader || selectedInstance?.loader,
           gameVersion: selectedInstance?.mc_version,
           categories: selectedCategories,
           sortBy,
@@ -247,8 +234,8 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
 
         const response = await searchWithCache({
           query: debouncedQuery,
-          projectType: "mod",
-          loader: selectedLoader || selectedInstance?.loader?.toLowerCase() || null,
+          projectType: "resourcepack",
+          loader: null,
           mcVersion: selectedInstance?.mc_version || null,
           categories: selectedCategories,
           sort: sortBy,
@@ -260,12 +247,12 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         if (!cancelled) {
           setSearchResults(response.results)
           setTotalHits(response.total_hits)
-          console.log("[ModBrowser] Found", response.total_hits, "mods")
+          console.log("[ResourcePackBrowser] Found", response.total_hits, "resource packs")
         }
       } catch (error) {
         // Only show error if not cancelled
         if (!cancelled) {
-          console.error("[ModBrowser] Search failed:", error)
+          console.error("[ResourcePackBrowser] Search failed:", error)
           toast.error(t("modrinth.searchError"))
         }
       } finally {
@@ -275,13 +262,13 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
       }
     }
 
-    searchMods()
+    searchResourcePacks()
 
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQuery, selectedInstance?.mc_version, selectedInstance?.loader, selectedLoader, categoriesKey, sortBy, currentPage, searchWithCache])
+  }, [debouncedQuery, selectedInstance?.mc_version, categoriesKey, sortBy, currentPage, searchWithCache])
 
   // Handle category toggle
   const handleCategoryToggle = useCallback((category: string) => {
@@ -295,7 +282,6 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
 
   // Clear filters
   const clearFilters = useCallback(() => {
-    setSelectedLoader(null)
     setSelectedCategories([])
     setSortBy("relevance")
     setCurrentPage(1)
@@ -338,7 +324,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   // Open install dialog
   const handleSelectMod = useCallback(async (mod: ModSearchResult) => {
     if (!selectedInstance) {
-      toast.error(t("browse.selectInstance"))
+      toast.error(t("browse.selectInstanceForResourcePacks"))
       return
     }
 
@@ -348,53 +334,49 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
     setSelectedVersion(null)
 
     try {
-      console.log("[ModBrowser] Loading versions for mod:", mod.project_id)
-      const versions = await getVersionsWithCache(
-        mod.project_id,
-        selectedInstance.mc_version,
-        selectedInstance.loader?.toLowerCase()
-      )
+      console.log("[ResourcePackBrowser] Loading versions for resource pack:", mod.project_id)
+      const versions = await getVersionsWithCache(mod.project_id, selectedInstance.mc_version, null)
       setModVersions(versions)
       if (versions.length > 0) {
         setSelectedVersion(versions[0].id)
       }
-      console.log("[ModBrowser] Loaded", versions.length, "versions")
+      console.log("[ResourcePackBrowser] Loaded", versions.length, "versions")
     } catch (error) {
-      console.error("[ModBrowser] Failed to load versions:", error)
+      console.error("[ResourcePackBrowser] Failed to load versions:", error)
       toast.error(t("browse.noCompatibleVersion"))
     } finally {
       setIsLoadingVersions(false)
     }
   }, [selectedInstance, t, getVersionsWithCache])
 
-  // Install mod
+  // Install resource pack
   const handleInstall = useCallback(async () => {
     if (!selectedMod || !selectedVersion || !selectedInstance) return
 
     setIsInstalling(true)
     try {
-      console.log("[ModBrowser] Installing mod:", selectedMod.project_id, "version:", selectedVersion)
+      console.log("[ResourcePackBrowser] Installing resource pack:", selectedMod.project_id, "version:", selectedVersion)
       const filename = await invoke<string>("install_modrinth_mod", {
         instanceId: selectedInstance.id,
         projectId: selectedMod.project_id,
         versionId: selectedVersion,
-        projectType: "mod",
+        projectType: "resourcepack",
       })
 
       toast.success(t("modrinth.modInstalled", { name: selectedMod.title }))
       setInstalledModIds((prev) => new Set([...prev, selectedMod.project_id]))
-      invalidateInstalledCache(selectedInstance.id, "mod")
+      invalidateInstalledCache(selectedInstance.id, "resourcepack")
       setInstallDialogOpen(false)
-      console.log("[ModBrowser] Installed:", filename)
+      console.log("[ResourcePackBrowser] Installed:", filename)
     } catch (error) {
-      console.error("[ModBrowser] Install failed:", error)
+      console.error("[ResourcePackBrowser] Install failed:", error)
       toast.error(t("browse.installError"))
     } finally {
       setIsInstalling(false)
     }
   }, [selectedMod, selectedVersion, selectedInstance, t, invalidateInstalledCache])
 
-  const hasActiveFilters = selectedLoader || selectedCategories.length > 0
+  const hasActiveFilters = selectedCategories.length > 0
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -403,7 +385,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={t("browse.searchMods")}
+            placeholder={t("browse.searchResourcePacks")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -430,39 +412,19 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
               {t("browse.filters")}
               {hasActiveFilters && (
                 <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center">
-                  {(selectedLoader ? 1 : 0) + selectedCategories.length}
+                  {selectedCategories.length}
                 </Badge>
               )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80" align="start">
             <div className="space-y-4">
-              {/* Loader filter */}
-              <div>
-                <h4 className="font-medium mb-2 text-sm">{t("modrinth.loaders")}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {LOADER_FILTERS.map((loader) => (
-                    <Badge
-                      key={loader.value}
-                      variant={selectedLoader === loader.value ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setSelectedLoader(selectedLoader === loader.value ? null : loader.value)
-                        setCurrentPage(1)
-                      }}
-                    >
-                      {loader.label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
               {/* Categories */}
               <div>
                 <h4 className="font-medium mb-2 text-sm">{t("browse.categories")}</h4>
                 <ScrollArea className="h-[200px]">
                   <div className="space-y-2">
-                    {MOD_CATEGORIES.map((cat) => (
+                    {RESOURCEPACK_CATEGORIES.map((cat) => (
                       <div key={cat.value} className="flex items-center space-x-2">
                         <Checkbox
                           id={cat.value}
@@ -534,7 +496,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
       {selectedCategories.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {selectedCategories.map((cat) => {
-            const catInfo = MOD_CATEGORIES.find((c) => c.value === cat)
+            const catInfo = RESOURCEPACK_CATEGORIES.find((c) => c.value === cat)
             return (
               <Badge
                 key={cat}

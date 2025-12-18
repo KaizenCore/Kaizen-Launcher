@@ -59,6 +59,65 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.6.5",
+    date: "2025-12-18",
+    highlights: [
+      "Extended Browse Page",
+      "Global Instance Selector",
+      "Browse Cache System",
+    ],
+    features: [
+      {
+        icon: <Search className="h-5 w-5" />,
+        title: "Extended Browse Page",
+        description: "Browse page now includes 4 new tabs: Plugins (for server instances), Resource Packs, Shaders, and Datapacks. Each tab has its own search, filters, and categories from Modrinth.",
+        tag: "new",
+      },
+      {
+        icon: <Gamepad2 className="h-5 w-5" />,
+        title: "Global Instance Selector",
+        description: "A single instance selector shared across all Browse tabs. Select your instance once, and all tabs adapt automatically. Shows compatibility warnings when content doesn't match the instance type.",
+        tag: "new",
+      },
+      {
+        icon: <Shield className="h-5 w-5" />,
+        title: "Smart Compatibility",
+        description: "Install buttons are disabled when content is incompatible with the selected instance. Mods work on modded clients AND servers. Plugins only on plugin servers. Shaders and resource packs are client-only.",
+        tag: "new",
+      },
+      {
+        icon: <Shield className="h-5 w-5" />,
+        title: "Cape System Overhaul",
+        description: "Complete redesign of the cape selector. Official Mojang capes can be activated, while third-party capes (OptiFine, LabyMod, etc.) are shown in a preview section. Badges show cape count per source.",
+        tag: "improved",
+      },
+      {
+        icon: <RefreshCw className="h-5 w-5" />,
+        title: "Sidebar Account Sync Fix",
+        description: "The sidebar now updates immediately when changing accounts. Previously, you had to wait up to 30 seconds or switch windows for the avatar to refresh. Now uses real-time Tauri events for instant sync.",
+        tag: "fix",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "OptiFine Cape Fix",
+        description: "Fixed OptiFine capes not displaying due to HTTP/HTTPS mixed content issues. Cape URLs now use HTTPS and CSP has been updated to allow cape images from all providers.",
+        tag: "fix",
+      },
+      {
+        icon: <Database className="h-5 w-5" />,
+        title: "Browse Cache System",
+        description: "New caching layer for Browse page API calls. Search results, project versions, and installed IDs are cached for 5 minutes. Reduces API calls and improves responsiveness when switching tabs.",
+        tag: "new",
+      },
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "Browse Performance Fix",
+        description: "Fixed excessive re-renders in Browse page (42+ renders reduced to 1-2). Uses stable Zustand selectors to prevent cascading updates when cache data changes.",
+        tag: "fix",
+      },
+    ],
+  },
+  {
     version: "0.6.4",
     date: "2025-12-17",
     highlights: [

@@ -19,6 +19,7 @@ fn is_offline_account(account: &Account) -> bool {
 }
 
 /// Get current skin profile for an account
+/// Fetches capes from multiple sources: Mojang API, OptiFine, and Capes.dev
 #[tauri::command]
 pub async fn get_skin_profile(
     state: tauri::State<'_, SharedState>,
@@ -32,15 +33,21 @@ pub async fn get_skin_profile(
         .map_err(|e| AppError::Skin(format!("Database error: {}", e)))?
         .ok_or_else(|| AppError::Skin("Account not found".to_string()))?;
 
+    log::info!(
+        "[Skins] Loading profile for {} (offline: {})",
+        account.username,
+        is_offline_account(&account)
+    );
+
     // Check if offline account
     if is_offline_account(&account) {
-        // For offline accounts, try to get OptiFine cape only
-        let mut capes = vec![];
-        if let Ok(Some(optifine_cape)) =
-            optifine::get_cape(&state.http_client, &account.username).await
-        {
-            capes.push(optifine_cape);
-        }
+        // For offline accounts, fetch capes from multiple sources
+        let capes = fetch_all_capes_for_user(&state.http_client, &account.username).await;
+        log::info!(
+            "[Skins] Offline account {} has {} capes available",
+            account.username,
+            capes.len()
+        );
 
         return Ok(PlayerSkinProfile {
             uuid: account.uuid.clone(),
@@ -56,27 +63,62 @@ pub async fn get_skin_profile(
         .map_err(|e| AppError::Skin(format!("Failed to decrypt token: {}", e)))?;
 
     // Fetch from Mojang API
-    let (current_skin, available_capes, current_cape) =
+    let (current_skin, mojang_capes, current_cape) =
         match mojang::get_profile_skins(&state.http_client, &access_token).await {
-            Ok(result) => result,
-            Err(_) => {
-                // Token might be expired or invalid, treat as offline for now
-                return Ok(PlayerSkinProfile {
-                    uuid: account.uuid.clone(),
-                    username: account.username.clone(),
-                    current_skin: None,
-                    available_capes: vec![],
-                    current_cape: None,
-                });
+            Ok(result) => {
+                log::info!(
+                    "[Skins] Mojang API returned {} capes for {}",
+                    result.1.len(),
+                    account.username
+                );
+                result
+            }
+            Err(e) => {
+                // Token might be expired or invalid
+                log::warn!(
+                    "[Skins] Mojang API failed for {}: {}",
+                    account.username,
+                    e
+                );
+                (None, vec![], None)
             }
         };
 
-    // Also check for OptiFine cape
-    let mut all_capes = available_capes;
-    if let Ok(Some(optifine_cape)) = optifine::get_cape(&state.http_client, &account.username).await
-    {
-        all_capes.push(optifine_cape);
+    // Check if we got capes from Mojang API (these have UUID IDs and can be set)
+    let has_mojang_api_capes = !mojang_capes.is_empty();
+
+    // Fetch additional capes from other sources (OptiFine, LabyMod, MinecraftCapes, etc.)
+    let additional_capes = fetch_all_capes_for_user(&state.http_client, &account.username).await;
+
+    // Merge capes, avoiding duplicates
+    let mut all_capes = mojang_capes;
+    for cape in additional_capes {
+        match cape.source {
+            CapeSource::Mojang => {
+                // Skip Capes.dev minecraft capes if we already have Mojang API capes
+                // (Mojang API capes have UUIDs and can be set, Capes.dev ones cannot)
+                if has_mojang_api_capes {
+                    log::debug!(
+                        "[Skins] Skipping Capes.dev minecraft cape (already have from Mojang API)"
+                    );
+                    continue;
+                }
+            }
+            _ => {
+                // For third-party capes, check if we already have one from this source
+                if all_capes.iter().any(|c| c.source == cape.source) {
+                    continue;
+                }
+            }
+        }
+        all_capes.push(cape);
     }
+
+    log::info!(
+        "[Skins] Total {} capes available for {}",
+        all_capes.len(),
+        account.username
+    );
 
     Ok(PlayerSkinProfile {
         uuid: account.uuid,
@@ -85,6 +127,116 @@ pub async fn get_skin_profile(
         available_capes: all_capes,
         current_cape,
     })
+}
+
+/// Fetch capes from all available sources (OptiFine, Capes.dev)
+async fn fetch_all_capes_for_user(client: &reqwest::Client, username: &str) -> Vec<Cape> {
+    let mut capes = Vec::new();
+
+    // Try Capes.dev API first (provides multiple sources in one call)
+    match sources::fetch_all_capes(client, username).await {
+        Ok(capes_response) => {
+            // Minecraft official cape
+            if let Some(mc) = capes_response.minecraft {
+                if mc.exists {
+                    if let Some(url) = mc.image_url.or(mc.cape_url) {
+                        log::debug!("[Skins] Found Minecraft cape for {}", username);
+                        capes.push(Cape {
+                            id: format!("minecraft_{}", username),
+                            name: "Minecraft".to_string(),
+                            url,
+                            source: CapeSource::Mojang,
+                        });
+                    }
+                }
+            }
+
+            // OptiFine cape (from Capes.dev - might have better URL)
+            if let Some(of) = capes_response.optifine {
+                if of.exists {
+                    if let Some(url) = of.image_url.or(of.cape_url) {
+                        log::debug!("[Skins] Found OptiFine cape for {} via Capes.dev", username);
+                        capes.push(Cape {
+                            id: format!("optifine_{}", username),
+                            name: "OptiFine".to_string(),
+                            url,
+                            source: CapeSource::OptiFine,
+                        });
+                    }
+                }
+            }
+
+            // LabyMod cape
+            if let Some(laby) = capes_response.labymod {
+                if laby.exists {
+                    if let Some(url) = laby.image_url.or(laby.cape_url) {
+                        log::debug!("[Skins] Found LabyMod cape for {}", username);
+                        capes.push(Cape {
+                            id: format!("labymod_{}", username),
+                            name: "LabyMod".to_string(),
+                            url,
+                            source: CapeSource::LabyMod,
+                        });
+                    }
+                }
+            }
+
+            // MinecraftCapes cape
+            if let Some(mcc) = capes_response.minecraftcapes {
+                if mcc.exists {
+                    if let Some(url) = mcc.image_url.or(mcc.cape_url) {
+                        log::debug!("[Skins] Found MinecraftCapes cape for {}", username);
+                        capes.push(Cape {
+                            id: format!("minecraftcapes_{}", username),
+                            name: "MinecraftCapes".to_string(),
+                            url,
+                            source: CapeSource::MinecraftCapes,
+                        });
+                    }
+                }
+            }
+
+            // 5zig cape
+            if let Some(fz) = capes_response.fivezig {
+                if fz.exists {
+                    if let Some(url) = fz.image_url.or(fz.cape_url) {
+                        log::debug!("[Skins] Found 5zig cape for {}", username);
+                        capes.push(Cape {
+                            id: format!("5zig_{}", username),
+                            name: "5zig".to_string(),
+                            url,
+                            source: CapeSource::FiveZig,
+                        });
+                    }
+                }
+            }
+        }
+        Err(e) => {
+            log::warn!("[Skins] Capes.dev API failed for {}: {}", username, e);
+
+            // Fallback: Try OptiFine directly if Capes.dev failed
+            if let Ok(Some(optifine_cape)) = optifine::get_cape(client, username).await {
+                log::debug!(
+                    "[Skins] Found OptiFine cape for {} via direct check",
+                    username
+                );
+                capes.push(optifine_cape);
+            }
+        }
+    }
+
+    // If no OptiFine cape from Capes.dev, try direct check as backup
+    if !capes.iter().any(|c| c.id.starts_with("optifine_")) {
+        if let Ok(Some(optifine_cape)) = optifine::get_cape(client, username).await {
+            log::debug!(
+                "[Skins] Found OptiFine cape for {} via direct fallback",
+                username
+            );
+            capes.push(optifine_cape);
+        }
+    }
+
+    capes
 }
 
 /// Apply a skin from URL to the user's account

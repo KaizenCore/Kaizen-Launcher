@@ -25,6 +25,7 @@ import {
   ImageIcon,
   Palette,
   X,
+  RefreshCw,
 } from "lucide-react"
 import { open as openDialog } from "@tauri-apps/plugin-dialog"
 import { readFile } from "@tauri-apps/plugin-fs"
@@ -122,6 +123,8 @@ export function Skins() {
   const [isLoading, setIsLoading] = useState(true)
   const [isApplying, setIsApplying] = useState(false)
   const [selectedCapeId, setSelectedCapeId] = useState<string | null>(null)
+  const [previewCapeId, setPreviewCapeId] = useState<string | null>(null)
+  const [isRefreshingCapes, setIsRefreshingCapes] = useState(false)
 
   // My Skin viewer controls
   const [mySkinAnimation, setMySkinAnimation] = useState<AnimationType>("idle")
@@ -503,9 +506,12 @@ export function Skins() {
     }
   }
 
-  // Set cape
+  // Set cape (only works for Mojang official capes)
   const handleSetCape = async (cape: Cape | null) => {
     if (!activeAccount || isOfflineAccount) return
+
+    // Clear preview when selecting a cape
+    setPreviewCapeId(null)
 
     console.log(`[Skins] Setting cape: ${cape?.name || "none"}`)
     setSelectedCapeId(cape?.id || null)
@@ -521,6 +527,39 @@ export function Skins() {
       toast.error(t("skins.capeError"))
       // Revert UI
       setSelectedCapeId(profile?.current_cape?.id || null)
+    }
+  }
+
+  // Preview a third-party cape (display only, cannot be set via API)
+  const handlePreviewCape = (cape: Cape | null) => {
+    if (cape) {
+      console.log(`[Skins] Previewing third-party cape: ${cape.name}`)
+      setPreviewCapeId(cape.id)
+    } else {
+      setPreviewCapeId(null)
+    }
+  }
+
+  // Refresh capes
+  const handleRefreshCapes = async () => {
+    if (!activeAccount || isRefreshingCapes) return
+
+    console.log("[Skins] Refreshing capes...")
+    setIsRefreshingCapes(true)
+    try {
+      const skinProfile = await invoke<PlayerSkinProfile>("get_skin_profile", {
+        accountId: activeAccount.id,
+      })
+      console.log(`[Skins] Refreshed profile, ${skinProfile.available_capes?.length || 0} capes found`)
+      setProfile(skinProfile)
+      setSelectedCapeId(skinProfile.current_cape?.id || null)
+      setPreviewCapeId(null)
+      toast.success(t("skins.capesRefreshed"))
+    } catch (err) {
+      console.error("[Skins] Failed to refresh capes:", err)
+      toast.error(t("skins.capesRefreshError"))
+    } finally {
+      setIsRefreshingCapes(false)
     }
   }
 
@@ -630,7 +669,9 @@ export function Skins() {
 
   // For capes, we need to use the direct URL as mc-heads doesn't proxy capes
   // Cape URLs from Mojang API should work if they're from the same origin or support CORS
-  const currentCapeUrl = profile?.available_capes?.find(c => c.id === selectedCapeId)?.url
+  // Use previewCapeId if set (for third-party cape preview), otherwise use selectedCapeId
+  const displayCapeId = previewCapeId || selectedCapeId
+  const currentCapeUrl = profile?.available_capes?.find(c => c.id === displayCapeId)?.url
 
   if (isLoading) {
     return (
@@ -1035,11 +1076,26 @@ export function Skins() {
               {/* Capes */}
               {!isOfflineAccount && (
                 <Card>
-                  <CardContent className="pt-4">
+                  <CardContent className="pt-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">{t("skins.capes")}</span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={handleRefreshCapes}
+                        disabled={isRefreshingCapes}
+                        className="h-7 px-2"
+                      >
+                        <RefreshCw className={`h-3.5 w-3.5 ${isRefreshingCapes ? "animate-spin" : ""}`} />
+                        <span className="ml-1 text-xs">{t("common.refresh")}</span>
+                      </Button>
+                    </div>
                     <CapeSelector
                       capes={profile?.available_capes || []}
                       selectedCapeId={selectedCapeId}
+                      previewCapeId={previewCapeId}
                       onSelect={handleSetCape}
+                      onPreview={handlePreviewCape}
                       disabled={isOfflineAccount}
                     />
                   </CardContent>

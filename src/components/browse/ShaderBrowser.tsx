@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react"
 import { invoke } from "@tauri-apps/api/core"
 import { toast } from "sonner"
+import { useBrowseCache } from "@/hooks/useBrowseCache"
 import {
   Search,
   Download,
@@ -14,14 +15,13 @@ import {
   RefreshCw,
   LayoutGrid,
   List,
-  LayoutList
+  LayoutList,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent } from "@/components/ui/card"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
-import { BrowseInstance, isModCompatible } from "@/pages/Browse"
 import {
   Select,
   SelectContent,
@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/dialog"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useTranslation } from "@/i18n"
-import { useBrowseCache } from "@/hooks/useBrowseCache"
+import { BrowseInstance, isShaderCompatible } from "@/pages/Browse"
 
 // Types
 interface ModSearchResult {
@@ -72,7 +72,7 @@ interface ModVersionInfo {
 }
 
 // Props interface
-interface ModBrowserProps {
+interface ShaderBrowserProps {
   selectedInstance: BrowseInstance | null
 }
 
@@ -86,38 +86,21 @@ const SORT_OPTIONS = [
   { value: "updated", labelKey: "modrinth.sortUpdated" as const },
 ]
 
-const LOADER_FILTERS = [
-  { value: "fabric", label: "Fabric" },
-  { value: "forge", label: "Forge" },
-  { value: "neoforge", label: "NeoForge" },
-  { value: "quilt", label: "Quilt" },
-]
-
-const MOD_CATEGORIES = [
-  { value: "adventure", label: "Adventure" },
+const SHADER_CATEGORIES = [
+  { value: "atmosphere", label: "Atmosphere" },
+  { value: "bloom", label: "Bloom" },
+  { value: "cartoon", label: "Cartoon" },
   { value: "cursed", label: "Cursed" },
-  { value: "decoration", label: "Decoration" },
-  { value: "economy", label: "Economy" },
-  { value: "equipment", label: "Equipment" },
-  { value: "food", label: "Food" },
-  { value: "game-mechanics", label: "Game Mechanics" },
-  { value: "library", label: "Library" },
-  { value: "magic", label: "Magic" },
-  { value: "management", label: "Management" },
-  { value: "minigame", label: "Minigames" },
-  { value: "mobs", label: "Mobs" },
-  { value: "optimization", label: "Optimization" },
-  { value: "social", label: "Social" },
-  { value: "storage", label: "Storage" },
-  { value: "technology", label: "Technology" },
-  { value: "transportation", label: "Transportation" },
-  { value: "utility", label: "Utility" },
-  { value: "worldgen", label: "World Gen" },
+  { value: "fantasy", label: "Fantasy" },
+  { value: "lightweight", label: "Lightweight" },
+  { value: "potato", label: "Potato" },
+  { value: "semi-realistic", label: "Semi-Realistic" },
+  { value: "vanilla-like", label: "Vanilla-Like" },
 ]
 
 // View modes
 type ViewMode = "grid" | "list" | "compact"
-const VIEW_MODE_STORAGE_KEY = "kaizen_browse_mods_view_mode"
+const VIEW_MODE_STORAGE_KEY = "kaizen_browse_shaders_view_mode"
 
 function getStoredViewMode(): ViewMode {
   try {
@@ -142,10 +125,10 @@ function formatDownloads(count: number): string {
   return count.toString()
 }
 
-export function ModBrowser({ selectedInstance }: ModBrowserProps) {
+export function ShaderBrowser({ selectedInstance }: ShaderBrowserProps) {
   const { t } = useTranslation()
+  const isCompatible = isShaderCompatible(selectedInstance)
   const { searchWithCache, getVersionsWithCache, getInstalledWithCache, invalidateInstalledCache } = useBrowseCache<ModSearchResult, ModVersionInfo>()
-  const isCompatible = isModCompatible(selectedInstance)
   const [searchQuery, setSearchQuery] = useState("")
   const [debouncedQuery, setDebouncedQuery] = useState("")
   const [searchResults, setSearchResults] = useState<ModSearchResult[]>([])
@@ -166,12 +149,11 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
     }
   }, [])
 
-  // Installed mods tracking
+  // Installed shaders tracking
   const [installedModIds, setInstalledModIds] = useState<Set<string>>(new Set())
 
   // Filters
   const [sortBy, setSortBy] = useState("relevance")
-  const [selectedLoader, setSelectedLoader] = useState<string | null>(null)
   const [selectedCategories, setSelectedCategories] = useState<string[]>([])
   const [filtersOpen, setFiltersOpen] = useState(false)
 
@@ -187,24 +169,24 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   const [isLoadingVersions, setIsLoadingVersions] = useState(false)
   const [isInstalling, setIsInstalling] = useState(false)
 
-  // Load installed mod IDs when instance changes
+  // Load installed shader IDs when instance changes
   useEffect(() => {
     if (!selectedInstance) {
       setInstalledModIds(new Set())
       return
     }
 
-    const loadInstalledMods = async () => {
+    const loadInstalledShaders = async () => {
       try {
-        console.log("[ModBrowser] Loading installed mods for instance:", selectedInstance.id)
-        const ids = await getInstalledWithCache(selectedInstance.id, "mod")
+        console.log("[ShaderBrowser] Loading installed shaders for instance:", selectedInstance.id)
+        const ids = await getInstalledWithCache(selectedInstance.id, "shader")
         setInstalledModIds(new Set(ids))
-        console.log("[ModBrowser] Loaded", ids.length, "installed mod IDs")
+        console.log("[ShaderBrowser] Loaded", ids.length, "installed shader IDs")
       } catch (error) {
-        console.error("[ModBrowser] Failed to load installed mod IDs:", error)
+        console.error("[ShaderBrowser] Failed to load installed shader IDs:", error)
       }
     }
-    loadInstalledMods()
+    loadInstalledShaders()
   }, [selectedInstance, getInstalledWithCache])
 
   // Debounce search query
@@ -231,15 +213,15 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   useEffect(() => {
     let cancelled = false
 
-    const searchMods = async () => {
+    const searchShaders = async () => {
       setIsSearching(true)
       setHasSearched(true)
 
       try {
-        console.log("[ModBrowser] Searching mods:", {
+        console.log("[ShaderBrowser] Searching shaders:", {
           query: debouncedQuery,
-          loader: selectedLoader || selectedInstance?.loader,
           gameVersion: selectedInstance?.mc_version,
+          loader: null,
           categories: selectedCategories,
           sortBy,
           page: currentPage,
@@ -247,8 +229,8 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
 
         const response = await searchWithCache({
           query: debouncedQuery,
-          projectType: "mod",
-          loader: selectedLoader || selectedInstance?.loader?.toLowerCase() || null,
+          projectType: "shader",
+          loader: null, // Shaders don't filter by loader
           mcVersion: selectedInstance?.mc_version || null,
           categories: selectedCategories,
           sort: sortBy,
@@ -260,12 +242,12 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         if (!cancelled) {
           setSearchResults(response.results)
           setTotalHits(response.total_hits)
-          console.log("[ModBrowser] Found", response.total_hits, "mods")
+          console.log("[ShaderBrowser] Found", response.total_hits, "shaders")
         }
       } catch (error) {
         // Only show error if not cancelled
         if (!cancelled) {
-          console.error("[ModBrowser] Search failed:", error)
+          console.error("[ShaderBrowser] Search failed:", error)
           toast.error(t("modrinth.searchError"))
         }
       } finally {
@@ -275,13 +257,13 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
       }
     }
 
-    searchMods()
+    searchShaders()
 
     return () => {
       cancelled = true
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedQuery, selectedInstance?.mc_version, selectedInstance?.loader, selectedLoader, categoriesKey, sortBy, currentPage, searchWithCache])
+  }, [debouncedQuery, selectedInstance?.mc_version, categoriesKey, sortBy, currentPage, searchWithCache])
 
   // Handle category toggle
   const handleCategoryToggle = useCallback((category: string) => {
@@ -295,7 +277,6 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
 
   // Clear filters
   const clearFilters = useCallback(() => {
-    setSelectedLoader(null)
     setSelectedCategories([])
     setSortBy("relevance")
     setCurrentPage(1)
@@ -348,53 +329,53 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
     setSelectedVersion(null)
 
     try {
-      console.log("[ModBrowser] Loading versions for mod:", mod.project_id)
+      console.log("[ShaderBrowser] Loading versions for shader:", mod.project_id)
       const versions = await getVersionsWithCache(
         mod.project_id,
         selectedInstance.mc_version,
-        selectedInstance.loader?.toLowerCase()
+        null // Shaders don't need a specific loader filter
       )
       setModVersions(versions)
       if (versions.length > 0) {
         setSelectedVersion(versions[0].id)
       }
-      console.log("[ModBrowser] Loaded", versions.length, "versions")
+      console.log("[ShaderBrowser] Loaded", versions.length, "versions")
     } catch (error) {
-      console.error("[ModBrowser] Failed to load versions:", error)
+      console.error("[ShaderBrowser] Failed to load versions:", error)
       toast.error(t("browse.noCompatibleVersion"))
     } finally {
       setIsLoadingVersions(false)
     }
   }, [selectedInstance, t, getVersionsWithCache])
 
-  // Install mod
+  // Install shader
   const handleInstall = useCallback(async () => {
     if (!selectedMod || !selectedVersion || !selectedInstance) return
 
     setIsInstalling(true)
     try {
-      console.log("[ModBrowser] Installing mod:", selectedMod.project_id, "version:", selectedVersion)
+      console.log("[ShaderBrowser] Installing shader:", selectedMod.project_id, "version:", selectedVersion)
       const filename = await invoke<string>("install_modrinth_mod", {
         instanceId: selectedInstance.id,
         projectId: selectedMod.project_id,
         versionId: selectedVersion,
-        projectType: "mod",
+        projectType: "shader",
       })
 
       toast.success(t("modrinth.modInstalled", { name: selectedMod.title }))
       setInstalledModIds((prev) => new Set([...prev, selectedMod.project_id]))
-      invalidateInstalledCache(selectedInstance.id, "mod")
+      invalidateInstalledCache(selectedInstance.id, "shader")
       setInstallDialogOpen(false)
-      console.log("[ModBrowser] Installed:", filename)
+      console.log("[ShaderBrowser] Installed:", filename)
     } catch (error) {
-      console.error("[ModBrowser] Install failed:", error)
+      console.error("[ShaderBrowser] Install failed:", error)
       toast.error(t("browse.installError"))
     } finally {
       setIsInstalling(false)
     }
   }, [selectedMod, selectedVersion, selectedInstance, t, invalidateInstalledCache])
 
-  const hasActiveFilters = selectedLoader || selectedCategories.length > 0
+  const hasActiveFilters = selectedCategories.length > 0
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -403,7 +384,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
         <div className="relative flex-1 min-w-[200px] max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder={t("browse.searchMods")}
+            placeholder={t("browse.searchShaders")}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-9"
@@ -430,39 +411,19 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
               {t("browse.filters")}
               {hasActiveFilters && (
                 <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center">
-                  {(selectedLoader ? 1 : 0) + selectedCategories.length}
+                  {selectedCategories.length}
                 </Badge>
               )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-80" align="start">
             <div className="space-y-4">
-              {/* Loader filter */}
-              <div>
-                <h4 className="font-medium mb-2 text-sm">{t("modrinth.loaders")}</h4>
-                <div className="flex flex-wrap gap-2">
-                  {LOADER_FILTERS.map((loader) => (
-                    <Badge
-                      key={loader.value}
-                      variant={selectedLoader === loader.value ? "default" : "outline"}
-                      className="cursor-pointer"
-                      onClick={() => {
-                        setSelectedLoader(selectedLoader === loader.value ? null : loader.value)
-                        setCurrentPage(1)
-                      }}
-                    >
-                      {loader.label}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
               {/* Categories */}
               <div>
                 <h4 className="font-medium mb-2 text-sm">{t("browse.categories")}</h4>
                 <ScrollArea className="h-[200px]">
                   <div className="space-y-2">
-                    {MOD_CATEGORIES.map((cat) => (
+                    {SHADER_CATEGORIES.map((cat) => (
                       <div key={cat.value} className="flex items-center space-x-2">
                         <Checkbox
                           id={cat.value}
@@ -534,7 +495,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
       {selectedCategories.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
           {selectedCategories.map((cat) => {
-            const catInfo = MOD_CATEGORIES.find((c) => c.value === cat)
+            const catInfo = SHADER_CATEGORIES.find((c) => c.value === cat)
             return (
               <Badge
                 key={cat}
