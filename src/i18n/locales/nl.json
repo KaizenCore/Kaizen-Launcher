@@ -98,7 +98,15 @@
     "servers": "server(s)",
     "onAllInstances": "Over alle instanties",
     "totalAccumulated": "Totaal verzameld",
-    "unableToLoadData": "Kan gegevens niet laden"
+    "unableToLoadData": "Kan gegevens niet laden",
+    "footer": {
+      "openSource": "Open Source",
+      "madeWith": "Gemaakt met",
+      "viewOnGithub": "Bekijk op GitHub",
+      "reportBug": "Bug melden",
+      "discord": "Word lid van Discord",
+      "documentation": "Documentatie"
+    }
   },
   "launch": {
     "preparing": "Voorbereiden...",
@@ -481,10 +489,11 @@
     "restartOnboardingButton": "Herstarten",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Wat is nieuw in v0.6.5",
-    "whatsNewBrowseTabs": "Browse pagina: nieuwe tabs voor Plugins, Resource Packs, Shaders, Datapacks",
-    "whatsNewInstanceSelector": "Globale instantie-selector met slimme compatibiliteitscontrole",
-    "whatsNewBrowseCache": "Browse cache systeem: snellere navigatie met 5 minuten resultaat caching",
+    "whatsNew": "Wat is nieuw in v0.6.6",
+    "whatsNewSystemCheck": "Systeemvereisten controle bij opstarten (Java + Cloudflare)",
+    "whatsNewSplashScreen": "Opstartscherm met Kaizen-logo en laadanimatie",
+    "whatsNewHomeFooter": "Footer op de startpagina met GitHub-links en nuttige informatie",
+    "whatsNewBackupIcons": "Back-ups tonen nu wereldpictogrammen voor eenvoudige identificatie",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -1634,6 +1643,39 @@
       "loaderVersionMismatch": "Loader versie incompatibel",
       "duplicateMod": "Dubbele mod",
       "unknown": "Onbekend probleem"
+    }
+  },
+  "systemCheck": {
+    "title": "Systeemvereisten",
+    "subtitle": "Laten we controleren of alles klaar is om Minecraft te starten",
+    "checking": "Systeem wordt gecontroleerd...",
+    "allReady": "Alles klaar!",
+    "javaRequired": "Java is vereist om door te gaan",
+    "continue": "Doorgaan",
+    "install": "Installeren",
+    "installing": "Installeren...",
+    "retry": "Opnieuw proberen",
+    "java": {
+      "name": "Java Runtime",
+      "description": "Vereist om Minecraft en mod loaders te draaien",
+      "required": "Vereist",
+      "installed": "Geïnstalleerd",
+      "notInstalled": "Niet geïnstalleerd",
+      "installing": "Java 21 wordt geïnstalleerd...",
+      "installSuccess": "Java succesvol geïnstalleerd!",
+      "installError": "Java-installatie mislukt"
+    },
+    "cloudflare": {
+      "name": "Cloudflare Tunnel",
+      "description": "Aanbevolen voor het delen van servers met vrienden",
+      "recommended": "Aanbevolen",
+      "installed": "Geïnstalleerd",
+      "notInstalled": "Niet geïnstalleerd",
+      "installing": "Cloudflare-agent wordt geïnstalleerd...",
+      "installSuccess": "Cloudflare-agent geïnstalleerd!",
+      "installError": "Cloudflare-agent installatie mislukt",
+      "skip": "Voorlopig overslaan",
+      "skipHint": "Je kunt dit later installeren in Instellingen"
     }
   },
   "schematics": {

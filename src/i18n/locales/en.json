@@ -98,7 +98,15 @@
     "servers": "server(s)",
     "onAllInstances": "Across all instances",
     "totalAccumulated": "Total accumulated",
-    "unableToLoadData": "Unable to load data"
+    "unableToLoadData": "Unable to load data",
+    "footer": {
+      "openSource": "Open Source",
+      "madeWith": "Made with",
+      "viewOnGithub": "View on GitHub",
+      "reportBug": "Report a bug",
+      "discord": "Join Discord",
+      "documentation": "Documentation"
+    }
   },
   "launch": {
     "preparing": "Preparing...",
@@ -387,10 +395,11 @@
   },
   "accounts": {
     "title": "Accounts",
-    "subtitle": "Manage your Microsoft accounts",
+    "subtitle": "Manage your accounts",
     "add": "Add Account",
     "microsoft": "Microsoft Account",
     "offline": "Offline Account",
+    "kaizen": "Kaizen Account",
     "active": "Active",
     "setActive": "Set as Active",
     "delete": "Delete",
@@ -399,6 +408,8 @@
     "addFirst": "Add an account to start playing",
     "loginMicrosoft": "Sign in with Microsoft",
     "loginMicrosoftDesc": "Use your Microsoft/Xbox account to sign in",
+    "loginKaizen": "Sign in with Kaizen",
+    "loginKaizenDesc": "Connect your Kaizen account to unlock features",
     "deviceCode": "Verification Code",
     "deviceCodeInstructions": "Go to {url} and enter the code below:",
     "waitingAuth": "Waiting for authentication...",
@@ -408,7 +419,32 @@
     "accountActivated": "Account activated",
     "unableToActivate": "Unable to activate account",
     "accountDeleted": "Account deleted",
-    "unableToDelete": "Unable to delete account"
+    "unableToDelete": "Unable to delete account",
+    "minecraftAccounts": "Minecraft Accounts",
+    "kaizenAccounts": "Kaizen Accounts",
+    "noKaizenAccounts": "No Kaizen account connected",
+    "connectKaizen": "Connect your Kaizen account to access exclusive features",
+    "kaizenAccountConnected": "Kaizen account connected",
+    "kaizenAccountDisconnected": "Kaizen account disconnected"
+  },
+  "kaizen": {
+    "account": "Kaizen Account",
+    "permissions": "Permissions",
+    "patron": "Patron",
+    "earlyAccess": "Early Access",
+    "betaFeatures": "Beta Features",
+    "prioritySupport": "Priority Support",
+    "customBranding": "Custom Branding",
+    "noPermissions": "No special permissions",
+    "connectedAs": "Connected as",
+    "disconnect": "Disconnect",
+    "openKaizenSite": "Open kaizencore.tech",
+    "enterCodeOnSite": "Enter this code on the Kaizen website:",
+    "openKaizenLink": "Open kaizencore.tech/oauth/device",
+    "preparingLogin": "Preparing Kaizen login...",
+    "success": "Kaizen account connected!",
+    "error": "Failed to connect Kaizen account",
+    "retry": "Retry"
   },
   "settings": {
     "title": "Settings",
@@ -481,10 +517,13 @@
     "restartOnboardingButton": "Restart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "What's New in v0.6.5",
-    "whatsNewBrowseTabs": "Browse page: new Plugins, Resource Packs, Shaders, Datapacks tabs",
-    "whatsNewInstanceSelector": "Global instance selector with smart compatibility checking",
-    "whatsNewBrowseCache": "Browse cache system: faster navigation with 5-minute result caching",
+    "whatsNew": "What's New in v0.6.6",
+    "whatsNewKaizenAccount": "Kaizen Account OAuth integration with Device Code flow",
+    "whatsNewBadgesPermissions": "Display user badges and permissions with custom styling",
+    "whatsNewSystemCheck": "System requirements check at startup (Java + Cloudflare)",
+    "whatsNewSplashScreen": "Splash screen with Kaizen logo and loading animation",
+    "whatsNewHomeFooter": "Home page footer with GitHub links and useful information",
+    "whatsNewBackupIcons": "Backups now display world icons for easy identification",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -1680,6 +1719,39 @@
       "loaderVersionMismatch": "Loader Version Mismatch",
       "duplicateMod": "Duplicate Mod",
       "unknown": "Unknown Issue"
+    }
+  },
+  "systemCheck": {
+    "title": "System Requirements",
+    "subtitle": "Let's make sure everything is ready to launch Minecraft",
+    "checking": "Checking system...",
+    "allReady": "All set! You're ready to go.",
+    "javaRequired": "Java is required to continue",
+    "continue": "Continue",
+    "install": "Install",
+    "installing": "Installing...",
+    "retry": "Retry",
+    "java": {
+      "name": "Java Runtime",
+      "description": "Required to run Minecraft and mod loaders",
+      "required": "Required",
+      "installed": "Installed",
+      "notInstalled": "Not installed",
+      "installing": "Installing Java 21...",
+      "installSuccess": "Java installed successfully!",
+      "installError": "Failed to install Java"
+    },
+    "cloudflare": {
+      "name": "Cloudflare Tunnel",
+      "description": "Recommended for sharing servers with friends",
+      "recommended": "Recommended",
+      "installed": "Installed",
+      "notInstalled": "Not installed",
+      "installing": "Installing Cloudflare agent...",
+      "installSuccess": "Cloudflare agent installed!",
+      "installError": "Failed to install Cloudflare agent",
+      "skip": "Skip for now",
+      "skipHint": "You can install this later in Settings"
     }
   },
   "schematics": {

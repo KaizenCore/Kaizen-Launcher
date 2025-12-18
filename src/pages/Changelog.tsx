@@ -41,6 +41,7 @@ import {
   FolderSync,
   PartyPopper,
   Paintbrush,
+  Star,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -58,6 +59,59 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.6.6",
+    date: "2025-12-18",
+    highlights: [
+      "Kaizen Account OAuth",
+      "User Badges & Permissions",
+      "System Requirements Check",
+    ],
+    features: [
+      {
+        icon: <Star className="h-5 w-5" />,
+        title: "Kaizen Account Integration",
+        description: "Connect your Kaizen account via OAuth Device Code flow. Access exclusive features, display your badges, and sync your permissions. Tokens auto-refresh when expired.",
+        tag: "new",
+      },
+      {
+        icon: <Users className="h-5 w-5" />,
+        title: "User Badges & Permissions",
+        description: "Display your Kaizen badges with custom colors from the API (Patron, Developer, Early Access, etc.). Permissions are shown below your account with clear formatting.",
+        tag: "new",
+      },
+      {
+        icon: <RefreshCw className="h-5 w-5" />,
+        title: "Auto-Sync at Startup",
+        description: "Your Kaizen account info (tags, badges, permissions) automatically syncs from the server each time the app starts. Token refresh happens seamlessly in the background.",
+        tag: "new",
+      },
+      {
+        icon: <Shield className="h-5 w-5" />,
+        title: "System Requirements Check",
+        description: "New startup verification system that checks for required dependencies (Java) and recommended tools (Cloudflare Tunnel) before launching. Runs silently at every startup, only shows if something is missing.",
+        tag: "new",
+      },
+      {
+        icon: <Monitor className="h-5 w-5" />,
+        title: "Splash Screen",
+        description: "Beautiful splash screen with Kaizen logo and animated loading bar displayed at app startup. Hides the white flash during initial page load for a smoother experience.",
+        tag: "new",
+      },
+      {
+        icon: <Archive className="h-5 w-5" />,
+        title: "Backup World Icons",
+        description: "Backups now display the world icon from Minecraft instead of a generic icon. World icons are saved alongside backup files and shown in the Backups page for easy identification.",
+        tag: "new",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Kaizen OAuth Scope Fix",
+        description: "Fixed authentication error when connecting Kaizen account caused by incorrect OAuth scope (user:profile → user:read).",
+        tag: "fix",
+      },
+    ],
+  },
   {
     version: "0.6.5",
     date: "2025-12-18",

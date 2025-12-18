@@ -2,6 +2,70 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.6.6] - 2025-12-18
+
+### Added
+- **Kaizen Account OAuth Integration** - Connect your Kaizen account via OAuth Device Code flow
+  - New "Kaizen Accounts" section in Accounts page (below Minecraft accounts)
+  - Device Code authentication flow (similar to Microsoft)
+  - Secure token storage with AES-256-GCM encryption
+  - Auto-refresh tokens when expired (5-minute buffer)
+  - Sync user info (tags, badges, permissions) at app startup
+  - Manual refresh command available
+- **User Badges & Permissions Display** - Show your Kaizen badges and permissions
+  - Badges fetched from `/api/v1/user/badges` with custom styling
+  - Badge colors (background, text, border) from API
+  - Patron badge with Crown icon
+  - Permissions displayed below email with clear formatting
+  - Tags parsed and permissions extracted
+- **System Requirements Check** - New startup verification system
+  - Checks for required dependencies (Java) and recommended tools (Cloudflare Tunnel) at every launch
+  - Runs silently if all dependencies are present
+  - Modal only appears if something is missing
+  - Java is mandatory (must install to continue)
+  - Cloudflare is recommended but can be skipped (persisted in localStorage)
+  - Priority overlay (z-60) displays before onboarding
+- **Splash Screen** - Beautiful loading screen at app startup
+  - Displays Kaizen logo with animated pulse effect
+  - Progress bar with staged animations (Loading → Checking system → Ready)
+  - Hides the white flash during initial page load
+  - Smooth fade-out animation when ready
+  - z-[100] priority (highest, shows first)
+- **Home Page Footer** - New footer on the home page with useful links
+  - GitHub repository link with Open Source badge
+  - Report a bug link to GitHub issues
+  - "Made with love by Kaizen Team" message
+  - Current version display (v0.6.6)
+  - Responsive design: stacked on mobile, inline on desktop
+  - Footer sticks to the bottom of the page
+- **Backup World Icons** - Backups now display the world icon
+  - World icons (icon.png) are saved alongside backup files when creating backups
+  - Icons appear in the Backups page list instead of generic server/client icons
+  - Icons are stored as PNG files next to the backup ZIP (e.g., world_2024-01-15.png)
+  - Works for both client saves and server worlds
+
+### Fixed
+- **Kaizen OAuth Scope** - Fixed authentication error caused by incorrect OAuth scope (`user:profile` → `user:read`)
+
+### Changed
+- Accounts page subtitle changed from "Manage your Microsoft accounts" to "Manage your accounts"
+- Accounts page now shows Minecraft accounts first, Kaizen accounts below
+
+### Technical
+- New `src-tauri/src/auth/kaizen.rs` - Kaizen OAuth logic (device code, token refresh, user info, badges)
+- New `src-tauri/src/db/kaizen_accounts.rs` - CRUD operations for kaizen_accounts table
+- New `kaizen_accounts` SQLite table with encrypted token storage
+- New Tauri commands: `login_kaizen_start`, `login_kaizen_complete`, `get_kaizen_accounts`, `get_active_kaizen_account`, `set_active_kaizen_account`, `delete_kaizen_account`, `refresh_kaizen_account`, `sync_kaizen_accounts`
+- Added `kaizencore.tech` to CSP (img-src + connect-src)
+- Build-time env vars: `KAIZEN_OAUTH_CLIENT_ID` (required), `KAIZEN_OAUTH_BASE_URL` (optional)
+- New `src/components/dialogs/AddKaizenAccountDialog.tsx` - Device code flow UI
+- New `src/stores/systemCheckStore.ts` - Zustand store for dependency state management
+- New `src/components/system-check/SystemCheck.tsx` - Main modal component
+- New `src/components/system-check/DependencyCard.tsx` - Reusable dependency status card
+- New `src/components/splash/SplashScreen.tsx` - Splash screen with framer-motion animations
+- Modified `src/App.tsx` - Integrated SystemCheck, SplashScreen, and Kaizen sync
+- New translation keys in all locales for kaizen and systemCheck sections
+
 ## [0.6.5] - 2025-12-18
 
 ### Added

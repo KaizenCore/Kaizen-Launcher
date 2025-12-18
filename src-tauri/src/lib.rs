@@ -186,6 +186,15 @@ pub fn run() {
             auth::commands::login_microsoft_complete,
             auth::commands::refresh_account_token,
             auth::commands::create_offline_account,
+            // Kaizen account commands
+            auth::commands::login_kaizen_start,
+            auth::commands::login_kaizen_complete,
+            auth::commands::get_kaizen_accounts,
+            auth::commands::get_active_kaizen_account,
+            auth::commands::set_active_kaizen_account,
+            auth::commands::delete_kaizen_account,
+            auth::commands::refresh_kaizen_account,
+            auth::commands::sync_kaizen_accounts,
             // Instance commands
             instance::commands::get_instances,
             instance::commands::get_instance,

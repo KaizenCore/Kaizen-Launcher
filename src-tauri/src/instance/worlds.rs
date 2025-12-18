@@ -43,6 +43,8 @@ pub struct BackupInfo {
     pub size_bytes: u64,
     /// Name of the world this backup belongs to
     pub world_name: String,
+    /// Base64 encoded icon.png data URL, if available
+    pub icon_data_url: Option<String>,
 }
 
 /// Progress event for backup/restore operations
@@ -64,6 +66,8 @@ pub struct GlobalBackupInfo {
     pub timestamp: String,
     pub size_bytes: u64,
     pub is_server: bool,
+    /// Base64 encoded icon.png data URL, if available
+    pub icon_data_url: Option<String>,
 }
 
 /// Backup storage statistics
@@ -141,6 +145,61 @@ pub async fn read_world_icon(world_path: &Path) -> Option<String> {
         }
         Err(_) => None,
     }
+}
+
+/// Get the icon path for a backup file (same name with .png extension)
+fn get_backup_icon_path(backup_path: &Path) -> PathBuf {
+    backup_path.with_extension("png")
+}
+
+/// Read the icon associated with a backup file
+pub async fn read_backup_icon(backup_path: &Path) -> Option<String> {
+    let icon_path = get_backup_icon_path(backup_path);
+    if !icon_path.exists() {
+        return None;
+    }
+
+    match fs::read(&icon_path).await {
+        Ok(data) => {
+            let encoded = BASE64.encode(&data);
+            Some(format!("data:image/png;base64,{}", encoded))
+        }
+        Err(_) => None,
+    }
+}
+
+/// Save world icon for a backup
+async fn save_backup_icon(
+    instance_dir: &Path,
+    world_name: &str,
+    world_folders: &[String],
+    backup_path: &Path,
+) -> Option<()> {
+    // Determine the world path to get the icon from
+    let world_path = if world_folders.first().map(|s| s.as_str()) == Some("world")
+        || world_folders
+            .first()
+            .map(|s| s == "world_nether" || s == "world_the_end")
+            .unwrap_or(false)
+    {
+        // Server world - icon is in world/ folder
+        instance_dir.join("world")
+    } else {
+        // Client world - icon is in saves/world_name folder
+        instance_dir.join("saves").join(world_name)
+    };
+
+    let icon_path = world_path.join("icon.png");
+    if !icon_path.exists() {
+        return None;
+    }
+
+    // Read the icon and save it alongside the backup
+    let icon_data = fs::read(&icon_path).await.ok()?;
+    let backup_icon_path = get_backup_icon_path(backup_path);
+    fs::write(&backup_icon_path, &icon_data).await.ok()?;
+
+    Some(())
 }
 
 /// Get the last modified time of a directory (latest file modification)
@@ -382,6 +441,12 @@ pub async fn create_backup(
     .await
     .map_err(|e| AppError::Io(format!("Backup task failed: {}", e)))??;
 
+    // Save the world icon alongside the backup
+    let _ = save_backup_icon(instance_dir, world_name, world_folders, &backup_path).await;
+
+    // Read the icon for the response
+    let icon_data_url = read_backup_icon(&backup_path).await;
+
     // Emit completion
     if let Some(app) = app {
         let _ = app.emit(
@@ -405,6 +470,7 @@ pub async fn create_backup(
         timestamp: timestamp.format("%Y-%m-%dT%H:%M:%S").to_string(),
         size_bytes: metadata.len(),
         world_name: world_name.to_string(),
+        icon_data_url,
     })
 }
 
@@ -477,6 +543,7 @@ pub async fn list_backups(
     {
         let filename = entry.file_name().to_string_lossy().to_string();
         if filename.ends_with(".zip") {
+            let backup_path = entry.path();
             let metadata = entry.metadata().await.ok();
             let size_bytes = metadata.map(|m| m.len()).unwrap_or(0);
 
@@ -502,11 +569,15 @@ pub async fn list_backups(
                 timestamp
             };
 
+            // Read the backup icon if available
+            let icon_data_url = read_backup_icon(&backup_path).await;
+
             backups.push(BackupInfo {
                 filename,
                 timestamp,
                 size_bytes,
                 world_name: world_name.to_string(),
+                icon_data_url,
             });
         }
     }
@@ -942,6 +1013,7 @@ pub async fn list_all_backups(
                     continue;
                 }
 
+                let backup_path = backup_entry.path();
                 let backup_metadata = match backup_entry.metadata().await {
                     Ok(m) => m,
                     Err(_) => continue,
@@ -969,6 +1041,9 @@ pub async fn list_all_backups(
                     })
                     .unwrap_or_else(|| "Unknown".to_string());
 
+                // Read the backup icon if available
+                let icon_data_url = read_backup_icon(&backup_path).await;
+
                 all_backups.push(GlobalBackupInfo {
                     instance_id: instance_id.clone(),
                     instance_name: instance_name.clone(),
@@ -977,6 +1052,7 @@ pub async fn list_all_backups(
                     timestamp,
                     size_bytes: backup_metadata.len(),
                     is_server,
+                    icon_data_url,
                 });
             }
         }

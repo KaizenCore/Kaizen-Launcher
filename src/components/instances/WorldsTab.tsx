@@ -56,6 +56,7 @@ interface BackupInfo {
   timestamp: string;
   size_bytes: number;
   world_name: string;
+  icon_data_url?: string;
 }
 
 interface CloudStorageConfig {

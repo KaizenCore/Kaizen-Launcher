@@ -98,7 +98,15 @@
     "servers": "serveur(s)",
     "onAllInstances": "Sur toutes les instances",
     "totalAccumulated": "Total cumule",
-    "unableToLoadData": "Impossible de charger les donnees"
+    "unableToLoadData": "Impossible de charger les donnees",
+    "footer": {
+      "openSource": "Open Source",
+      "madeWith": "Fait avec",
+      "viewOnGithub": "Voir sur GitHub",
+      "reportBug": "Signaler un bug",
+      "discord": "Rejoindre Discord",
+      "documentation": "Documentation"
+    }
   },
   "launch": {
     "preparing": "Preparation...",
@@ -387,10 +395,11 @@
   },
   "accounts": {
     "title": "Comptes",
-    "subtitle": "Gerez vos comptes Microsoft",
+    "subtitle": "Gerez vos comptes",
     "add": "Ajouter un compte",
     "microsoft": "Compte Microsoft",
     "offline": "Compte hors ligne",
+    "kaizen": "Compte Kaizen",
     "active": "Actif",
     "setActive": "Definir comme actif",
     "delete": "Supprimer",
@@ -399,6 +408,8 @@
     "addFirst": "Ajoutez un compte pour commencer a jouer",
     "loginMicrosoft": "Se connecter avec Microsoft",
     "loginMicrosoftDesc": "Utilisez votre compte Microsoft/Xbox pour vous connecter",
+    "loginKaizen": "Se connecter avec Kaizen",
+    "loginKaizenDesc": "Connectez votre compte Kaizen pour debloquer des fonctionnalites",
     "deviceCode": "Code de verification",
     "deviceCodeInstructions": "Rendez-vous sur {url} et entrez le code ci-dessous :",
     "waitingAuth": "En attente d'authentification...",
@@ -408,7 +419,32 @@
     "accountActivated": "Compte active",
     "unableToActivate": "Impossible d'activer le compte",
     "accountDeleted": "Compte supprime",
-    "unableToDelete": "Impossible de supprimer le compte"
+    "unableToDelete": "Impossible de supprimer le compte",
+    "minecraftAccounts": "Comptes Minecraft",
+    "kaizenAccounts": "Comptes Kaizen",
+    "noKaizenAccounts": "Aucun compte Kaizen connecte",
+    "connectKaizen": "Connectez votre compte Kaizen pour acceder aux fonctionnalites exclusives",
+    "kaizenAccountConnected": "Compte Kaizen connecte",
+    "kaizenAccountDisconnected": "Compte Kaizen deconnecte"
+  },
+  "kaizen": {
+    "account": "Compte Kaizen",
+    "permissions": "Permissions",
+    "patron": "Patron",
+    "earlyAccess": "Acces anticipe",
+    "betaFeatures": "Fonctionnalites beta",
+    "prioritySupport": "Support prioritaire",
+    "customBranding": "Personnalisation",
+    "noPermissions": "Aucune permission speciale",
+    "connectedAs": "Connecte en tant que",
+    "disconnect": "Deconnecter",
+    "openKaizenSite": "Ouvrir kaizencore.tech",
+    "enterCodeOnSite": "Entrez ce code sur le site Kaizen :",
+    "openKaizenLink": "Ouvrir kaizencore.tech/oauth/device",
+    "preparingLogin": "Preparation de la connexion Kaizen...",
+    "success": "Compte Kaizen connecte !",
+    "error": "Echec de la connexion au compte Kaizen",
+    "retry": "Reessayer"
   },
   "settings": {
     "title": "Parametres",
@@ -481,10 +517,13 @@
     "restartOnboardingButton": "Relancer",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Nouveautés v0.6.5",
-    "whatsNewBrowseTabs": "Page Browse : nouveaux onglets Plugins, Resource Packs, Shaders, Datapacks",
-    "whatsNewInstanceSelector": "Sélecteur d'instance global avec vérification de compatibilité",
-    "whatsNewBrowseCache": "Système de cache Browse : navigation plus rapide avec cache des résultats 5 min",
+    "whatsNew": "Nouveautés v0.6.6",
+    "whatsNewKaizenAccount": "Intégration OAuth du compte Kaizen avec Device Code",
+    "whatsNewBadgesPermissions": "Affichage des badges et permissions utilisateur avec styles personnalisés",
+    "whatsNewSystemCheck": "Vérification système au démarrage (Java + Cloudflare)",
+    "whatsNewSplashScreen": "Écran de démarrage avec logo Kaizen et animation de chargement",
+    "whatsNewHomeFooter": "Footer sur la page d'accueil avec liens GitHub et infos utiles",
+    "whatsNewBackupIcons": "Les sauvegardes affichent maintenant l'icône du monde",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -1680,6 +1719,39 @@
       "loaderVersionMismatch": "Version loader incompatible",
       "duplicateMod": "Mod en double",
       "unknown": "Problème inconnu"
+    }
+  },
+  "systemCheck": {
+    "title": "Configuration requise",
+    "subtitle": "Vérifions que tout est prêt pour lancer Minecraft",
+    "checking": "Vérification du système...",
+    "allReady": "Tout est prêt !",
+    "javaRequired": "Java est requis pour continuer",
+    "continue": "Continuer",
+    "install": "Installer",
+    "installing": "Installation...",
+    "retry": "Réessayer",
+    "java": {
+      "name": "Java Runtime",
+      "description": "Requis pour lancer Minecraft et les mod loaders",
+      "required": "Requis",
+      "installed": "Installé",
+      "notInstalled": "Non installé",
+      "installing": "Installation de Java 21...",
+      "installSuccess": "Java installé avec succès !",
+      "installError": "Échec de l'installation de Java"
+    },
+    "cloudflare": {
+      "name": "Cloudflare Tunnel",
+      "description": "Recommandé pour partager des serveurs avec vos amis",
+      "recommended": "Recommandé",
+      "installed": "Installé",
+      "notInstalled": "Non installé",
+      "installing": "Installation de l'agent Cloudflare...",
+      "installSuccess": "Agent Cloudflare installé !",
+      "installError": "Échec de l'installation de l'agent Cloudflare",
+      "skip": "Passer pour l'instant",
+      "skipHint": "Vous pouvez l'installer plus tard dans les Paramètres"
     }
   },
   "schematics": {

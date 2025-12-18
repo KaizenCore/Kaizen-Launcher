@@ -466,6 +466,37 @@ impl AppState {
                 .execute(db)
                 .await;
 
+        // Migration: Kaizen accounts table
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS kaizen_accounts (
+                id TEXT PRIMARY KEY,
+                user_id TEXT NOT NULL UNIQUE,
+                username TEXT NOT NULL,
+                email TEXT NOT NULL,
+                access_token TEXT NOT NULL,
+                refresh_token TEXT,
+                expires_at TEXT NOT NULL,
+                permissions TEXT NOT NULL DEFAULT '[]',
+                tags TEXT NOT NULL DEFAULT '[]',
+                badges TEXT NOT NULL DEFAULT '[]',
+                is_patron INTEGER DEFAULT 0,
+                is_active INTEGER DEFAULT 0,
+                created_at TEXT DEFAULT (datetime('now'))
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_kaizen_accounts_active ON kaizen_accounts(is_active);
+            CREATE INDEX IF NOT EXISTS idx_kaizen_accounts_user ON kaizen_accounts(user_id);
+        "#,
+        )
+        .execute(db)
+        .await?;
+
+        // Migration: Add badges column for existing kaizen_accounts tables
+        let _ = sqlx::query("ALTER TABLE kaizen_accounts ADD COLUMN badges TEXT NOT NULL DEFAULT '[]'")
+            .execute(db)
+            .await;
+
         Ok(())
     }
 }

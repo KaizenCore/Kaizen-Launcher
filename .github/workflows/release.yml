@@ -225,6 +225,9 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           DROPBOX_APP_KEY: ${{ secrets.DROPBOX_APP_KEY }}
           DROPBOX_APP_SECRET: ${{ secrets.DROPBOX_APP_SECRET }}
+          # Kaizen OAuth credentials (embedded at compile time)
+          KAIZEN_OAUTH_CLIENT_ID: ${{ secrets.KAIZEN_OAUTH_CLIENT_ID }}
+          KAIZEN_OAUTH_BASE_URL: ${{ secrets.KAIZEN_OAUTH_BASE_URL }}
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: --target ${{ matrix.target }}

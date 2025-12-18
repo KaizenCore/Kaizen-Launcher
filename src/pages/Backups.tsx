@@ -33,6 +33,7 @@ interface GlobalBackupInfo {
   timestamp: string
   size_bytes: number
   is_server: boolean
+  icon_data_url?: string
 }
 
 interface BackupStats {
@@ -399,8 +400,14 @@ export function Backups() {
                   <Card key={`${backup.instance_id}-${backup.world_name}-${backup.filename}`}>
                     <CardContent className="flex items-center justify-between py-3 px-4">
                       <div className="flex items-center gap-3 min-w-0">
-                        <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-muted flex items-center justify-center">
-                          {backup.is_server ? (
+                        <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                          {backup.icon_data_url ? (
+                            <img
+                              src={backup.icon_data_url}
+                              alt={backup.world_name}
+                              className="h-10 w-10 object-cover"
+                            />
+                          ) : backup.is_server ? (
                             <Server className="h-5 w-5 text-muted-foreground" />
                           ) : (
                             <Gamepad2 className="h-5 w-5 text-muted-foreground" />

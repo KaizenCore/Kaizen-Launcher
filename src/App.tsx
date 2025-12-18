@@ -1,20 +1,25 @@
 import { lazy, Suspense, useState, useEffect, useCallback, useRef } from "react"
 import { BrowserRouter, Routes, Route } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
+import { AnimatePresence } from "framer-motion"
 import { Toaster, toast } from "sonner"
 import { Loader2 } from "lucide-react"
 import { MainLayout } from "@/components/layout/MainLayout"
 import { Home } from "@/pages/Home"
 import { Onboarding } from "@/components/onboarding/Onboarding"
 import { TourOverlay } from "@/components/onboarding/TourOverlay"
+import { SystemCheck } from "@/components/system-check"
+import { SplashScreen } from "@/components/splash/SplashScreen"
 import { UpdateNotification } from "@/components/notifications/UpdateNotification"
 import { DevMonitor } from "@/components/dev/DevMonitor"
 import { BugReportDialog } from "@/components/dev/BugReportDialog"
 import { MajorUpdateDialog } from "@/components/dialogs/MajorUpdateDialog"
 import { useOnboardingStore } from "@/stores/onboardingStore"
+import { useSystemCheckStore } from "@/stores/systemCheckStore"
 import { useDevModeStore } from "@/stores/devModeStore"
 import { useTheme } from "@/hooks/useTheme"
 import { useUpdateChecker } from "@/hooks/useUpdateChecker"
+import { useTranslation } from "@/i18n"
 
 // Set up console interception to send logs to backend buffer
 // This runs once at module load to capture all console output
@@ -112,7 +117,15 @@ function PageLoader() {
 
 function App() {
   console.log("[App] Kaizen Launcher initializing...")
+  const { t } = useTranslation()
   const { completed, setCompleted } = useOnboardingStore()
+  const {
+    hasCheckedThisSession,
+    java,
+    cloudflare,
+    cloudflareSkipped,
+    setHasCheckedThisSession,
+  } = useSystemCheckStore()
   const { enabled: devModeEnabled, load: loadDevMode, openLogViewer } = useDevModeStore()
   const { resolvedTheme } = useTheme()
   const {
@@ -125,15 +138,65 @@ function App() {
     dismissUpdate,
   } = useUpdateChecker(true)
 
+  // Splash screen state
+  const [showSplash, setShowSplash] = useState(true)
+  const [splashProgress, setSplashProgress] = useState(0)
+  const [splashMessage, setSplashMessage] = useState("Loading...")
+
   // Dev Monitor state
   const [devMonitorVisible, setDevMonitorVisible] = useState(false)
   // Bug Report Dialog state
   const [bugReportOpen, setBugReportOpen] = useState(false)
 
+  // Splash screen progress animation
+  useEffect(() => {
+    if (!showSplash) return
+
+    // Animate progress bar
+    const stages = [
+      { progress: 20, message: t("common.loading"), delay: 100 },
+      { progress: 40, message: t("systemCheck.checking"), delay: 300 },
+      { progress: 70, message: t("systemCheck.checking"), delay: 500 },
+      { progress: 100, message: t("common.ready"), delay: 700 },
+    ]
+
+    const timeouts: NodeJS.Timeout[] = []
+
+    stages.forEach(({ progress, message, delay }) => {
+      const timeout = setTimeout(() => {
+        setSplashProgress(progress)
+        setSplashMessage(message)
+      }, delay)
+      timeouts.push(timeout)
+    })
+
+    // Hide splash after progress completes
+    const hideTimeout = setTimeout(() => {
+      setShowSplash(false)
+    }, 1000)
+    timeouts.push(hideTimeout)
+
+    return () => {
+      timeouts.forEach(clearTimeout)
+    }
+  }, [showSplash, t])
+
   // Load dev mode state on mount
   useEffect(() => {
     loadDevMode()
   }, [loadDevMode])
+
+  // Determine if system check needs to be shown
+  // Show if: not checked this session OR Java is missing/error/installing
+  // OR Cloudflare is missing/error/installing (and not skipped)
+  const needsSystemCheck = !hasCheckedThisSession ||
+    java.status === "missing" ||
+    java.status === "error" ||
+    java.status === "installing" ||
+    ((cloudflare.status === "missing" || cloudflare.status === "error" || cloudflare.status === "installing") && !cloudflareSkipped)
+
+  // Onboarding shows only after system check is complete
+  const showOnboarding = !needsSystemCheck && !completed
 
   // Keyboard shortcuts
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -192,8 +255,33 @@ function App() {
     restoreShares()
   }, [])
 
+  // Sync Kaizen accounts on app startup (refresh tags, badges, permissions)
+  const kaizenSynced = useRef(false)
+  useEffect(() => {
+    if (kaizenSynced.current) return
+    kaizenSynced.current = true
+
+    const syncKaizenAccounts = async () => {
+      try {
+        await invoke("sync_kaizen_accounts")
+        console.log("[KAIZEN] Accounts synced successfully")
+      } catch (err) {
+        console.error("[KAIZEN] Failed to sync accounts:", err)
+      }
+    }
+
+    syncKaizenAccounts()
+  }, [])
+
   return (
     <>
+      {/* Splash Screen */}
+      <AnimatePresence>
+        {showSplash && (
+          <SplashScreen progress={splashProgress} message={splashMessage} />
+        )}
+      </AnimatePresence>
+
       <BrowserRouter>
         <Routes>
           {/* Log Viewer - separate window without MainLayout */}
@@ -222,8 +310,14 @@ function App() {
         closeButton
         theme={resolvedTheme}
       />
+      {/* System Check - runs first, before onboarding */}
+      <SystemCheck
+        open={needsSystemCheck}
+        onComplete={() => setHasCheckedThisSession(true)}
+      />
+      {/* Onboarding - only shows after system check passes */}
       <Onboarding
-        open={!completed}
+        open={showOnboarding}
         onComplete={(instanceId) => {
           setCompleted(true)
           // Navigate to the created instance if provided

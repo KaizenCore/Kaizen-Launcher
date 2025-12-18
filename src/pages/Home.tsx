@@ -18,8 +18,13 @@ import {
   ChevronDown,
   Check,
   AlertCircle,
-  Download
+  Download,
+  Github,
+  Heart,
+  ExternalLink,
+  Bug
 } from "lucide-react"
+import { openUrl } from "@tauri-apps/plugin-opener"
 import { useTranslation } from "@/i18n"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
@@ -373,7 +378,8 @@ export function Home() {
   const canLaunch = selectedInstance && activeAccount && instanceStatus !== "installing"
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col min-h-full">
+      <div className="flex flex-col gap-6 flex-1">
       {/* Hero section with selected instance */}
       <Card className="overflow-hidden">
         <div className="relative">
@@ -687,6 +693,45 @@ export function Home() {
           </div>
         )}
       </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="mt-auto pt-6 border-t border-border/50">
+        <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="gap-1">
+              <Github className="h-3 w-3" />
+              {t("home.footer.openSource")}
+            </Badge>
+            <span className="text-xs">v0.6.6</span>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <button
+              onClick={() => openUrl("https://github.com/KaizenCore/Kaizen-Launcher")}
+              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            >
+              <Github className="h-4 w-4" />
+              <span>{t("home.footer.viewOnGithub")}</span>
+              <ExternalLink className="h-3 w-3" />
+            </button>
+
+            <button
+              onClick={() => openUrl("https://github.com/KaizenCore/Kaizen-Launcher/issues")}
+              className="flex items-center gap-1.5 hover:text-foreground transition-colors"
+            >
+              <Bug className="h-4 w-4" />
+              <span>{t("home.footer.reportBug")}</span>
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1 text-xs">
+            <span>{t("home.footer.madeWith")}</span>
+            <Heart className="h-3 w-3 text-red-500 fill-red-500" />
+            <span>by Kaizen Team</span>
+          </div>
+        </div>
+      </footer>
     </div>
   )
 }

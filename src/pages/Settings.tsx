@@ -956,13 +956,14 @@ export function Settings() {
                 <div className="flex items-center gap-2">
                   <Newspaper className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">{t("settings.whatsNew")}</span>
-                  <span className="text-xs bg-gradient-to-r from-primary to-purple-500 text-white px-2 py-0.5 rounded-full">v0.6.5</span>
+                  <span className="text-xs bg-gradient-to-r from-primary to-purple-500 text-white px-2 py-0.5 rounded-full">v0.6.6</span>
                 </div>
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <ul className="list-disc list-inside space-y-1">
-                    <li>{t("settings.whatsNewBrowseTabs")}</li>
-                    <li>{t("settings.whatsNewInstanceSelector")}</li>
-                    <li>{t("settings.whatsNewBrowseCache")}</li>
+                    <li>{t("settings.whatsNewKaizenAccount")}</li>
+                    <li>{t("settings.whatsNewBadgesPermissions")}</li>
+                    <li>{t("settings.whatsNewSystemCheck")}</li>
+                    <li>{t("settings.whatsNewSplashScreen")}</li>
                   </ul>
                 </div>
               </div>

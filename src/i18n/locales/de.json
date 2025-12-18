@@ -98,7 +98,15 @@
     "servers": "Server",
     "onAllInstances": "Ueber alle Instanzen",
     "totalAccumulated": "Gesamt gesammelt",
-    "unableToLoadData": "Daten konnten nicht geladen werden"
+    "unableToLoadData": "Daten konnten nicht geladen werden",
+    "footer": {
+      "openSource": "Open Source",
+      "madeWith": "Erstellt mit",
+      "viewOnGithub": "Auf GitHub ansehen",
+      "reportBug": "Fehler melden",
+      "discord": "Discord beitreten",
+      "documentation": "Dokumentation"
+    }
   },
   "launch": {
     "preparing": "Vorbereiten...",
@@ -481,10 +489,11 @@
     "restartOnboardingButton": "Neustart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Was ist neu in v0.6.5",
-    "whatsNewBrowseTabs": "Browse-Seite: neue Tabs für Plugins, Ressourcenpakete, Shader, Datapacks",
-    "whatsNewInstanceSelector": "Globaler Instanz-Wähler mit intelligenter Kompatibilitätsprüfung",
-    "whatsNewBrowseCache": "Browse-Cache-System: schnellere Navigation mit 5-Minuten-Ergebnis-Cache",
+    "whatsNew": "Was ist neu in v0.6.6",
+    "whatsNewSystemCheck": "Systemanforderungsprüfung beim Start (Java + Cloudflare)",
+    "whatsNewSplashScreen": "Startbildschirm mit Kaizen-Logo und Ladeanimation",
+    "whatsNewHomeFooter": "Footer auf der Startseite mit GitHub-Links und nützlichen Informationen",
+    "whatsNewBackupIcons": "Backups zeigen jetzt Weltsymbole zur einfachen Identifizierung",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -1634,6 +1643,39 @@
       "loaderVersionMismatch": "Loader-Version inkompatibel",
       "duplicateMod": "Doppelter Mod",
       "unknown": "Unbekanntes Problem"
+    }
+  },
+  "systemCheck": {
+    "title": "Systemanforderungen",
+    "subtitle": "Lass uns sicherstellen, dass alles bereit ist, um Minecraft zu starten",
+    "checking": "System wird überprüft...",
+    "allReady": "Alles bereit!",
+    "javaRequired": "Java ist erforderlich, um fortzufahren",
+    "continue": "Weiter",
+    "install": "Installieren",
+    "installing": "Installiere...",
+    "retry": "Erneut versuchen",
+    "java": {
+      "name": "Java Runtime",
+      "description": "Erforderlich, um Minecraft und Mod-Loader auszuführen",
+      "required": "Erforderlich",
+      "installed": "Installiert",
+      "notInstalled": "Nicht installiert",
+      "installing": "Java 21 wird installiert...",
+      "installSuccess": "Java erfolgreich installiert!",
+      "installError": "Java-Installation fehlgeschlagen"
+    },
+    "cloudflare": {
+      "name": "Cloudflare Tunnel",
+      "description": "Empfohlen zum Teilen von Servern mit Freunden",
+      "recommended": "Empfohlen",
+      "installed": "Installiert",
+      "notInstalled": "Nicht installiert",
+      "installing": "Cloudflare-Agent wird installiert...",
+      "installSuccess": "Cloudflare-Agent installiert!",
+      "installError": "Cloudflare-Agent-Installation fehlgeschlagen",
+      "skip": "Vorerst überspringen",
+      "skipHint": "Du kannst dies später in den Einstellungen installieren"
     }
   },
   "schematics": {
