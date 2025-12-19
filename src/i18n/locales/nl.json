@@ -489,11 +489,10 @@
     "restartOnboardingButton": "Herstarten",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Wat is nieuw in v0.6.6",
-    "whatsNewSystemCheck": "Systeemvereisten controle bij opstarten (Java + Cloudflare)",
-    "whatsNewSplashScreen": "Opstartscherm met Kaizen-logo en laadanimatie",
-    "whatsNewHomeFooter": "Footer op de startpagina met GitHub-links en nuttige informatie",
-    "whatsNewBackupIcons": "Back-ups tonen nu wereldpictogrammen voor eenvoudige identificatie",
+    "whatsNew": "Wat is nieuw in v0.6.8",
+    "whatsNewPlaygroundCanvas": "Visueel canvas voor modpack beheer (beta-toegang vereist)",
+    "whatsNewNodeSearch": "Snelzoeken (Ctrl+K) om mods te vinden en focussen",
+    "whatsNewNeoForge": "NeoForge 1.20.1 ondersteuning - legacy API nu correct opgehaald",
     "devtools": "DevTools"
   },
   "devtools": {

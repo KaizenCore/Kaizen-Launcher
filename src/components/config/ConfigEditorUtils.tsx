@@ -1,24 +1,13 @@
 import { useState, useEffect, useCallback } from "react"
-import { invoke } from "@tauri-apps/api/core"
-import { toast } from "sonner"
-import { Search, Save, FolderOpen, File, Loader2, RefreshCw, ChevronRight, ChevronDown, Code, Settings2, Plus, Trash2, GripVertical, Braces, FileCode, FileText } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { Search, ChevronRight, ChevronDown, Settings2, Plus, Trash2, GripVertical } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
-import { CodeEditor, getMonacoLanguage } from "@/components/ui/code-editor"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import {
   Tooltip,
   TooltipContent,
@@ -27,58 +16,19 @@ import {
 } from "@/components/ui/tooltip"
 import { useTranslation } from "@/i18n"
 
-interface ConfigFileInfo {
-  name: string
-  path: string
-  size_bytes: number
-  file_type: string
-  modified: string | null
+// Get file type from path
+export function getFileTypeFromPath(path: string): string {
+  const ext = path.split(".").pop()?.toLowerCase() || ""
+  if (ext === "json" || ext === "json5") return "json"
+  if (ext === "toml") return "toml"
+  if (ext === "yml" || ext === "yaml") return "yaml"
+  if (ext === "properties") return "properties"
+  return "text"
 }
 
-interface ConfigEditorProps {
-  instanceId: string
-}
-
-function formatSize(bytes: number): string {
-  if (bytes >= 1048576) {
-    return `${(bytes / 1048576).toFixed(1)} MB`
-  } else if (bytes >= 1024) {
-    return `${(bytes / 1024).toFixed(1)} KB`
-  }
-  return `${bytes} B`
-}
-
-function getFileTypeColor(type: string): string {
-  switch (type) {
-    case "json":
-      return "text-yellow-400"
-    case "toml":
-      return "text-orange-400"
-    case "yaml":
-      return "text-green-400"
-    case "properties":
-      return "text-blue-400"
-    default:
-      return "text-gray-400"
-  }
-}
-
-function FileTypeIcon({ type, className }: { type: string; className?: string }) {
-  const colorClass = getFileTypeColor(type)
-  const iconClass = `h-4 w-4 flex-shrink-0 ${colorClass} ${className || ""}`
-
-  switch (type) {
-    case "json":
-      return <Braces className={iconClass} />
-    case "toml":
-      return <FileCode className={iconClass} />
-    case "yaml":
-      return <FileCode className={iconClass} />
-    case "properties":
-      return <FileText className={iconClass} />
-    default:
-      return <File className={iconClass} />
-  }
+// Check if visual mode is supported
+export function supportsVisualMode(fileType: string): boolean {
+  return ["json", "toml", "yaml", "properties"].includes(fileType)
 }
 
 // Parse config content based on file type
@@ -95,7 +45,6 @@ interface ParsedConfigResult {
 function parseConfig(content: string, fileType: string): ParsedConfigResult | null {
   try {
     if (fileType === "json") {
-      // JSON doesn't support comments, but some tools use // comments
       const { values, comments } = parseJSONWithComments(content)
       return { values, comments }
     }
@@ -114,20 +63,18 @@ function parseConfig(content: string, fileType: string): ParsedConfigResult | nu
   }
 }
 
-// Parse JSON with optional // comments (non-standard but common in config files)
+// Parse JSON with optional // comments
 function parseJSONWithComments(content: string): { values: ConfigValue; comments: CommentMap } {
   const comments: CommentMap = {}
   const lines = content.split("\n")
   let pendingComment = ""
 
-  // Try to extract inline comments and comments before keys
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i]
     const commentMatch = line.match(/^\s*\/\/\s*(.*)$/)
     if (commentMatch) {
       pendingComment = (pendingComment ? pendingComment + " " : "") + commentMatch[1].trim()
     } else {
-      // Look for key in this line
       const keyMatch = line.match(/"([^"]+)"\s*:/)
       if (keyMatch && pendingComment) {
         comments[keyMatch[1]] = pendingComment
@@ -138,13 +85,11 @@ function parseJSONWithComments(content: string): { values: ConfigValue; comments
     }
   }
 
-  // Remove // comments for parsing
   const cleanedContent = content.replace(/^\s*\/\/.*$/gm, "").replace(/,(\s*[}\]])/g, "$1")
 
   try {
     return { values: JSON.parse(cleanedContent), comments }
   } catch {
-    // If that fails, try original content
     return { values: JSON.parse(content), comments: {} }
   }
 }
@@ -165,7 +110,7 @@ function stringifyConfig(value: ConfigValue, fileType: string): string {
   return JSON.stringify(value, null, 2)
 }
 
-// Simple TOML parser (handles basic cases) - now returns comments too
+// TOML parser
 function parseTOML(content: string): ParsedConfigResult {
   const result: Record<string, ConfigValue> = {}
   const comments: CommentMap = {}
@@ -177,7 +122,6 @@ function parseTOML(content: string): ParsedConfigResult {
   for (const line of lines) {
     const trimmed = line.trim()
 
-    // Capture comments (lines starting with #)
     if (trimmed.startsWith("#")) {
       const commentText = trimmed.slice(1).trim()
       pendingComment = (pendingComment ? pendingComment + " " : "") + commentText
@@ -185,12 +129,10 @@ function parseTOML(content: string): ParsedConfigResult {
     }
 
     if (!trimmed) {
-      // Empty line resets pending comment
       pendingComment = ""
       continue
     }
 
-    // Section header [section.name]
     const sectionMatch = trimmed.match(/^\[([^\]]+)\]$/)
     if (sectionMatch) {
       const path = sectionMatch[1].split(".")
@@ -202,7 +144,6 @@ function parseTOML(content: string): ParsedConfigResult {
         }
         currentSection = currentSection[part] as Record<string, ConfigValue>
       }
-      // Store section comment if any
       if (pendingComment) {
         comments[currentSectionPath] = pendingComment
         pendingComment = ""
@@ -210,25 +151,21 @@ function parseTOML(content: string): ParsedConfigResult {
       continue
     }
 
-    // Key = value (also check for inline comment after value)
     const kvMatch = trimmed.match(/^([^=]+)=(.*)$/)
     if (kvMatch) {
       const key = kvMatch[1].trim()
       let rawValue = kvMatch[2].trim()
 
-      // Check for inline comment (# after value, but not inside strings)
       const inlineCommentMatch = rawValue.match(/^("[^"]*"|'[^']*'|[^#]*?)(?:\s*#\s*(.*))?$/)
       if (inlineCommentMatch) {
         rawValue = inlineCommentMatch[1].trim()
         if (inlineCommentMatch[2]) {
-          // Inline comment takes precedence
           pendingComment = inlineCommentMatch[2].trim()
         }
       }
 
       currentSection[key] = parseTOMLValue(rawValue)
 
-      // Store the comment for this key
       if (pendingComment) {
         const fullKeyPath = currentSectionPath ? `${currentSectionPath}.${key}` : key
         comments[fullKeyPath] = pendingComment
@@ -241,23 +178,19 @@ function parseTOML(content: string): ParsedConfigResult {
 }
 
 function parseTOMLValue(value: string): ConfigValue {
-  // Boolean
   if (value === "true") return true
   if (value === "false") return false
 
-  // String (quoted)
   if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
     return value.slice(1, -1)
   }
 
-  // Array
   if (value.startsWith("[") && value.endsWith("]")) {
     const inner = value.slice(1, -1).trim()
     if (!inner) return []
     return inner.split(",").map((v) => parseTOMLValue(v.trim()))
   }
 
-  // Number
   const num = parseFloat(value)
   if (!isNaN(num)) return num
 
@@ -293,7 +226,7 @@ function stringifyTOMLValue(value: ConfigValue): string {
   return JSON.stringify(value)
 }
 
-// Properties file parser - now returns comments too
+// Properties file parser
 function parseProperties(content: string): ParsedConfigResult {
   const result: Record<string, ConfigValue> = {}
   const comments: CommentMap = {}
@@ -303,7 +236,6 @@ function parseProperties(content: string): ParsedConfigResult {
   for (const line of lines) {
     const trimmed = line.trim()
 
-    // Capture comments (lines starting with # or !)
     if (trimmed.startsWith("#") || trimmed.startsWith("!")) {
       const commentText = trimmed.slice(1).trim()
       pendingComment = (pendingComment ? pendingComment + " " : "") + commentText
@@ -311,7 +243,6 @@ function parseProperties(content: string): ParsedConfigResult {
     }
 
     if (!trimmed) {
-      // Empty line resets pending comment
       pendingComment = ""
       continue
     }
@@ -332,13 +263,11 @@ function parseProperties(content: string): ParsedConfigResult {
       const key = trimmed.slice(0, sepIndex).trim()
       const value = trimmed.slice(sepIndex + 1).trim()
 
-      // Try to parse value type
       if (value === "true") result[key] = true
       else if (value === "false") result[key] = false
       else if (!isNaN(parseFloat(value)) && isFinite(Number(value))) result[key] = parseFloat(value)
       else result[key] = value
 
-      // Store comment for this key
       if (pendingComment) {
         comments[key] = pendingComment
         pendingComment = ""
@@ -355,26 +284,23 @@ function stringifyProperties(obj: Record<string, ConfigValue>): string {
     .join("\n")
 }
 
-// YAML parser - handles common YAML structures used in plugin configs
+// YAML parser
 function parseYAML(content: string): ParsedConfigResult {
   const result: Record<string, ConfigValue> = {}
   const comments: CommentMap = {}
   const lines = content.split("\n")
   let pendingComment = ""
 
-  // Stack to track nested structure: { indent, obj, key }
   const stack: { indent: number; obj: Record<string, ConfigValue>; key: string }[] = [
     { indent: -1, obj: result, key: "" }
   ]
 
   for (const line of lines) {
-    // Skip empty lines
     if (!line.trim()) {
       pendingComment = ""
       continue
     }
 
-    // Capture comments (lines starting with #)
     const commentOnlyMatch = line.match(/^(\s*)#\s*(.*)$/)
     if (commentOnlyMatch) {
       const commentText = commentOnlyMatch[2].trim()
@@ -382,24 +308,20 @@ function parseYAML(content: string): ParsedConfigResult {
       continue
     }
 
-    // Calculate indentation (number of spaces)
     const indentMatch = line.match(/^(\s*)/)
     const indent = indentMatch ? indentMatch[1].length : 0
 
-    // Pop stack until we find correct parent level
     while (stack.length > 1 && stack[stack.length - 1].indent >= indent) {
       stack.pop()
     }
 
     const currentParent = stack[stack.length - 1].obj
 
-    // Check for key: value pattern
     const kvMatch = line.match(/^(\s*)([^:#]+?):\s*(.*)$/)
     if (kvMatch) {
       const key = kvMatch[2].trim()
       let rawValue = kvMatch[3].trim()
 
-      // Check for inline comment
       const inlineCommentMatch = rawValue.match(/^(.+?)\s+#\s*(.*)$/)
       if (inlineCommentMatch && !rawValue.startsWith('"') && !rawValue.startsWith("'")) {
         rawValue = inlineCommentMatch[1].trim()
@@ -408,7 +330,6 @@ function parseYAML(content: string): ParsedConfigResult {
         }
       }
 
-      // Store comment for this key
       if (pendingComment) {
         const fullPath = stack.slice(1).map(s => s.key).concat(key).join(".")
         comments[fullPath] = pendingComment
@@ -416,22 +337,18 @@ function parseYAML(content: string): ParsedConfigResult {
       }
 
       if (rawValue === "" || rawValue === "|" || rawValue === ">") {
-        // This is a parent key for nested content or multiline string
         const newObj: Record<string, ConfigValue> = {}
         currentParent[key] = newObj
         stack.push({ indent, obj: newObj, key })
       } else {
-        // Parse the value
         currentParent[key] = parseYAMLValue(rawValue)
       }
     } else {
-      // Check for list item (- value)
       const listMatch = line.match(/^(\s*)-\s*(.*)$/)
       if (listMatch) {
         const listValue = listMatch[2].trim()
         const parentKey = stack[stack.length - 1].key
 
-        // Get or create array in parent's parent
         const parentOfParent = stack.length > 1 ? stack[stack.length - 2].obj : result
         if (parentKey && !Array.isArray(parentOfParent[parentKey])) {
           parentOfParent[parentKey] = []
@@ -448,30 +365,23 @@ function parseYAML(content: string): ParsedConfigResult {
 }
 
 function parseYAMLValue(value: string): ConfigValue {
-  // Null values
   if (value === "null" || value === "~" || value === "") return null
-
-  // Boolean
   if (value === "true" || value === "yes" || value === "on") return true
   if (value === "false" || value === "no" || value === "off") return false
 
-  // Quoted string
   if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
     return value.slice(1, -1)
   }
 
-  // Inline array [a, b, c]
   if (value.startsWith("[") && value.endsWith("]")) {
     const inner = value.slice(1, -1).trim()
     if (!inner) return []
     return inner.split(",").map(v => parseYAMLValue(v.trim()))
   }
 
-  // Number
   const num = parseFloat(value)
   if (!isNaN(num) && isFinite(num)) return num
 
-  // Plain string
   return value
 }
 
@@ -487,7 +397,6 @@ function stringifyYAML(obj: Record<string, ConfigValue>, indent: number = 0): st
     } else if (typeof value === "number") {
       result += `${prefix}${key}: ${value}\n`
     } else if (typeof value === "string") {
-      // Quote strings that might be ambiguous
       const needsQuotes = value === "" ||
         value === "true" || value === "false" ||
         value === "yes" || value === "no" ||
@@ -498,28 +407,10 @@ function stringifyYAML(obj: Record<string, ConfigValue>, indent: number = 0): st
     } else if (Array.isArray(value)) {
       if (value.length === 0) {
         result += `${prefix}${key}: []\n`
-      } else if (value.every(v => typeof v !== "object" || v === null)) {
-        // Simple array - inline format
+      } else {
         result += `${prefix}${key}:\n`
         for (const item of value) {
           result += `${prefix}  - ${stringifyYAMLValue(item)}\n`
-        }
-      } else {
-        // Complex array
-        result += `${prefix}${key}:\n`
-        for (const item of value) {
-          if (typeof item === "object" && item !== null && !Array.isArray(item)) {
-            const nested = stringifyYAML(item as Record<string, ConfigValue>, indent + 2)
-            const lines = nested.split("\n").filter(l => l.trim())
-            if (lines.length > 0) {
-              result += `${prefix}  - ${lines[0].trim()}\n`
-              for (let i = 1; i < lines.length; i++) {
-                result += `${prefix}    ${lines[i].trim()}\n`
-              }
-            }
-          } else {
-            result += `${prefix}  - ${stringifyYAMLValue(item)}\n`
-          }
         }
       }
     } else if (typeof value === "object") {
@@ -550,18 +441,6 @@ function stringifyYAMLValue(value: ConfigValue): string {
   return String(value)
 }
 
-// Visual editor components
-interface ValueEditorProps {
-  keyName: string
-  value: ConfigValue
-  onChange: (newValue: ConfigValue) => void
-  onDelete?: () => void
-  depth?: number
-  tooltip?: string
-  comments?: CommentMap
-  keyPath?: string
-}
-
 // Helper component for label with optional tooltip
 function LabelWithTooltip({ htmlFor, className, children, tooltip }: {
   htmlFor?: string
@@ -589,14 +468,23 @@ function LabelWithTooltip({ htmlFor, className, children, tooltip }: {
   )
 }
 
+// Value editor props
+interface ValueEditorProps {
+  keyName: string
+  value: ConfigValue
+  onChange: (newValue: ConfigValue) => void
+  onDelete?: () => void
+  depth?: number
+  tooltip?: string
+  comments?: CommentMap
+  keyPath?: string
+}
+
 function ValueEditor({ keyName, value, onChange, onDelete, depth = 0, tooltip, comments, keyPath }: ValueEditorProps) {
   const { t } = useTranslation()
   const [isExpanded, setIsExpanded] = useState(depth < 2)
 
-  // Format key name for display
   const displayName = keyName.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())
-
-  // Get tooltip from comments map or direct tooltip prop
   const currentKeyPath = keyPath || keyName
   const effectiveTooltip = tooltip || (comments && comments[currentKeyPath])
 
@@ -630,7 +518,7 @@ function ValueEditor({ keyName, value, onChange, onDelete, depth = 0, tooltip, c
     )
   }
 
-  // Number input with slider for certain ranges
+  // Number input with slider
   if (typeof value === "number") {
     const isInteger = Number.isInteger(value)
     const showSlider = value >= 0 && value <= 1000
@@ -721,15 +609,9 @@ function ValueEditor({ keyName, value, onChange, onDelete, depth = 0, tooltip, c
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center gap-2 text-sm font-medium hover:text-primary"
           >
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
+            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             {displayName}
-            <Badge variant="secondary" className="text-xs">
-              {value.length} items
-            </Badge>
+            <Badge variant="secondary" className="text-xs">{value.length} items</Badge>
           </button>
           <div className="flex items-center gap-1">
             <TooltipProvider>
@@ -751,12 +633,7 @@ function ValueEditor({ keyName, value, onChange, onDelete, depth = 0, tooltip, c
               </Tooltip>
             </TooltipProvider>
             {onDelete && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-6 w-6"
-                onClick={onDelete}
-              >
+              <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDelete}>
                 <Trash2 className="h-3 w-3 text-destructive" />
               </Button>
             )}
@@ -789,9 +666,7 @@ function ValueEditor({ keyName, value, onChange, onDelete, depth = 0, tooltip, c
               </div>
             ))}
             {value.length === 0 && (
-              <p className="text-sm text-muted-foreground py-2">
-                {t("configEditor.noElement")}
-              </p>
+              <p className="text-sm text-muted-foreground py-2">{t("configEditor.noElement")}</p>
             )}
           </div>
         )}
@@ -810,23 +685,12 @@ function ValueEditor({ keyName, value, onChange, onDelete, depth = 0, tooltip, c
             onClick={() => setIsExpanded(!isExpanded)}
             className="flex items-center gap-2 text-sm font-medium hover:text-primary"
           >
-            {isExpanded ? (
-              <ChevronDown className="h-4 w-4" />
-            ) : (
-              <ChevronRight className="h-4 w-4" />
-            )}
+            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
             {displayName}
-            <Badge variant="secondary" className="text-xs">
-              {entries.length} props
-            </Badge>
+            <Badge variant="secondary" className="text-xs">{entries.length} props</Badge>
           </button>
           {onDelete && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-6 w-6"
-              onClick={onDelete}
-            >
+            <Button variant="ghost" size="icon" className="h-6 w-6" onClick={onDelete}>
               <Trash2 className="h-3 w-3 text-destructive" />
             </Button>
           )}
@@ -886,14 +750,14 @@ function getDefaultValue(example: ConfigValue): ConfigValue {
   return ""
 }
 
-// Visual config editor main component
+// Visual config editor component
 interface VisualConfigEditorProps {
   content: string
   fileType: string
   onChange: (newContent: string) => void
 }
 
-function VisualConfigEditor({ content, fileType, onChange }: VisualConfigEditorProps) {
+export function VisualConfigEditor({ content, fileType, onChange }: VisualConfigEditorProps) {
   const { t } = useTranslation()
   const [parsedConfig, setParsedConfig] = useState<ConfigValue | null>(null)
   const [configComments, setConfigComments] = useState<CommentMap>({})
@@ -1003,435 +867,6 @@ function VisualConfigEditor({ content, fileType, onChange }: VisualConfigEditorP
           )}
         </div>
       </ScrollArea>
-    </div>
-  )
-}
-
-// Group files by folder
-interface FolderNode {
-  name: string
-  files: ConfigFileInfo[]
-  subfolders: Map<string, FolderNode>
-}
-
-function buildFolderTree(files: ConfigFileInfo[]): FolderNode {
-  const root: FolderNode = { name: "", files: [], subfolders: new Map() }
-
-  for (const file of files) {
-    const parts = file.path.split("/")
-    let current = root
-
-    // Navigate/create folder path
-    for (let i = 0; i < parts.length - 1; i++) {
-      const folderName = parts[i]
-      if (!current.subfolders.has(folderName)) {
-        current.subfolders.set(folderName, {
-          name: folderName,
-          files: [],
-          subfolders: new Map(),
-        })
-      }
-      current = current.subfolders.get(folderName)!
-    }
-
-    current.files.push(file)
-  }
-
-  return root
-}
-
-interface FolderViewProps {
-  node: FolderNode
-  depth: number
-  onFileSelect: (file: ConfigFileInfo) => void
-  selectedPath: string | null
-  searchQuery: string
-}
-
-function FolderView({ node, depth, onFileSelect, selectedPath, searchQuery }: FolderViewProps) {
-  const [isExpanded, setIsExpanded] = useState(depth === 0 || searchQuery.length > 0)
-
-  // Filter files by search query
-  const filteredFiles = node.files.filter(
-    (f) =>
-      f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.path.toLowerCase().includes(searchQuery.toLowerCase())
-  )
-
-  // Check if any subfolder has matching files
-  const hasMatchingContent = (n: FolderNode): boolean => {
-    if (n.files.some((f) =>
-      f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      f.path.toLowerCase().includes(searchQuery.toLowerCase())
-    )) {
-      return true
-    }
-    for (const subfolder of n.subfolders.values()) {
-      if (hasMatchingContent(subfolder)) return true
-    }
-    return false
-  }
-
-  const subfolders = Array.from(node.subfolders.values()).filter(
-    (sf) => searchQuery.length === 0 || hasMatchingContent(sf)
-  )
-
-  if (filteredFiles.length === 0 && subfolders.length === 0 && depth > 0) {
-    return null
-  }
-
-  return (
-    <div className={depth > 0 ? "ml-3" : ""}>
-      {depth > 0 && (
-        <button
-          onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-1 w-full py-1 px-2 rounded hover:bg-muted text-left text-sm font-medium"
-        >
-          {isExpanded ? (
-            <ChevronDown className="h-4 w-4 text-muted-foreground" />
-          ) : (
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
-          )}
-          <FolderOpen className="h-4 w-4 text-muted-foreground" />
-          <span>{node.name}</span>
-        </button>
-      )}
-
-      {(isExpanded || depth === 0) && (
-        <div className={depth > 0 ? "ml-4 border-l border-border pl-2" : ""}>
-          {/* Subfolders first */}
-          {subfolders.map((subfolder) => (
-            <FolderView
-              key={subfolder.name}
-              node={subfolder}
-              depth={depth + 1}
-              onFileSelect={onFileSelect}
-              selectedPath={selectedPath}
-              searchQuery={searchQuery}
-            />
-          ))}
-
-          {/* Then files */}
-          {filteredFiles.map((file) => (
-            <button
-              key={file.path}
-              onClick={() => onFileSelect(file)}
-              className={`flex items-center gap-2 w-full py-1.5 px-2 rounded text-left text-sm ${
-                selectedPath === file.path
-                  ? "bg-primary/20 text-primary"
-                  : "hover:bg-muted"
-              }`}
-            >
-              <FileTypeIcon type={file.file_type} />
-              <span className="flex-1 truncate">{file.name}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-export function ConfigEditor({ instanceId }: ConfigEditorProps) {
-  const { t } = useTranslation()
-  const [configFiles, setConfigFiles] = useState<ConfigFileInfo[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState("")
-
-  // Editor state
-  const [selectedFile, setSelectedFile] = useState<ConfigFileInfo | null>(null)
-  const [fileContent, setFileContent] = useState("")
-  const [originalContent, setOriginalContent] = useState("")
-  const [isLoadingContent, setIsLoadingContent] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-
-  // Unsaved changes dialog
-  const [showUnsavedDialog, setShowUnsavedDialog] = useState(false)
-  const [pendingFile, setPendingFile] = useState<ConfigFileInfo | null>(null)
-
-  // Editor mode (text or visual)
-  const [editorMode, setEditorMode] = useState<"visual" | "text">("visual")
-
-  // Check if visual mode is supported for this file type
-  const supportsVisualMode = selectedFile && ["json", "toml", "yaml", "properties"].includes(selectedFile.file_type)
-
-  const loadConfigFiles = useCallback(async () => {
-    setIsLoading(true)
-    try {
-      const files = await invoke<ConfigFileInfo[]>("get_instance_config_files", {
-        instanceId,
-      })
-      setConfigFiles(files)
-    } catch (err) {
-      console.error("Failed to load config files:", err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [instanceId])
-
-  useEffect(() => {
-    loadConfigFiles()
-  }, [loadConfigFiles])
-
-  useEffect(() => {
-    setHasUnsavedChanges(fileContent !== originalContent)
-  }, [fileContent, originalContent])
-
-  const loadFileContent = async (file: ConfigFileInfo) => {
-    setIsLoadingContent(true)
-    try {
-      const content = await invoke<string>("read_config_file", {
-        instanceId,
-        configPath: file.path,
-      })
-      setFileContent(content)
-      setOriginalContent(content)
-      setSelectedFile(file)
-    } catch (err) {
-      console.error("Failed to load config file:", err)
-      toast.error(`${t("config.loadError")}: ${err}`)
-    } finally {
-      setIsLoadingContent(false)
-    }
-  }
-
-  const handleFileSelect = (file: ConfigFileInfo) => {
-    if (hasUnsavedChanges) {
-      setPendingFile(file)
-      setShowUnsavedDialog(true)
-    } else {
-      loadFileContent(file)
-    }
-  }
-
-  const handleSave = async () => {
-    if (!selectedFile) return
-
-    setIsSaving(true)
-    try {
-      await invoke("save_config_file", {
-        instanceId,
-        configPath: selectedFile.path,
-        content: fileContent,
-      })
-      setOriginalContent(fileContent)
-      setHasUnsavedChanges(false)
-      toast.success(t("configEditor.configSaved"))
-    } catch (err) {
-      console.error("Failed to save config file:", err)
-      toast.error(`${t("config.saveError")}: ${err}`)
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleDiscardChanges = () => {
-    setShowUnsavedDialog(false)
-    if (pendingFile) {
-      loadFileContent(pendingFile)
-      setPendingFile(null)
-    }
-  }
-
-  const handleOpenFolder = async () => {
-    try {
-      await invoke("open_config_folder", { instanceId })
-    } catch (err) {
-      console.error("Failed to open config folder:", err)
-    }
-  }
-
-  const folderTree = buildFolderTree(configFiles)
-
-  return (
-    <div className="flex h-full gap-4">
-      {/* File tree sidebar */}
-      <div className="w-72 flex-shrink-0 border rounded-lg overflow-hidden flex flex-col">
-        <div className="p-2 border-b bg-muted/50">
-          <div className="flex gap-2 mb-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder={t("configEditor.search")}
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-8 h-8 text-sm"
-              />
-            </div>
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={loadConfigFiles}>
-              <RefreshCw className="h-4 w-4" />
-            </Button>
-          </div>
-          <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleOpenFolder}>
-            <FolderOpen className="h-4 w-4" />
-            {t("configEditor.openFolder")}
-          </Button>
-        </div>
-
-        <ScrollArea className="flex-1">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-            </div>
-          ) : configFiles.length === 0 ? (
-            <div className="text-center py-8 px-4">
-              <File className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-              <p className="text-sm text-muted-foreground">{t("configEditor.noConfigFile")}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {t("configEditor.launchGameForConfig")}
-              </p>
-            </div>
-          ) : (
-            <div className="p-2">
-              <FolderView
-                node={folderTree}
-                depth={0}
-                onFileSelect={handleFileSelect}
-                selectedPath={selectedFile?.path ?? null}
-                searchQuery={searchQuery}
-              />
-            </div>
-          )}
-        </ScrollArea>
-
-        <div className="p-2 border-t bg-muted/50 text-xs text-muted-foreground text-center">
-          {configFiles.length} {t("configEditor.files")}
-        </div>
-      </div>
-
-      {/* Editor panel */}
-      <div className="flex-1 border rounded-lg overflow-hidden flex flex-col">
-        {selectedFile ? (
-          <>
-            <div className="p-3 border-b bg-muted/50 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <FileTypeIcon type={selectedFile.file_type} />
-                <span className="font-medium text-sm truncate max-w-[200px]">{selectedFile.path}</span>
-                {hasUnsavedChanges && (
-                  <Badge variant="secondary" className="text-xs">
-                    {t("configEditor.notSaved")}
-                  </Badge>
-                )}
-              </div>
-              <div className="flex items-center gap-2">
-                {supportsVisualMode && (
-                  <div className="flex items-center border rounded-md">
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant={editorMode === "visual" ? "secondary" : "ghost"}
-                            size="sm"
-                            className="h-7 px-2 rounded-r-none"
-                            onClick={() => setEditorMode("visual")}
-                          >
-                            <Settings2 className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("configEditor.visualMode")}</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <Button
-                            variant={editorMode === "text" ? "secondary" : "ghost"}
-                            size="sm"
-                            className="h-7 px-2 rounded-l-none"
-                            onClick={() => setEditorMode("text")}
-                          >
-                            <Code className="h-4 w-4" />
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>{t("configEditor.textMode")}</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                )}
-                <span className="text-xs text-muted-foreground">
-                  {formatSize(selectedFile.size_bytes)}
-                </span>
-                <Button
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={isSaving || !hasUnsavedChanges}
-                  className="gap-1"
-                >
-                  {isSaving ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Save className="h-4 w-4" />
-                  )}
-                  {t("configEditor.saveBtn")}
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-hidden">
-              {isLoadingContent ? (
-                <div className="flex items-center justify-center h-full">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                </div>
-              ) : editorMode === "visual" && supportsVisualMode ? (
-                <VisualConfigEditor
-                  content={fileContent}
-                  fileType={selectedFile.file_type}
-                  onChange={setFileContent}
-                />
-              ) : (
-                <CodeEditor
-                  value={fileContent}
-                  onChange={setFileContent}
-                  language={getMonacoLanguage(selectedFile.file_type)}
-                />
-              )}
-            </div>
-          </>
-        ) : (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center">
-              <File className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">{t("configEditor.selectFileToEdit")}</p>
-              <p className="text-sm text-muted-foreground mt-1">
-                {t("configEditor.supportedFiles")}
-              </p>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Unsaved changes dialog */}
-      <Dialog open={showUnsavedDialog} onOpenChange={setShowUnsavedDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{t("configEditor.unsavedChangesTitle")}</DialogTitle>
-            <DialogDescription>
-              {t("configEditor.unsavedChangesDesc")}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowUnsavedDialog(false)}>
-              {t("common.cancel")}
-            </Button>
-            <Button variant="destructive" onClick={handleDiscardChanges}>
-              {t("configEditor.discardChanges")}
-            </Button>
-            <Button
-              onClick={async () => {
-                await handleSave()
-                setShowUnsavedDialog(false)
-                if (pendingFile) {
-                  loadFileContent(pendingFile)
-                  setPendingFile(null)
-                }
-              }}
-            >
-              {t("configEditor.saveAndContinue")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

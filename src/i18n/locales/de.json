@@ -489,11 +489,10 @@
     "restartOnboardingButton": "Neustart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Was ist neu in v0.6.6",
-    "whatsNewSystemCheck": "Systemanforderungsprüfung beim Start (Java + Cloudflare)",
-    "whatsNewSplashScreen": "Startbildschirm mit Kaizen-Logo und Ladeanimation",
-    "whatsNewHomeFooter": "Footer auf der Startseite mit GitHub-Links und nützlichen Informationen",
-    "whatsNewBackupIcons": "Backups zeigen jetzt Weltsymbole zur einfachen Identifizierung",
+    "whatsNew": "Was ist neu in v0.6.8",
+    "whatsNewPlaygroundCanvas": "Visueller Canvas für Modpack-Verwaltung (Beta-Zugang erforderlich)",
+    "whatsNewNodeSearch": "Schnellsuche (Ctrl+K) zum Finden und Fokussieren von Mods",
+    "whatsNewNeoForge": "NeoForge 1.20.1 Unterstützung - Legacy-API jetzt korrekt abgerufen",
     "devtools": "DevTools"
   },
   "devtools": {

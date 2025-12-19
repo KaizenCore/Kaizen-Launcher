@@ -105,4 +105,21 @@ impl Account {
             .await?;
         Ok(())
     }
+
+    pub async fn update_tokens(
+        db: &SqlitePool,
+        account_id: &str,
+        access_token: &str,
+        refresh_token: &str,
+    ) -> sqlx::Result<()> {
+        sqlx::query(
+            "UPDATE accounts SET access_token = ?, refresh_token = ? WHERE id = ?",
+        )
+        .bind(access_token)
+        .bind(refresh_token)
+        .bind(account_id)
+        .execute(db)
+        .await?;
+        Ok(())
+    }
 }

@@ -2,6 +2,55 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.6.8] - 2025-12-19
+
+### Added
+- **Playground Visual Canvas** - Complete visual workspace for modpack and server management (requires beta access)
+  - Display instance and mods as interconnected nodes with dependency edges
+  - React Flow-based canvas with pan, zoom, and drag support
+  - MiniMap for navigation and Controls for zoom
+  - Dynamic grid layout that adapts to mod count (4-10 columns)
+- **Node Search (Ctrl+K)** - Quick search dialog to find mods and nodes
+  - Keyboard navigation with arrow keys
+  - Press Enter to focus on selected node with smooth animation
+  - Search by mod name or instance
+- **Monaco Code Editor** - Professional code editor for mod config files
+  - Syntax highlighting for TOML, JSON, YAML, and properties files
+  - Custom themes (kaizen-dark, kaizen-light) following app theme
+  - TOML language registration for proper highlighting
+
+### Fixed
+- **NeoForge 1.20.1 Support** - Fixed NeoForge not showing versions for Minecraft 1.20.1
+  - Added support for the legacy NeoForge API (`net/neoforged/forge`) which is a fork of Forge
+  - The legacy API uses a different Maven repository than versions 1.20.2+ (`net/neoforged/neoforge`)
+  - Legacy versions follow the format `1.20.1-47.1.X` instead of `20.X.Y`
+  - Different installer URLs for legacy vs modern versions
+
+### Changed
+- **Compact Playground Console** - Redesigned console for sidebar integration
+  - Minimal toolbar with line count, pause/resume, and clear buttons
+  - Smaller font (10px) and reduced padding for compact display
+  - Supports ANSI and Minecraft color codes
+  - Server command input for server instances
+- **Auto-open Config Files** - First config file automatically opens when selecting a mod
+  - No manual click required - instant config loading
+  - Relevant files filtered by mod name
+- **Resizable Right Panel** - Drag to resize the context panel
+  - Width range: 280px to 600px
+  - Grip handle for intuitive resizing
+- **Toolbar Layout** - Converted left sidebar to compact horizontal toolbar
+  - Instance selector, status badges, and quick actions in header
+  - Edge-to-edge layout with negative margins
+
+### Technical
+- New `src/components/playground/PlaygroundConsole.tsx` - Compact console component
+- New `src/components/playground/PlaygroundSearch.tsx` - Search dialog with keyboard navigation
+- New `src/components/ui/code-editor.tsx` - Monaco Editor wrapper with custom themes
+- Modified `src/stores/playgroundStore.ts` - Added search state, focusNode action
+- Modified `src/components/playground/PlaygroundCanvas.tsx` - Added ReactFlowProvider, focus handling
+- Modified `src/components/playground/PlaygroundContextPanel.tsx` - Auto-load config, resizable panel
+- New translation keys for search functionality in all locales
+
 ## [0.6.7] - 2025-12-19
 
 ### Added

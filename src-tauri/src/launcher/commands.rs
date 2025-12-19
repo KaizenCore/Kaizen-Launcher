@@ -790,7 +790,8 @@ async fn install_neoforge_server(
     );
 
     // Download NeoForge installer
-    let installer_url = neoforge::get_installer_url(loader_version);
+    let is_legacy = neoforge::is_legacy_version(loader_version);
+    let installer_url = neoforge::get_installer_url(loader_version, is_legacy);
     tracing::info!(
         "[INSTALL] Downloading NeoForge installer from: {}",
         installer_url

@@ -61,6 +61,59 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.6.8",
+    date: "2025-12-19",
+    highlights: [
+      "Playground Visual Canvas",
+      "Node Search (Ctrl+K)",
+      "NeoForge 1.20.1 Fix",
+    ],
+    features: [
+      {
+        icon: <LayoutGrid className="h-5 w-5" />,
+        title: "Playground Visual Canvas",
+        description: "Complete visual canvas for modpack and server management. Display your instance and mods as interconnected nodes with dependency edges. Drag, zoom, and pan to explore your mod setup. Requires beta access.",
+        tag: "new",
+      },
+      {
+        icon: <Search className="h-5 w-5" />,
+        title: "Node Search (Ctrl+K)",
+        description: "Quick search to find any mod or node by name. Press Ctrl+K to open the search dialog, navigate with arrow keys, and press Enter to focus on the selected node with smooth animation.",
+        tag: "new",
+      },
+      {
+        icon: <FileCode className="h-5 w-5" />,
+        title: "Monaco Code Editor",
+        description: "Professional code editor for mod configuration files. Syntax highlighting for TOML, JSON, YAML, and properties files. Custom themes that follow your app theme (light/dark).",
+        tag: "new",
+      },
+      {
+        icon: <Terminal className="h-5 w-5" />,
+        title: "Compact Playground Console",
+        description: "Redesigned console for the sidebar with minimal toolbar, smaller font, and optimized layout. Supports ANSI and Minecraft color codes, pause/resume, and server commands.",
+        tag: "improved",
+      },
+      {
+        icon: <Settings className="h-5 w-5" />,
+        title: "Auto-open Config Files",
+        description: "When selecting a mod in the Playground, its configuration files are automatically loaded. No more clicking to open - the first config file opens instantly.",
+        tag: "improved",
+      },
+      {
+        icon: <Layout className="h-5 w-5" />,
+        title: "Resizable Right Panel",
+        description: "Drag the edge of the right panel to resize it between 280px and 600px. Your size preference is remembered across sessions.",
+        tag: "improved",
+      },
+      {
+        icon: <Blocks className="h-5 w-5" />,
+        title: "NeoForge 1.20.1 Support",
+        description: "Fixed NeoForge not showing versions for Minecraft 1.20.1. Added support for the legacy NeoForge API (fork of Forge) which uses a different Maven repository than versions 1.20.2+.",
+        tag: "fix",
+      },
+    ],
+  },
+  {
     version: "0.6.7",
     date: "2025-12-19",
     highlights: [

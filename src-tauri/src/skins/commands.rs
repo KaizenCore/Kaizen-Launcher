@@ -1,3 +1,4 @@
+use crate::auth::{microsoft, minecraft, xbox};
 use crate::db::accounts::Account;
 use crate::error::{AppError, AppResult};
 use crate::skins::{
@@ -5,6 +6,7 @@ use crate::skins::{
     SearchSkinsResponse, Skin, SkinVariant,
 };
 use crate::state::SharedState;
+use crate::crypto;
 use std::path::PathBuf;
 use tokio::fs;
 
@@ -16,6 +18,65 @@ fn is_offline_account(account: &Account) -> bool {
         || account.refresh_token == "offline"
         || account.access_token == "offline"
         || account.access_token.len() < 50
+}
+
+/// Refresh an account's Microsoft token and get a new Minecraft access token
+/// Returns the new decrypted Minecraft access token
+async fn refresh_account_token_internal(
+    state: &crate::state::AppState,
+    account: &Account,
+) -> AppResult<String> {
+    log::info!(
+        "[Skins] Attempting to refresh token for {}",
+        account.username
+    );
+
+    // Decrypt refresh token
+    let refresh_token = crypto::decrypt(&state.encryption_key, &account.refresh_token)
+        .map_err(|e| AppError::Skin(format!("Failed to decrypt refresh token: {}", e)))?;
+
+    // Refresh Microsoft token
+    let ms_token = microsoft::refresh_token(&state.http_client, &refresh_token)
+        .await
+        .map_err(|e| AppError::Skin(format!("Microsoft token refresh failed: {}", e)))?;
+
+    // Re-authenticate with Xbox Live
+    let xbox_token = xbox::authenticate_xbox_live(&state.http_client, &ms_token.access_token)
+        .await
+        .map_err(|e| AppError::Skin(format!("Xbox authentication failed: {}", e)))?;
+
+    // Get XSTS token
+    let xsts_token = xbox::get_xsts_token(&state.http_client, &xbox_token.token)
+        .await
+        .map_err(|e| AppError::Skin(format!("XSTS authentication failed: {}", e)))?;
+
+    // Get Minecraft token
+    let mc_token =
+        minecraft::authenticate_minecraft(&state.http_client, &xsts_token.user_hash, &xsts_token.token)
+            .await
+            .map_err(|e| AppError::Skin(format!("Minecraft authentication failed: {}", e)))?;
+
+    log::info!(
+        "[Skins] Token refreshed successfully for {}",
+        account.username
+    );
+
+    // Update tokens in database
+    let encrypted_access_token = crypto::encrypt(&state.encryption_key, &mc_token.access_token)
+        .map_err(|e| AppError::Skin(format!("Failed to encrypt access token: {}", e)))?;
+    let encrypted_refresh_token = crypto::encrypt(&state.encryption_key, &ms_token.refresh_token)
+        .map_err(|e| AppError::Skin(format!("Failed to encrypt refresh token: {}", e)))?;
+
+    Account::update_tokens(
+        &state.db,
+        &account.id,
+        &encrypted_access_token,
+        &encrypted_refresh_token,
+    )
+    .await
+    .map_err(|e| AppError::Skin(format!("Failed to update tokens in database: {}", e)))?;
+
+    Ok(mc_token.access_token)
 }
 
 /// Get current skin profile for an account
@@ -62,7 +123,7 @@ pub async fn get_skin_profile(
     let access_token = crate::crypto::decrypt(&state.encryption_key, &account.access_token)
         .map_err(|e| AppError::Skin(format!("Failed to decrypt token: {}", e)))?;
 
-    // Fetch from Mojang API
+    // Fetch from Mojang API (with auto-refresh on token expiration)
     let (current_skin, mojang_capes, current_cape) =
         match mojang::get_profile_skins(&state.http_client, &access_token).await {
             Ok(result) => {
@@ -74,13 +135,56 @@ pub async fn get_skin_profile(
                 result
             }
             Err(e) => {
-                // Token might be expired or invalid
-                log::warn!(
-                    "[Skins] Mojang API failed for {}: {}",
-                    account.username,
-                    e
-                );
-                (None, vec![], None)
+                // Check if token is expired
+                let error_str = e.to_string();
+                if error_str.contains("TOKEN_EXPIRED") {
+                    log::info!(
+                        "[Skins] Token expired for {}, attempting refresh...",
+                        account.username
+                    );
+
+                    // Try to refresh the token
+                    match refresh_account_token_internal(&state, &account).await {
+                        Ok(new_access_token) => {
+                            // Retry with new token
+                            match mojang::get_profile_skins(&state.http_client, &new_access_token)
+                                .await
+                            {
+                                Ok(result) => {
+                                    log::info!(
+                                        "[Skins] Mojang API succeeded after token refresh for {}",
+                                        account.username
+                                    );
+                                    result
+                                }
+                                Err(retry_err) => {
+                                    log::warn!(
+                                        "[Skins] Mojang API still failed after token refresh for {}: {}",
+                                        account.username,
+                                        retry_err
+                                    );
+                                    (None, vec![], None)
+                                }
+                            }
+                        }
+                        Err(refresh_err) => {
+                            log::warn!(
+                                "[Skins] Token refresh failed for {}: {}",
+                                account.username,
+                                refresh_err
+                            );
+                            (None, vec![], None)
+                        }
+                    }
+                } else {
+                    // Other error, just log and continue
+                    log::warn!(
+                        "[Skins] Mojang API failed for {}: {}",
+                        account.username,
+                        e
+                    );
+                    (None, vec![], None)
+                }
             }
         };
 

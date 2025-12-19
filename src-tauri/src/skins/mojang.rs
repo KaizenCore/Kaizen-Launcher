@@ -44,10 +44,16 @@ pub async fn get_profile_skins(
         .await
         .map_err(|e| AppError::Skin(format!("Failed to fetch profile: {}", e)))?;
 
-    if !response.status().is_success() {
+    let status = response.status();
+    if !status.is_success() {
         let error_text = response.text().await.unwrap_or_default();
+        // Return specific error for unauthorized (expired/invalid token)
+        if status == reqwest::StatusCode::UNAUTHORIZED {
+            return Err(AppError::Skin("TOKEN_EXPIRED".to_string()));
+        }
         return Err(AppError::Skin(format!(
-            "Profile fetch failed: {}",
+            "Profile fetch failed ({}): {}",
+            status,
             error_text
         )));
     }

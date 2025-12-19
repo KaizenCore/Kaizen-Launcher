@@ -286,7 +286,8 @@ async fn install_neoforge(
     );
 
     // Download installer JAR
-    let installer_url = neoforge::get_installer_url(loader_version);
+    let is_legacy = neoforge::is_legacy_version(loader_version);
+    let installer_url = neoforge::get_installer_url(loader_version, is_legacy);
     let installer_bytes = download_installer_bytes(client, &installer_url).await?;
 
     emit_loader_progress(
