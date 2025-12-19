@@ -20,6 +20,7 @@ import { useDevModeStore } from "@/stores/devModeStore"
 import { useTheme } from "@/hooks/useTheme"
 import { useUpdateChecker } from "@/hooks/useUpdateChecker"
 import { useTranslation } from "@/i18n"
+import { useKaizenStore, PERMISSIONS } from "@/stores/kaizenStore"
 
 // Set up console interception to send logs to backend buffer
 // This runs once at module load to capture all console output
@@ -105,6 +106,7 @@ const Skins = lazy(() => import("@/pages/Skins").then(m => ({ default: m.Skins }
 const Schematics = lazy(() => import("@/pages/Schematics").then(m => ({ default: m.Schematics })))
 const CreateServerFromClient = lazy(() => import("@/pages/CreateServerFromClient").then(m => ({ default: m.CreateServerFromClient })))
 const LogViewer = lazy(() => import("@/pages/LogViewer"))
+const Playground = lazy(() => import("@/pages/Playground"))
 
 // Loading fallback for lazy components
 function PageLoader() {
@@ -127,6 +129,8 @@ function App() {
     setHasCheckedThisSession,
   } = useSystemCheckStore()
   const { enabled: devModeEnabled, load: loadDevMode, openLogViewer } = useDevModeStore()
+  const { hasPermission: hasKaizenPermission, loadActiveAccount: loadKaizenAccount } = useKaizenStore()
+  const hasDevPermission = hasKaizenPermission(PERMISSIONS.DEV)
   const { resolvedTheme } = useTheme()
   const {
     updateAvailable,
@@ -203,25 +207,25 @@ function App() {
     if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
       const key = e.key.toLowerCase()
 
-      // Ctrl+Shift+D: Toggle DevMonitor
-      if (key === "d") {
+      // Ctrl+Shift+D: Toggle DevMonitor (requires launcher.dev permission)
+      if (key === "d" && hasDevPermission) {
         e.preventDefault()
         setDevMonitorVisible(prev => !prev)
       }
 
-      // Ctrl+Shift+B: Open Bug Report (only if dev mode enabled)
-      if (key === "b" && devModeEnabled) {
+      // Ctrl+Shift+B: Open Bug Report (requires launcher.dev permission + dev mode enabled)
+      if (key === "b" && hasDevPermission && devModeEnabled) {
         e.preventDefault()
         setBugReportOpen(true)
       }
 
-      // Ctrl+Shift+L: Open Log Viewer (only if dev mode enabled)
-      if (key === "l" && devModeEnabled) {
+      // Ctrl+Shift+L: Open Log Viewer (requires launcher.dev permission + dev mode enabled)
+      if (key === "l" && hasDevPermission && devModeEnabled) {
         e.preventDefault()
         openLogViewer().catch(console.error)
       }
     }
-  }, [devModeEnabled, openLogViewer])
+  }, [hasDevPermission, devModeEnabled, openLogViewer])
 
   useEffect(() => {
     window.addEventListener("keydown", handleKeyDown)
@@ -265,13 +269,15 @@ function App() {
       try {
         await invoke("sync_kaizen_accounts")
         console.log("[KAIZEN] Accounts synced successfully")
+        // Load account into store after sync
+        await loadKaizenAccount()
       } catch (err) {
         console.error("[KAIZEN] Failed to sync accounts:", err)
       }
     }
 
     syncKaizenAccounts()
-  }, [])
+  }, [loadKaizenAccount])
 
   return (
     <>
@@ -300,6 +306,7 @@ function App() {
             <Route path="skins" element={<Suspense fallback={<PageLoader />}><Skins /></Suspense>} />
             <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
             <Route path="changelog" element={<Suspense fallback={<PageLoader />}><Changelog /></Suspense>} />
+            <Route path="playground" element={<Suspense fallback={<PageLoader />}><Playground /></Suspense>} />
           </Route>
         </Routes>
         <MajorUpdateDialog />
@@ -340,14 +347,18 @@ function App() {
         onDownload={downloadAndInstall}
         onDismiss={dismissUpdate}
       />
-      <DevMonitor
-        visible={devMonitorVisible}
-        onClose={() => setDevMonitorVisible(false)}
-      />
-      <BugReportDialog
-        open={bugReportOpen}
-        onOpenChange={setBugReportOpen}
-      />
+      {hasDevPermission && (
+        <DevMonitor
+          visible={devMonitorVisible}
+          onClose={() => setDevMonitorVisible(false)}
+        />
+      )}
+      {hasDevPermission && (
+        <BugReportDialog
+          open={bugReportOpen}
+          onOpenChange={setBugReportOpen}
+        />
+      )}
     </>
   )
 }

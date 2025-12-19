@@ -2,6 +2,39 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.6.7] - 2025-12-19
+
+### Added
+- **Kaizen Permissions System** - New permission-based access control for launcher features
+  - Four launcher permissions: `launcher.beta`, `launcher.dev`, `launcher.early_access`, `launcher.exclusive`
+  - Permissions synced from Kaizen account tags
+  - New Zustand store (`kaizenStore.ts`) for managing account state and permissions
+  - `usePermission`, `useAnyPermission`, `useAllPermissions` hooks for easy permission checks
+  - `RequirePermission`, `PermissionBadge`, `PermissionGate` components for conditional rendering
+- **Playground Page (Beta)** - New experimental page for upcoming features
+  - Requires `launcher.beta` permission to access
+  - Currently displays "Coming Soon" placeholder for Instance Builder
+  - Hidden from sidebar for users without beta permission
+
+### Changed
+- **DevTools Access Control** - DevTools now require `launcher.dev` permission
+  - DevTools tab hidden from Settings if user lacks permission
+  - Keyboard shortcuts (Ctrl+Shift+D/B/L) disabled without permission
+  - DevMonitor and BugReportDialog components conditionally rendered
+  - New "Feature Permissions" section showing all 4 launcher permissions with visual status
+- **React StrictMode Disabled** - Removed StrictMode wrapper to prevent double API calls in development
+
+### Technical
+- New `src/stores/kaizenStore.ts` - Zustand store for Kaizen account and permissions
+- New `src/hooks/usePermission.ts` - Permission checking hooks
+- New `src/components/permissions/RequirePermission.tsx` - Permission UI components
+- New `src/pages/Playground.tsx` - Playground page component
+- Modified `src/App.tsx` - Added permission checks for DevTools, loads Kaizen account on startup
+- Modified `src/pages/Settings.tsx` - DevTools tab conditionally rendered based on permission
+- Modified `src/components/layout/Sidebar.tsx` - Added Playground nav item
+- Modified `src/main.tsx` - Removed React.StrictMode wrapper
+- New translation keys for permissions and playground in all locales
+
 ## [0.6.6] - 2025-12-18
 
 ### Added

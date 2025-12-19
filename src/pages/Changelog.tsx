@@ -42,6 +42,7 @@ import {
   PartyPopper,
   Paintbrush,
   Star,
+  FlaskConical,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -59,6 +60,41 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.6.7",
+    date: "2025-12-19",
+    highlights: [
+      "Permissions System",
+      "Playground Page",
+      "Dev Tools Access Control",
+    ],
+    features: [
+      {
+        icon: <Shield className="h-5 w-5" />,
+        title: "Kaizen Permissions System",
+        description: "New permission-based access control system. Features can be locked behind permissions like launcher.beta, launcher.dev, launcher.early_access, and launcher.exclusive. Permissions are synced from your Kaizen account.",
+        tag: "new",
+      },
+      {
+        icon: <FlaskConical className="h-5 w-5" />,
+        title: "Playground Page (Beta)",
+        description: "New experimental page for upcoming features like the Instance Builder. Requires launcher.beta permission to access. Currently displays a coming soon placeholder.",
+        tag: "new",
+      },
+      {
+        icon: <Terminal className="h-5 w-5" />,
+        title: "Dev Tools Access Control",
+        description: "DevTools tab in Settings now requires launcher.dev permission. Includes a new Feature Permissions section to view and test all your Kaizen permissions with visual status indicators.",
+        tag: "improved",
+      },
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "React StrictMode Disabled",
+        description: "Disabled React StrictMode to prevent double API calls in development. This eliminates duplicate requests that were caused by React's development-only double-mounting behavior.",
+        tag: "improved",
+      },
+    ],
+  },
   {
     version: "0.6.6",
     date: "2025-12-18",

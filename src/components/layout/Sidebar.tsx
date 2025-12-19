@@ -13,9 +13,11 @@ import {
   Share2,
   Palette,
   Boxes,
+  FlaskConical,
   type LucideIcon
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
+import { usePermission, PERMISSIONS } from "@/hooks/usePermission"
 import { cn } from "@/lib/utils"
 import { Separator } from "@/components/ui/separator"
 import {
@@ -120,6 +122,7 @@ function NavItemWithBadge({ to, icon: Icon, label, badge, exact = false }: NavIt
 export function Sidebar() {
   const { t } = useTranslation()
   const location = useLocation()
+  const { hasPermission: hasBetaPermission } = usePermission(PERMISSIONS.BETA)
   const [activeAccount, setActiveAccount] = useState<Account | null>(null)
   const activeSeedsCount = useSharingStore((state) => state.activeSeeds.size)
   const syncSharing = useSharingStore((state) => state.syncWithBackend)
@@ -206,6 +209,9 @@ export function Sidebar() {
           <NavItem to="/backups" icon={Archive} label={t("nav.backups")} />
           <NavItem to="/schematics" icon={Boxes} label={t("nav.schematics")} exact />
           <NavItemWithBadge to="/sharing" icon={Share2} label={t("nav.sharing")} badge={activeSeedsCount} exact />
+          {hasBetaPermission && (
+            <NavItem to="/playground" icon={FlaskConical} label={t("nav.playground")} exact />
+          )}
         </nav>
 
         {/* Spacer */}

@@ -20,6 +20,7 @@ import { DiscordConfig } from "@/components/integrations/DiscordConfig"
 import { DevToolsSettings } from "@/components/settings/DevToolsSettings"
 import { useUpdateChecker } from "@/hooks/useUpdateChecker"
 import { useOnboardingStore } from "@/stores/onboardingStore"
+import { usePermission, PERMISSIONS } from "@/hooks/usePermission"
 
 interface JavaInstallation {
   version: string
@@ -79,6 +80,7 @@ export function Settings() {
   console.log("[Settings] Page rendered")
   const { theme, setTheme } = useTheme()
   const { t, locale, setLocale, availableLocales } = useTranslation()
+  const { hasPermission: hasDevPermission } = usePermission(PERMISSIONS.DEV)
 
   // Update checker - manualCheckForUpdates shows ALL updates (including dev/patch versions)
   const { checking, manualCheckForUpdates, updateInfo, updateAvailable, downloadAndInstall, installing, downloadProgress } = useUpdateChecker(false)
@@ -314,7 +316,7 @@ export function Settings() {
 
       {/* Tabs */}
       <Tabs defaultValue="appearance" className="flex-1 flex flex-col min-h-0">
-        <TabsList className="grid w-full grid-cols-7 shrink-0">
+        <TabsList className={cn("grid w-full shrink-0", hasDevPermission ? "grid-cols-7" : "grid-cols-6")}>
           <TabsTrigger value="appearance" className="gap-2">
             <Palette className="h-4 w-4" />
             {t("settings.appearance")}
@@ -335,10 +337,12 @@ export function Settings() {
             <MessageSquare className="h-4 w-4" />
             {t("settings.discord")}
           </TabsTrigger>
-          <TabsTrigger value="devtools" className="gap-2">
-            <Terminal className="h-4 w-4" />
-            {t("settings.devtools")}
-          </TabsTrigger>
+          {hasDevPermission && (
+            <TabsTrigger value="devtools" className="gap-2">
+              <Terminal className="h-4 w-4" />
+              {t("settings.devtools")}
+            </TabsTrigger>
+          )}
           <TabsTrigger value="about" className="gap-2">
             <Info className="h-4 w-4" />
             {t("settings.about")}
@@ -871,9 +875,11 @@ export function Settings() {
         </TabsContent>
 
         {/* DevTools Tab */}
-        <TabsContent value="devtools" className="mt-6 flex-1 overflow-y-auto min-h-0">
-          <DevToolsSettings />
-        </TabsContent>
+        {hasDevPermission && (
+          <TabsContent value="devtools" className="mt-6 flex-1 overflow-y-auto min-h-0">
+            <DevToolsSettings />
+          </TabsContent>
+        )}
 
         {/* About Tab */}
         <TabsContent value="about" className="mt-6 space-y-6 flex-1 overflow-y-auto min-h-0">
@@ -956,14 +962,13 @@ export function Settings() {
                 <div className="flex items-center gap-2">
                   <Newspaper className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">{t("settings.whatsNew")}</span>
-                  <span className="text-xs bg-gradient-to-r from-primary to-purple-500 text-white px-2 py-0.5 rounded-full">v0.6.6</span>
+                  <span className="text-xs bg-gradient-to-r from-primary to-purple-500 text-white px-2 py-0.5 rounded-full">v0.6.7</span>
                 </div>
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <ul className="list-disc list-inside space-y-1">
-                    <li>{t("settings.whatsNewKaizenAccount")}</li>
-                    <li>{t("settings.whatsNewBadgesPermissions")}</li>
-                    <li>{t("settings.whatsNewSystemCheck")}</li>
-                    <li>{t("settings.whatsNewSplashScreen")}</li>
+                    <li>{t("settings.whatsNewPermissions")}</li>
+                    <li>{t("settings.whatsNewPlayground")}</li>
+                    <li>{t("settings.whatsNewDevToolsAccess")}</li>
                   </ul>
                 </div>
               </div>

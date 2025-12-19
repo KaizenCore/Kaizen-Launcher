@@ -6,9 +6,15 @@ import {
   ExternalLink,
   Loader2,
   Check,
+  X,
   AlertCircle,
   Send,
   Keyboard,
+  Beaker,
+  Code2,
+  Rocket,
+  Crown,
+  Shield,
 } from "lucide-react";
 import {
   Card,
@@ -25,6 +31,8 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useTranslation } from "@/i18n";
 import { useDevModeStore } from "@/stores/devModeStore";
+import { useKaizenPermissions, PERMISSIONS } from "@/hooks/usePermission";
+import { PermissionGate } from "@/components/permissions/RequirePermission";
 
 export function DevToolsSettings() {
   const { t } = useTranslation();
@@ -39,9 +47,49 @@ export function DevToolsSettings() {
     openLogViewer,
   } = useDevModeStore();
 
+  const {
+    loading: permissionsLoading,
+    hasPermission,
+  } = useKaizenPermissions();
+
   const [webhookInput, setWebhookInput] = useState("");
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
+
+  const permissionCards = [
+    {
+      permission: PERMISSIONS.BETA,
+      icon: Beaker,
+      title: t("playground.betaFeatures"),
+      description: t("playground.betaFeaturesDesc"),
+      color: "text-purple-500",
+      bgColor: "bg-purple-500/10",
+    },
+    {
+      permission: PERMISSIONS.DEV,
+      icon: Code2,
+      title: t("playground.devTools"),
+      description: t("playground.devToolsDesc"),
+      color: "text-blue-500",
+      bgColor: "bg-blue-500/10",
+    },
+    {
+      permission: PERMISSIONS.EARLY_ACCESS,
+      icon: Rocket,
+      title: t("playground.earlyAccess"),
+      description: t("playground.earlyAccessDesc"),
+      color: "text-orange-500",
+      bgColor: "bg-orange-500/10",
+    },
+    {
+      permission: PERMISSIONS.EXCLUSIVE,
+      icon: Crown,
+      title: t("playground.exclusiveContent"),
+      description: t("playground.exclusiveContentDesc"),
+      color: "text-yellow-500",
+      bgColor: "bg-yellow-500/10",
+    },
+  ];
 
   useEffect(() => {
     load();
@@ -273,6 +321,62 @@ export function DevToolsSettings() {
           </Card>
         </>
       )}
+
+      {/* Feature Permissions Preview */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-lg bg-primary/10">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-lg">{t("devtools.permissionsPreview")}</CardTitle>
+              <CardDescription>{t("devtools.permissionsPreviewDesc")}</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            {permissionCards.map(({ permission, icon: Icon, title, description, color, bgColor }) => (
+              <Card key={permission} className="overflow-hidden">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${bgColor}`}>
+                        <Icon className={`h-5 w-5 ${color}`} />
+                      </div>
+                      <CardTitle className="text-base">{title}</CardTitle>
+                    </div>
+                    {permissionsLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    ) : hasPermission(permission) ? (
+                      <Badge className="bg-green-500/10 text-green-500 border-green-500/20">
+                        <Check className="h-3 w-3 mr-1" />
+                        {t("permissions.granted")}
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary" className="text-muted-foreground">
+                        <X className="h-3 w-3 mr-1" />
+                        {t("permissions.denied")}
+                      </Badge>
+                    )}
+                  </div>
+                  <CardDescription>{description}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <PermissionGate permission={permission}>
+                    <div className="p-4 rounded-lg bg-muted/50 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        {t("devtools.featureContentPlaceholder")}
+                      </p>
+                    </div>
+                  </PermissionGate>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
