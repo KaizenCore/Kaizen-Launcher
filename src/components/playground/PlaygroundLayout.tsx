@@ -25,10 +25,14 @@ export function PlaygroundLayout() {
   useEffect(() => {
     const panel = leftPanelRef.current;
     if (panel) {
-      if (leftPanelCollapsed) {
-        panel.collapse();
-      } else {
-        panel.expand();
+      try {
+        if (leftPanelCollapsed) {
+          panel.collapse();
+        } else {
+          panel.expand();
+        }
+      } catch {
+        // Panel not yet registered in Group, ignore
       }
     }
   }, [leftPanelCollapsed, leftPanelRef]);
@@ -36,10 +40,14 @@ export function PlaygroundLayout() {
   useEffect(() => {
     const panel = rightPanelRef.current;
     if (panel) {
-      if (rightPanelCollapsed) {
-        panel.collapse();
-      } else {
-        panel.expand();
+      try {
+        if (rightPanelCollapsed) {
+          panel.collapse();
+        } else {
+          panel.expand();
+        }
+      } catch {
+        // Panel not yet registered in Group, ignore
       }
     }
   }, [rightPanelCollapsed, rightPanelRef]);

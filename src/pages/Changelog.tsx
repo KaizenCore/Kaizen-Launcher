@@ -70,6 +70,35 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.7.1",
+    date: "2025-12-21",
+    highlights: [
+      "Skin Viewer Cache",
+      "Bug Fixes",
+      "Performance",
+    ],
+    features: [
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "Skin Viewer Cache",
+        description: "New skinStore with 5-minute caching for skin profiles and favorites. Instant page loads when returning to Skins page, with automatic cache invalidation and optimistic UI updates.",
+        tag: "new",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Playground Panel Error Fix",
+        description: "Fixed 'Group not found' error when navigating away and back to Playground. Panel expand/collapse now handles stale refs gracefully.",
+        tag: "fix",
+      },
+      {
+        icon: <Terminal className="h-5 w-5" />,
+        title: "Console Log Cleanup",
+        description: "Removed excessive '[App] Kaizen Launcher initializing...' logs that were spamming the console on every re-render.",
+        tag: "fix",
+      },
+    ],
+  },
+  {
     version: "0.7.0",
     date: "2025-12-21",
     isMajor: true,

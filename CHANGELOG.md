@@ -2,6 +2,23 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.7.1] - 2025-12-21
+
+### Added
+- **Skin Viewer Cache** - New `skinStore` with 5-minute caching for skin profiles and favorites
+  - Instant page loads when returning to Skins page within cache window
+  - Automatic cache invalidation when account changes
+  - Force refresh after skin uploads/applies
+  - Optimistic UI updates for favorites (instant feedback)
+
+### Fixed
+- **Playground Panel Error** - Fixed "Group not found" error when navigating away and back to Playground
+  - Added try-catch for panel expand/collapse operations during component remounting
+  - Prevents crash when panel refs become stale
+- **Console Log Spam** - Removed excessive "[App] Kaizen Launcher initializing..." logs
+  - Log was in component body causing spam on every re-render
+  - Cleaner console output for debugging
+
 ## [0.7.0] - 2025-12-21
 
 ### Security

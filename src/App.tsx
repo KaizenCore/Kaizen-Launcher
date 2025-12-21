@@ -118,7 +118,6 @@ function PageLoader() {
 }
 
 function App() {
-  console.log("[App] Kaizen Launcher initializing...")
   const { t } = useTranslation()
   const { completed, setCompleted } = useOnboardingStore()
   const {

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { invoke } from "@tauri-apps/api/core"
+import { useSkinStore } from "@/stores/skinStore"
 import { open, save } from "@tauri-apps/plugin-dialog"
 import { writeFile } from "@tauri-apps/plugin-fs"
 import {
@@ -68,17 +69,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-// Safe account info from backend - NO TOKENS (security)
-interface Account {
-  id: string
-  uuid: string
-  username: string
-  skin_url: string | null
-  is_active: boolean
-  has_valid_token: boolean
-  is_offline: boolean
-}
-
+// Local types for API responses and components
 interface Skin {
   id: string
   name: string
@@ -120,9 +111,21 @@ export function Skins() {
   const { t } = useTranslation()
   const { resolvedTheme } = useTheme()
   const viewerRef = useRef<SkinViewer3DRef>(null)
-  const [activeAccount, setActiveAccount] = useState<Account | null>(null)
-  const [profile, setProfile] = useState<PlayerSkinProfile | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+
+  // Use cached skin store
+  const {
+    activeAccount,
+    profile,
+    setProfile,
+    favorites,
+    favoritedIds,
+    isLoading,
+    isLoadingFavorites,
+    loadProfile,
+    loadFavorites,
+    addFavorite: addFavoriteToStore,
+    removeFavorite: removeFavoriteFromStore,
+  } = useSkinStore()
   const [isApplying, setIsApplying] = useState(false)
   const [selectedCapeId, setSelectedCapeId] = useState<string | null>(null)
   const [previewCapeId, setPreviewCapeId] = useState<string | null>(null)
@@ -259,10 +262,7 @@ export function Skins() {
   const [searchPage, setSearchPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
 
-  // Favorites state
-  const [favorites, setFavorites] = useState<FavoriteSkin[]>([])
-  const [favoritedIds, setFavoritedIds] = useState<Set<string>>(new Set())
-  const [isLoadingFavorites, setIsLoadingFavorites] = useState(false)
+  // Favorites state - managed by skinStore
 
   // Upload tab state
   const [uploadUrl, setUploadUrl] = useState("")
@@ -279,65 +279,18 @@ export function Skins() {
 
   const isOfflineAccount = activeAccount?.is_offline ?? false
 
-  // Load active account and profile
-  const loadProfile = useCallback(async () => {
-    console.log("[Skins] Loading skin profile...")
-    setIsLoading(true)
-    try {
-      const account = await invoke<Account | null>("get_active_account")
-      setActiveAccount(account)
-
-      if (account) {
-        console.log(`[Skins] Loading profile for account: ${account.username}`)
-        try {
-          const skinProfile = await invoke<PlayerSkinProfile>("get_skin_profile", {
-            accountId: account.id,
-          })
-          console.log(`[Skins] Profile loaded, ${skinProfile.available_capes?.length || 0} capes available`)
-          setProfile(skinProfile)
-          setSelectedCapeId(skinProfile.current_cape?.id || null)
-        } catch (profileErr) {
-          // API might fail for offline accounts or expired tokens - that's ok
-          console.warn("[Skins] Failed to load skin profile:", profileErr)
-          setProfile({
-            uuid: account.uuid,
-            username: account.username,
-            current_skin: null,
-            available_capes: [],
-            current_cape: null,
-          })
-        }
-      }
-    } catch (err) {
-      console.error("[Skins] Failed to load account:", err)
-    } finally {
-      setIsLoading(false)
-    }
-  }, [])
-
+  // Load profile and favorites from store (with caching)
   useEffect(() => {
     loadProfile()
-  }, [loadProfile])
-
-  // Load favorites
-  const loadFavorites = useCallback(async () => {
-    console.log("[Skins] Loading favorite skins...")
-    setIsLoadingFavorites(true)
-    try {
-      const favs = await invoke<FavoriteSkin[]>("get_favorite_skins")
-      console.log(`[Skins] Loaded ${favs.length} favorite skins`)
-      setFavorites(favs)
-      setFavoritedIds(new Set(favs.map((f) => f.skin_id)))
-    } catch (err) {
-      console.error("[Skins] Failed to load favorites:", err)
-    } finally {
-      setIsLoadingFavorites(false)
-    }
-  }, [])
-
-  useEffect(() => {
     loadFavorites()
-  }, [loadFavorites])
+  }, [loadProfile, loadFavorites])
+
+  // Sync selectedCapeId when profile loads
+  useEffect(() => {
+    if (profile?.current_cape?.id) {
+      setSelectedCapeId(profile.current_cape.id)
+    }
+  }, [profile])
 
   // Add skin to favorites
   const handleAddFavorite = async (skin: CommunitySkin) => {
@@ -353,7 +306,7 @@ export function Skins() {
 
     console.log(`[Skins] Adding to favorites: ${skin.name}`)
     try {
-      await invoke("add_favorite_skin", {
+      const result = await invoke<FavoriteSkin>("add_favorite_skin", {
         skinId: skin.id,
         name: skin.name,
         url: skin.url,
@@ -363,8 +316,9 @@ export function Skins() {
         author: skin.author || null,
       })
       console.log(`[Skins] Added to favorites: ${skin.name}`)
+      // Optimistic update in store
+      addFavoriteToStore(result)
       toast.success(t("skins.addedToFavorites"))
-      loadFavorites()
     } catch (err) {
       console.error("[Skins] Failed to add favorite:", err)
       toast.error(t("skins.addToFavoritesError"))
@@ -374,11 +328,18 @@ export function Skins() {
   // Remove skin from favorites
   const handleRemoveFavorite = async (id: string) => {
     console.log(`[Skins] Removing favorite with id: ${id}`)
+    // Find the skin_id before removing
+    const favorite = favorites.find((f) => f.id === id)
+    const skinId = favorite?.skin_id
+
     try {
       await invoke("remove_favorite_skin", { id })
       console.log(`[Skins] Favorite removed: ${id}`)
+      // Optimistic update in store
+      if (skinId) {
+        removeFavoriteFromStore(skinId)
+      }
       toast.success(t("skins.removedFromFavorites"))
-      loadFavorites()
     } catch (err) {
       console.error("[Skins] Failed to remove favorite:", err)
       toast.error(t("skins.removeFromFavoritesError"))
@@ -480,7 +441,7 @@ export function Skins() {
       console.log(`[Skins] Skin applied successfully: ${skinToApply.name}`)
       toast.success(t("skins.skinApplied"))
       setSkinToApply(null)
-      loadProfile()
+      loadProfile(true) // Force refresh after applying skin
     } catch (err) {
       console.error("[Skins] Failed to apply skin:", err)
       toast.error(t("skins.skinApplyError"))
@@ -499,7 +460,7 @@ export function Skins() {
       await invoke("reset_skin", { accountId: activeAccount.id })
       console.log("[Skins] Skin reset successfully")
       toast.success(t("skins.skinReset"))
-      loadProfile()
+      loadProfile(true) // Force refresh after reset
     } catch (err) {
       console.error("[Skins] Failed to reset skin:", err)
       toast.error(t("skins.skinApplyError"))
@@ -584,7 +545,7 @@ export function Skins() {
         })
         console.log("[Skins] Skin uploaded successfully from file")
         toast.success(t("skins.uploadSuccess"))
-        loadProfile()
+        loadProfile(true) // Force refresh after upload
       }
     } catch (err) {
       console.error("[Skins] Failed to upload skin:", err)
@@ -609,7 +570,7 @@ export function Skins() {
       console.log("[Skins] Skin uploaded successfully from URL")
       toast.success(t("skins.uploadSuccess"))
       setUploadUrl("")
-      loadProfile()
+      loadProfile(true) // Force refresh after upload
     } catch (err) {
       console.error("[Skins] Failed to upload skin from URL:", err)
       toast.error(t("skins.uploadError"))
@@ -673,7 +634,7 @@ export function Skins() {
   // Cape URLs from Mojang API should work if they're from the same origin or support CORS
   // Use previewCapeId if set (for third-party cape preview), otherwise use selectedCapeId
   const displayCapeId = previewCapeId || selectedCapeId
-  const currentCapeUrl = profile?.available_capes?.find(c => c.id === displayCapeId)?.url
+  const currentCapeUrl = profile?.available_capes?.find((c: Cape) => c.id === displayCapeId)?.url
 
   if (isLoading) {
     return (
