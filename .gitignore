@@ -40,3 +40,4 @@ dist-builds/
 
 # Tauri build cache
 src-tauri/target/
+nul

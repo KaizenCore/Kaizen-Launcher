@@ -1,15 +1,15 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { invoke } from "@tauri-apps/api/core";
-import type { Node } from "@xyflow/react";
 import type {
   Instance,
   ModInfoWithDependencies,
   ModValidationResult,
-  RightPanelMode,
   PlaygroundSettings,
-  ConfigNodeData,
 } from "@/types/playground";
+
+// Details panel tab types
+export type DetailsTab = "details" | "dependencies" | "config" | "instance";
 
 interface PlaygroundState {
   // Data
@@ -21,39 +21,47 @@ interface PlaygroundState {
   isRunning: boolean;
   isInstalled: boolean;
 
-  // Canvas
-  selectedNodeId: string | null;
-  hoveredNodeId: string | null;
-  configNodes: Node<ConfigNodeData>[];
-  focusNodeId: string | null; // Node to focus/center on
+  // Selection
+  selectedModFilename: string | null;
+  selectedMods: Set<string>; // for multi-select batch operations
+
+  // Panel state
+  leftPanelCollapsed: boolean;
+  rightPanelCollapsed: boolean;
+  activeDetailsTab: DetailsTab;
 
   // UI
-  rightPanelMode: RightPanelMode;
   searchQuery: string;
-  showOptionalDeps: boolean;
   isSearchOpen: boolean;
 
   // Actions
   loadInstance: (id: string) => Promise<void>;
   clearInstance: () => void;
   refreshMods: () => Promise<void>;
-  selectNode: (id: string | null) => void;
-  setHoveredNode: (id: string | null) => void;
-  setRightPanelMode: (mode: RightPanelMode) => void;
-  setSearchQuery: (query: string) => void;
+
+  // Selection actions
+  selectMod: (filename: string | null) => void;
+  toggleModSelection: (filename: string) => void;
+  selectAllMods: () => void;
+  clearModSelection: () => void;
+
+  // Panel actions
+  toggleLeftPanel: () => void;
+  toggleRightPanel: () => void;
+  setActiveDetailsTab: (tab: DetailsTab) => void;
+
+  // Mod actions
   toggleMod: (filename: string, enabled: boolean) => Promise<void>;
   deleteMod: (filename: string) => Promise<void>;
   validateConfiguration: () => Promise<void>;
+
+  // Status actions
   setRunningStatus: (isRunning: boolean) => void;
   setInstalledStatus: (isInstalled: boolean) => void;
-  toggleOptionalDeps: () => void;
-  addConfigNode: (node: Node<ConfigNodeData>) => void;
-  removeConfigNode: (nodeId: string) => void;
-  updateConfigNodePosition: (nodeId: string, position: { x: number; y: number }) => void;
-  updateConfigNodeSize: (nodeId: string, width: number, height: number) => void;
+
+  // Search
+  setSearchQuery: (query: string) => void;
   setSearchOpen: (open: boolean) => void;
-  focusNode: (nodeId: string) => void;
-  clearFocusNode: () => void;
 }
 
 // Separate persisted settings store
@@ -88,13 +96,18 @@ export const usePlaygroundStore = create<PlaygroundState>()((set, get) => ({
   isLoading: false,
   isRunning: false,
   isInstalled: false,
-  selectedNodeId: null,
-  hoveredNodeId: null,
-  configNodes: [],
-  focusNodeId: null,
-  rightPanelMode: "console",
+
+  // Selection
+  selectedModFilename: null,
+  selectedMods: new Set(),
+
+  // Panels
+  leftPanelCollapsed: false,
+  rightPanelCollapsed: false,
+  activeDetailsTab: "details",
+
+  // UI
   searchQuery: "",
-  showOptionalDeps: true,
   isSearchOpen: false,
 
   loadInstance: async (id: string) => {
@@ -119,7 +132,7 @@ export const usePlaygroundStore = create<PlaygroundState>()((set, get) => ({
 
       set({ instance, isInstalled, isRunning });
 
-      // Fetch mods (using existing command for now, will be replaced with dependencies version)
+      // Fetch mods
       const mods = await invoke<ModInfoWithDependencies[]>("get_instance_mods", {
         instanceId: id,
       });
@@ -151,8 +164,8 @@ export const usePlaygroundStore = create<PlaygroundState>()((set, get) => ({
       validation: null,
       isRunning: false,
       isInstalled: false,
-      selectedNodeId: null,
-      configNodes: [],
+      selectedModFilename: null,
+      selectedMods: new Set(),
     });
   },
 
@@ -179,20 +192,50 @@ export const usePlaygroundStore = create<PlaygroundState>()((set, get) => ({
     }
   },
 
-  selectNode: (id) => {
-    set({ selectedNodeId: id });
-    // If a mod is selected, show details panel
-    if (id && id !== "instance") {
-      set({ rightPanelMode: "details" });
+  // Selection actions
+  selectMod: (filename) => {
+    set({ selectedModFilename: filename });
+    // If a mod is selected, show details tab
+    if (filename) {
+      set({ activeDetailsTab: "details", rightPanelCollapsed: false });
     }
   },
 
-  setHoveredNode: (id) => set({ hoveredNodeId: id }),
+  toggleModSelection: (filename) => {
+    set((state) => {
+      const newSet = new Set(state.selectedMods);
+      if (newSet.has(filename)) {
+        newSet.delete(filename);
+      } else {
+        newSet.add(filename);
+      }
+      return { selectedMods: newSet };
+    });
+  },
 
-  setRightPanelMode: (mode) => set({ rightPanelMode: mode }),
+  selectAllMods: () => {
+    const { mods } = get();
+    set({ selectedMods: new Set(mods.map((m) => m.filename)) });
+  },
 
-  setSearchQuery: (query) => set({ searchQuery: query }),
+  clearModSelection: () => {
+    set({ selectedMods: new Set() });
+  },
 
+  // Panel actions
+  toggleLeftPanel: () => {
+    set((state) => ({ leftPanelCollapsed: !state.leftPanelCollapsed }));
+  },
+
+  toggleRightPanel: () => {
+    set((state) => ({ rightPanelCollapsed: !state.rightPanelCollapsed }));
+  },
+
+  setActiveDetailsTab: (tab) => {
+    set({ activeDetailsTab: tab, rightPanelCollapsed: false });
+  },
+
+  // Mod actions
   toggleMod: async (filename: string, enabled: boolean) => {
     const { instanceId, mods } = get();
     if (!instanceId) return;
@@ -214,16 +257,21 @@ export const usePlaygroundStore = create<PlaygroundState>()((set, get) => ({
   },
 
   deleteMod: async (filename: string) => {
-    const { instanceId, mods } = get();
+    const { instanceId, mods, selectedModFilename, selectedMods } = get();
     if (!instanceId) return;
 
     try {
       await invoke("delete_mod", { instanceId, filename });
 
+      // Remove from selections
+      const newSelectedMods = new Set(selectedMods);
+      newSelectedMods.delete(filename);
+
       // Optimistic update
       set({
         mods: mods.filter((mod) => mod.filename !== filename),
-        selectedNodeId: null,
+        selectedModFilename: selectedModFilename === filename ? null : selectedModFilename,
+        selectedMods: newSelectedMods,
       });
     } catch (err) {
       console.error("[Playground] Failed to delete mod:", err);
@@ -236,8 +284,6 @@ export const usePlaygroundStore = create<PlaygroundState>()((set, get) => ({
     if (!instanceId) return;
 
     try {
-      // This will use the new backend command when implemented
-      // For now, we'll do client-side validation
       const { mods } = get();
 
       const missingRequired: ModValidationResult["missing_required"] = [];
@@ -280,48 +326,7 @@ export const usePlaygroundStore = create<PlaygroundState>()((set, get) => ({
 
   setInstalledStatus: (isInstalled) => set({ isInstalled }),
 
-  toggleOptionalDeps: () =>
-    set((state) => ({ showOptionalDeps: !state.showOptionalDeps })),
-
-  addConfigNode: (node: Node<ConfigNodeData>) => {
-    set((state) => ({
-      configNodes: [...state.configNodes, node],
-    }));
-  },
-
-  removeConfigNode: (nodeId: string) => {
-    set((state) => ({
-      configNodes: state.configNodes.filter((n) => n.id !== nodeId),
-    }));
-  },
-
-  updateConfigNodePosition: (nodeId: string, position: { x: number; y: number }) => {
-    set((state) => ({
-      configNodes: state.configNodes.map((n) =>
-        n.id === nodeId ? { ...n, position } : n
-      ),
-    }));
-  },
-
-  updateConfigNodeSize: (nodeId: string, width: number, height: number) => {
-    set((state) => ({
-      configNodes: state.configNodes.map((n) =>
-        n.id === nodeId
-          ? { ...n, style: { ...n.style, width, height } }
-          : n
-      ),
-    }));
-  },
+  setSearchQuery: (query) => set({ searchQuery: query }),
 
   setSearchOpen: (open: boolean) => set({ isSearchOpen: open }),
-
-  focusNode: (nodeId: string) => {
-    set({ focusNodeId: nodeId, selectedNodeId: nodeId });
-    // If a mod is selected, show details panel
-    if (nodeId && nodeId !== "instance") {
-      set({ rightPanelMode: "details" });
-    }
-  },
-
-  clearFocusNode: () => set({ focusNodeId: null }),
 }));

@@ -1,10 +1,7 @@
-export { PlaygroundCanvas } from "./PlaygroundCanvas";
 export { PlaygroundToolbar } from "./PlaygroundToolbar";
-export { PlaygroundContextPanel } from "./PlaygroundContextPanel";
+export { PlaygroundLayout } from "./PlaygroundLayout";
 export { PlaygroundConsole } from "./PlaygroundConsole";
 export { PlaygroundSearch } from "./PlaygroundSearch";
 
-// Re-export sub-components
-export * from "./nodes";
-export * from "./edges";
-export * from "./hooks";
+// Re-export panel components
+export * from "./panels";

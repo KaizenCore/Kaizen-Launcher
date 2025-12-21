@@ -22,7 +22,8 @@ export function PlaygroundSearch() {
   const mods = usePlaygroundStore((s) => s.mods);
   const isSearchOpen = usePlaygroundStore((s) => s.isSearchOpen);
   const setSearchOpen = usePlaygroundStore((s) => s.setSearchOpen);
-  const focusNode = usePlaygroundStore((s) => s.focusNode);
+  const selectMod = usePlaygroundStore((s) => s.selectMod);
+  const setActiveDetailsTab = usePlaygroundStore((s) => s.setActiveDetailsTab);
 
   // Build searchable items
   const searchItems = useMemo(() => {
@@ -90,7 +91,7 @@ export function PlaygroundSearch() {
         case "Enter":
           e.preventDefault();
           if (filteredResults[selectedIndex]) {
-            handleSelect(filteredResults[selectedIndex].id);
+            handleSelect(filteredResults[selectedIndex]);
           }
           break;
         case "Escape":
@@ -111,8 +112,15 @@ export function PlaygroundSearch() {
     }
   }, [filteredResults.length, selectedIndex]);
 
-  const handleSelect = (nodeId: string) => {
-    focusNode(nodeId);
+  const handleSelect = (item: { id: string; type: "instance" | "mod" }) => {
+    if (item.type === "instance") {
+      // Show instance info in details panel
+      selectMod(null);
+      setActiveDetailsTab("instance");
+    } else {
+      // Select the mod
+      selectMod(item.id);
+    }
     setSearchOpen(false);
   };
 
@@ -153,7 +161,7 @@ export function PlaygroundSearch() {
               {filteredResults.map((item, index) => (
                 <button
                   key={item.id}
-                  onClick={() => handleSelect(item.id)}
+                  onClick={() => handleSelect(item)}
                   onMouseEnter={() => setSelectedIndex(index)}
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition-colors",

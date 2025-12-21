@@ -2,6 +2,60 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.6.9] - 2025-12-21
+
+### Added
+- **Panel-Based Playground Layout** - Complete redesign from node-based to a 3-panel layout
+  - Left panel: Mod list with search, sort, and filter options
+  - Center panel: Console with real-time logs and server commands
+  - Right panel: Details with mod info, configs, and instance settings
+  - All panels are resizable with drag handles and collapsible via toolbar buttons
+  - Uses `react-resizable-panels` library for smooth resizing
+- **Quick Add Mod Dialog** - Search and install mods from Modrinth instantly
+  - Real-time search with debounce (300ms)
+  - Shows mod icon, title, author, description, and download count
+  - Auto-selects best compatible version (stable preferred)
+  - Infinite scroll for browsing more results
+  - Shows "Installed" badge for already-installed mods
+- **Import Local Mods** - Upload button to import .jar files from your computer
+  - Multi-file selection support
+  - Files are copied directly to the instance's mods folder
+  - New `get_mods_folder_path` Tauri command for backend support
+- **Console Font Size Controls** - Adjust text size in the Playground console
+  - Ctrl+Scroll to zoom in/out
+  - Slider control (8px to 20px range)
+  - +/- buttons for precise adjustments
+  - Persists to localStorage across sessions
+
+### Changed
+- **Visual Config Editor** - Improved GUI editor for mod config files
+  - Support for JSON, TOML, YAML, and .properties files
+  - Toggle switches for booleans, sliders for numbers, color pickers for hex colors
+  - Nested object and array editing with expand/collapse
+  - Toggle between visual and text editor modes
+- **Mod List Enhancements** - Better mod management in the left panel
+  - Search by mod name or filename
+  - Sort by: name (A-Z, Z-A), enabled first, disabled first
+  - Filter by: all, enabled, disabled, missing dependencies
+  - Infinite scroll with lazy loading
+  - Batch selection with "Select All" checkbox
+  - Shows missing dependency warnings
+
+### Technical
+- Removed React Flow dependency and node-based architecture
+- New `src/components/playground/PlaygroundLayout.tsx` - Main 3-panel layout
+- New `src/components/playground/panels/` directory with modular components:
+  - `PlaygroundModList.tsx` - Left panel mod list
+  - `PlaygroundDetailsPanel.tsx` - Right panel with tabs
+  - `ModListItem.tsx` - Individual mod row component
+  - `QuickAddModDialog.tsx` - Modrinth search and install dialog
+  - `ModConfigEditor.tsx` - Visual config editor
+  - `ModDetailsTab.tsx`, `InstanceInfoTab.tsx`, `DependencyTreeView.tsx`
+- Modified `src/stores/playgroundStore.ts` - Simplified state for panel layout
+- Modified `src/components/playground/PlaygroundConsole.tsx` - Added font size controls
+- Modified `src/components/playground/PlaygroundToolbar.tsx` - Panel toggle buttons, instance selector
+- Added `get_mods_folder_path` command in `src-tauri/src/instance/commands.rs`
+
 ## [0.6.8] - 2025-12-19
 
 ### Added

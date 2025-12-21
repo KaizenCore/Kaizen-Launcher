@@ -63,53 +63,6 @@ export interface ModValidationResult {
   warnings: string[];
 }
 
-// Instance node data
-export interface InstanceNodeData {
-  instance: Instance;
-  isRunning: boolean;
-  isInstalled: boolean;
-  [key: string]: unknown;
-}
-
-// Mod node data
-export interface ModNodeData {
-  mod: ModInfoWithDependencies;
-  hasUpdate: boolean;
-  hasMissingDeps: boolean;
-  isSelected: boolean;
-  [key: string]: unknown;
-}
-
-// Config node data
-export interface ConfigNodeData {
-  modFilename: string;
-  modName: string;
-  configPath: string | null;
-  configContent?: string;
-  isEditing: boolean;
-  [key: string]: unknown;
-}
-
-// Edge types
-export type DependencyEdgeType = "required" | "optional" | "missing";
-
-export interface DependencyEdgeData {
-  type: DependencyEdgeType;
-  sourceMod: string;
-  targetMod: string;
-  [key: string]: unknown;
-}
-
-// Right panel modes
-export type RightPanelMode = "console" | "config" | "details" | "search";
-
-// Canvas viewport state
-export interface ViewportState {
-  x: number;
-  y: number;
-  zoom: number;
-}
-
 // Playground settings (persisted)
 export interface PlaygroundSettings {
   lastInstanceId: string | null;

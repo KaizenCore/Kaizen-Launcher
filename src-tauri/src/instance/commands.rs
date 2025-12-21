@@ -854,6 +854,34 @@ pub async fn open_mods_folder(state: State<'_, SharedState>, instance_id: String
     Ok(())
 }
 
+/// Get the mods/plugins folder path for an instance
+#[tauri::command]
+pub async fn get_mods_folder_path(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<String> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    // Determine folder based on loader type
+    let folder_name = get_content_folder(instance.loader.as_deref(), instance.is_server);
+    let instances_dir = state_guard.get_instances_dir().await;
+    let mods_dir = instances_dir.join(&instance.game_dir).join(folder_name);
+
+    // Create the directory if it doesn't exist
+    if !mods_dir.exists() {
+        fs::create_dir_all(&mods_dir).await.map_err(|e| {
+            AppError::Io(format!("Failed to create {} directory: {}", folder_name, e))
+        })?;
+    }
+
+    Ok(mods_dir.to_string_lossy().to_string())
+}
+
 /// Open the instance folder (or a subfolder) in the system file manager
 #[tauri::command]
 pub async fn open_instance_folder(

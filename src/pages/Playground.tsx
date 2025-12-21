@@ -3,9 +3,8 @@ import { listen } from "@tauri-apps/api/event";
 import { RequirePermission } from "@/components/permissions/RequirePermission";
 import { PERMISSIONS } from "@/hooks/usePermission";
 import {
-  PlaygroundCanvas,
   PlaygroundToolbar,
-  PlaygroundContextPanel,
+  PlaygroundLayout,
   PlaygroundSearch,
 } from "@/components/playground";
 import { usePlaygroundStore } from "@/stores/playgroundStore";
@@ -65,19 +64,13 @@ export function Playground() {
   return (
     <RequirePermission permission={PERMISSIONS.BETA}>
       {/* Negative margins to negate parent padding and go edge-to-edge */}
-      <div className="flex flex-col overflow-hidden -m-6" style={{ height: "calc(100vh - 40px)" }}>
-        {/* Top Toolbar - Instance Selector & Quick Actions */}
+      <div className="flex flex-col -m-6 h-[calc(100vh-40px)] overflow-hidden">
+        {/* Top Toolbar - Instance Selector & Quick Actions (h-14 = 56px) */}
         <PlaygroundToolbar />
 
-        {/* Main Content */}
-        <div className="flex flex-1 overflow-hidden">
-          {/* Center - Canvas */}
-          <div className="flex-1 overflow-hidden">
-            <PlaygroundCanvas />
-          </div>
-
-          {/* Right Panel - Console & Details */}
-          <PlaygroundContextPanel />
+        {/* Main Content - 3 Panel Layout (fills remaining space) */}
+        <div className="flex-1 min-h-0 overflow-hidden">
+          <PlaygroundLayout />
         </div>
       </div>
 

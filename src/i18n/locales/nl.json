@@ -489,10 +489,10 @@
     "restartOnboardingButton": "Herstarten",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Wat is nieuw in v0.6.8",
-    "whatsNewPlaygroundCanvas": "Visueel canvas voor modpack beheer (beta-toegang vereist)",
-    "whatsNewNodeSearch": "Snelzoeken (Ctrl+K) om mods te vinden en focussen",
-    "whatsNewNeoForge": "NeoForge 1.20.1 ondersteuning - legacy API nu correct opgehaald",
+    "whatsNew": "Wat is nieuw in v0.6.9",
+    "whatsNewPanelLayout": "Nieuwe 3-panel Playground-layout met aanpasbare en inklapbare panelen",
+    "whatsNewQuickAddMod": "Snel mods toevoegen van Modrinth met directe zoek- en installatie",
+    "whatsNewConsoleFontSize": "Console lettergrootte bediening (Ctrl+Scroll, schuifregelaar, +/- knoppen)",
     "devtools": "DevTools"
   },
   "devtools": {

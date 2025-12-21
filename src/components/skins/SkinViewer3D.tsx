@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useImperativeHandle, forwardRef } from "react"
+import { invoke } from "@tauri-apps/api/core"
 import { SkinViewer, WalkingAnimation, IdleAnimation, RunningAnimation, WaveAnimation } from "skinview3d"
 import { Loader2 } from "lucide-react"
 
@@ -13,6 +14,38 @@ function getCorsCompatibleSkinUrl(url: string): string {
   }
   // Return original URL if it's already from a CORS-friendly source
   return url
+}
+
+// Check if a URL needs CORS proxy (textures.minecraft.net doesn't have CORS headers)
+function needsCorsProxy(url: string): boolean {
+  return /textures\.minecraft\.net/i.test(url)
+}
+
+// Download image via Tauri backend and return as data URL (bypasses CORS)
+async function getImageAsDataUrl(url: string): Promise<string> {
+  const base64 = await invoke<string>("download_skin_image", { url })
+  return `data:image/png;base64,${base64}`
+}
+
+// Extract meaningful error message from various error types
+function getErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    return err.message
+  }
+  if (typeof err === "object" && err !== null) {
+    // Handle Event objects (like from image onerror)
+    if ("type" in err && (err as Event).type === "error") {
+      return "Failed to load image (CORS or network error)"
+    }
+    // Handle objects with message property
+    if ("message" in err && typeof (err as { message: unknown }).message === "string") {
+      return (err as { message: string }).message
+    }
+  }
+  if (typeof err === "string") {
+    return err
+  }
+  return "Unknown error"
 }
 
 export type AnimationType = "idle" | "walk" | "run" | "wave" | "none"
@@ -139,13 +172,14 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
 
       // Convert skin URL to CORS-compatible URL
       const corsCompatibleSkinUrl = getCorsCompatibleSkinUrl(skinUrl)
+      // Cape is loaded asynchronously via useEffect to handle CORS proxy if needed
 
       const viewer = new SkinViewer({
         canvas: canvasRef.current,
         width: dimensions.width || width,
         height: dimensions.height || height,
         skin: corsCompatibleSkinUrl,
-        cape: capeUrl,
+        // Don't set cape here - it's loaded async in the cape useEffect
         model: slim ? "slim" : "default",
         background: bgColor,
       })
@@ -209,20 +243,37 @@ export const SkinViewer3D = forwardRef<SkinViewer3DRef, SkinViewer3DProps>(({
     if (viewerRef.current && skinUrl) {
       const corsCompatibleUrl = getCorsCompatibleSkinUrl(skinUrl)
       viewerRef.current.loadSkin(corsCompatibleUrl, { model: slim ? "slim" : "default" })
-        .catch((err) => console.error("[SkinViewer3D] Failed to load skin:", err))
+        .catch((err) => console.error("[SkinViewer3D] Failed to load skin:", getErrorMessage(err)))
     }
   }, [skinUrl, slim])
 
   // Update cape dynamically without recreating the viewer
+  // Uses Tauri backend proxy for URLs that don't support CORS
   useEffect(() => {
-    if (viewerRef.current) {
-      if (capeUrl) {
-        viewerRef.current.loadCape(capeUrl)
-          .catch((err) => console.error("[SkinViewer3D] Failed to load cape:", err))
-      } else {
-        viewerRef.current.resetCape()
+    if (!viewerRef.current) return
+
+    if (!capeUrl) {
+      viewerRef.current.resetCape()
+      return
+    }
+
+    // Helper function to load cape
+    const loadCape = async () => {
+      try {
+        let url = capeUrl
+
+        // If URL needs CORS proxy, download via Tauri backend
+        if (needsCorsProxy(capeUrl)) {
+          url = await getImageAsDataUrl(capeUrl)
+        }
+
+        await viewerRef.current?.loadCape(url)
+      } catch (err) {
+        console.error("[SkinViewer3D] Failed to load cape:", getErrorMessage(err))
       }
     }
+
+    loadCape()
   }, [capeUrl])
 
   // Build container style with optional background image

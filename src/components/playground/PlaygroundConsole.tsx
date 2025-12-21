@@ -1,9 +1,16 @@
 import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react";
 import { listen, UnlistenFn } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-import { Send, Trash2, Pause, Play } from "lucide-react";
+import { Send, Trash2, Pause, Play, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useTranslation } from "@/i18n";
 
 interface InstanceLogEvent {
@@ -150,14 +157,40 @@ interface PlaygroundConsoleProps {
   isServer: boolean;
 }
 
+const MIN_FONT_SIZE = 8;
+const MAX_FONT_SIZE = 20;
+const DEFAULT_FONT_SIZE = 10;
+
 export function PlaygroundConsole({ instanceId, isRunning, isServer }: PlaygroundConsoleProps) {
   const { t } = useTranslation();
   const [logs, setLogs] = useState<LogLine[]>([]);
   const [command, setCommand] = useState("");
   const [isPaused, setIsPaused] = useState(false);
+  const [fontSize, setFontSize] = useState(() => {
+    const saved = localStorage.getItem("playground-console-font-size");
+    return saved ? parseInt(saved, 10) : DEFAULT_FONT_SIZE;
+  });
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const lastLinesRef = useRef<string[]>([]);
+
+  // Save font size to localStorage
+  useEffect(() => {
+    localStorage.setItem("playground-console-font-size", fontSize.toString());
+  }, [fontSize]);
+
+  const handleFontSizeChange = useCallback((delta: number) => {
+    setFontSize((prev) => Math.min(MAX_FONT_SIZE, Math.max(MIN_FONT_SIZE, prev + delta)));
+  }, []);
+
+  // Handle Ctrl+Scroll to change font size
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (e.ctrlKey) {
+      e.preventDefault();
+      e.stopPropagation();
+      handleFontSizeChange(e.deltaY < 0 ? 1 : -1);
+    }
+  }, [handleFontSizeChange]);
 
   const getLogLevel = useCallback((line: string): string | null => {
     const patterns = [
@@ -260,6 +293,62 @@ export function PlaygroundConsole({ instanceId, isRunning, isServer }: Playgroun
       {/* Compact toolbar */}
       <div className="flex items-center justify-between px-2 py-1.5 border-b flex-shrink-0 gap-2">
         <span className="text-xs text-muted-foreground">{logs.length} lines</span>
+
+        {/* Font size controls */}
+        <div className="flex items-center gap-1">
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => handleFontSizeChange(-1)}
+                  disabled={fontSize <= MIN_FONT_SIZE}
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Decrease font size</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="w-16">
+                  <Slider
+                    value={[fontSize]}
+                    onValueChange={([value]) => setFontSize(value)}
+                    min={MIN_FONT_SIZE}
+                    max={MAX_FONT_SIZE}
+                    step={1}
+                    className="cursor-pointer"
+                  />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>{fontSize}px (Ctrl+Scroll)</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={() => handleFontSizeChange(1)}
+                  disabled={fontSize >= MAX_FONT_SIZE}
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>Increase font size</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -283,8 +372,9 @@ export function PlaygroundConsole({ instanceId, isRunning, isServer }: Playgroun
       {/* Console output */}
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto bg-zinc-950 p-2 font-mono text-[10px] leading-tight"
-        onWheelCapture={(e) => e.stopPropagation()}
+        className="flex-1 overflow-y-auto bg-zinc-950 p-2 font-mono leading-tight"
+        style={{ fontSize: `${fontSize}px` }}
+        onWheel={handleWheel}
       >
         {logs.length === 0 ? (
           <span className="text-muted-foreground text-xs">

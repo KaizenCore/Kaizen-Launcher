@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { toast } from "sonner";
 import {
   FlaskConical,
   Server,
@@ -9,8 +10,13 @@ import {
   FolderOpen,
   Loader2,
   Package,
-  Eye,
-  EyeOff,
+  Play,
+  Square,
+  RotateCcw,
+  PanelLeftClose,
+  PanelRightClose,
+  PanelLeft,
+  PanelRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -52,15 +58,20 @@ export function PlaygroundToolbar() {
   const mods = usePlaygroundStore((s) => s.mods);
   const isLoading = usePlaygroundStore((s) => s.isLoading);
   const isRunning = usePlaygroundStore((s) => s.isRunning);
+  const isInstalled = usePlaygroundStore((s) => s.isInstalled);
   const loadInstance = usePlaygroundStore((s) => s.loadInstance);
   const refreshMods = usePlaygroundStore((s) => s.refreshMods);
-  const showOptionalDeps = usePlaygroundStore((s) => s.showOptionalDeps);
-  const toggleOptionalDeps = usePlaygroundStore((s) => s.toggleOptionalDeps);
+  const setRunningStatus = usePlaygroundStore((s) => s.setRunningStatus);
+  const leftPanelCollapsed = usePlaygroundStore((s) => s.leftPanelCollapsed);
+  const rightPanelCollapsed = usePlaygroundStore((s) => s.rightPanelCollapsed);
+  const toggleLeftPanel = usePlaygroundStore((s) => s.toggleLeftPanel);
+  const toggleRightPanel = usePlaygroundStore((s) => s.toggleRightPanel);
 
   const lastInstanceId = usePlaygroundSettingsStore((s) => s.lastInstanceId);
 
   const [instances, setInstances] = useState<InstanceOption[]>([]);
   const [isLoadingInstances, setIsLoadingInstances] = useState(true);
+  const [isRestarting, setIsRestarting] = useState(false);
 
   // Load all instances on mount
   useEffect(() => {
@@ -109,6 +120,89 @@ export function PlaygroundToolbar() {
     }
   }, [instanceId]);
 
+  const handleLaunch = useCallback(async () => {
+    if (!instance || !isInstalled) {
+      toast.error(t("playground.instanceNotInstalled"));
+      return;
+    }
+
+    try {
+      if (isRunning) {
+        await invoke("stop_instance", { instanceId: instance.id });
+        setRunningStatus(false);
+        toast.success(t("playground.instanceStopped"));
+      } else {
+        // For servers, we don't need an account
+        if (instance.is_server || instance.is_proxy) {
+          await invoke("launch_instance", {
+            instanceId: instance.id,
+            accountId: "",
+          });
+        } else {
+          // For clients, we need to get the active account
+          const activeAccount = await invoke<{ id: string } | null>(
+            "get_active_account"
+          );
+          if (!activeAccount) {
+            toast.error(t("playground.noActiveAccount"));
+            return;
+          }
+          await invoke("launch_instance", {
+            instanceId: instance.id,
+            accountId: activeAccount.id,
+          });
+        }
+        setRunningStatus(true);
+        toast.success(t("playground.instanceLaunched"));
+      }
+    } catch (err) {
+      console.error("[PlaygroundToolbar] Launch error:", err);
+      toast.error(String(err));
+    }
+  }, [instance, isInstalled, isRunning, setRunningStatus, t]);
+
+  const handleRestart = useCallback(async () => {
+    if (!instance || !isRunning || !isInstalled) return;
+
+    setIsRestarting(true);
+    try {
+      // Stop the instance
+      await invoke("stop_instance", { instanceId: instance.id });
+      setRunningStatus(false);
+
+      // Wait a bit for cleanup
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      // Relaunch
+      if (instance.is_server || instance.is_proxy) {
+        await invoke("launch_instance", {
+          instanceId: instance.id,
+          accountId: "",
+        });
+      } else {
+        const activeAccount = await invoke<{ id: string } | null>(
+          "get_active_account"
+        );
+        if (!activeAccount) {
+          toast.error(t("playground.noActiveAccount"));
+          setIsRestarting(false);
+          return;
+        }
+        await invoke("launch_instance", {
+          instanceId: instance.id,
+          accountId: activeAccount.id,
+        });
+      }
+      setRunningStatus(true);
+      toast.success(t("playground.instanceRestarted"));
+    } catch (err) {
+      console.error("[PlaygroundToolbar] Restart error:", err);
+      toast.error(String(err));
+    } finally {
+      setIsRestarting(false);
+    }
+  }, [instance, isRunning, isInstalled, setRunningStatus, t]);
+
   const getInstanceIcon = (type: "client" | "server" | "proxy") => {
     switch (type) {
       case "proxy":
@@ -125,7 +219,30 @@ export function PlaygroundToolbar() {
   const totalCount = mods.length;
 
   return (
-    <div className="h-14 border-b bg-card/50 flex items-center px-4 gap-4">
+    <div className="h-14 flex-shrink-0 border-b bg-card/50 flex items-center px-4 gap-4">
+      {/* Left panel toggle */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleLeftPanel}
+            >
+              {leftPanelCollapsed ? (
+                <PanelLeft className="h-4 w-4" />
+              ) : (
+                <PanelLeftClose className="h-4 w-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {leftPanelCollapsed ? "Show mod list" : "Hide mod list"}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+
       {/* Title */}
       <div className="flex items-center gap-2">
         <FlaskConical className="h-5 w-5 text-primary" />
@@ -217,6 +334,56 @@ export function PlaygroundToolbar() {
       {/* Spacer */}
       <div className="flex-1" />
 
+      {/* Launch Controls */}
+      {instance && (
+        <div className="flex items-center gap-2">
+          {isRunning && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRestart}
+                    disabled={isRestarting || !isInstalled}
+                    className="h-9 w-9 p-0"
+                  >
+                    {isRestarting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <RotateCcw className="h-4 w-4" />
+                    )}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{t("playground.restart")}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+
+          <Button
+            variant={isRunning ? "destructive" : "default"}
+            size="sm"
+            onClick={handleLaunch}
+            disabled={!isInstalled || isRestarting}
+            className="gap-1.5 h-9"
+          >
+            {isRunning ? (
+              <>
+                <Square className="h-4 w-4" />
+                {t("playground.stop")}
+              </>
+            ) : (
+              <>
+                <Play className="h-4 w-4" />
+                {t("playground.launch")}
+              </>
+            )}
+          </Button>
+
+          <Separator orientation="vertical" className="h-8" />
+        </div>
+      )}
+
       {/* Actions */}
       {instance && (
         <div className="flex items-center gap-1">
@@ -254,32 +421,31 @@ export function PlaygroundToolbar() {
               <TooltipContent>{t("playground.openModsFolder")}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant={showOptionalDeps ? "secondary" : "ghost"}
-                  size="icon"
-                  className="h-9 w-9"
-                  onClick={toggleOptionalDeps}
-                >
-                  {showOptionalDeps ? (
-                    <Eye className="h-4 w-4" />
-                  ) : (
-                    <EyeOff className="h-4 w-4" />
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                {showOptionalDeps
-                  ? t("playground.hideOptionalDeps")
-                  : t("playground.showOptionalDeps")}
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
         </div>
       )}
+
+      {/* Right panel toggle */}
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={toggleRightPanel}
+            >
+              {rightPanelCollapsed ? (
+                <PanelRight className="h-4 w-4" />
+              ) : (
+                <PanelRightClose className="h-4 w-4" />
+              )}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>
+            {rightPanelCollapsed ? "Show details" : "Hide details"}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
 
       {/* Loading indicator */}
       {isLoadingInstances && (

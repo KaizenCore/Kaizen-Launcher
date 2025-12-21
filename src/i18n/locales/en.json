@@ -601,10 +601,10 @@
     "restartOnboardingButton": "Restart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "What's New in v0.6.8",
-    "whatsNewPlaygroundCanvas": "Visual canvas for modpack management (beta access required)",
-    "whatsNewNodeSearch": "Quick search (Ctrl+K) to find and focus on any mod",
-    "whatsNewNeoForge": "NeoForge 1.20.1 support - legacy API now properly fetched",
+    "whatsNew": "What's New in v0.6.9",
+    "whatsNewPanelLayout": "New 3-panel Playground layout with resizable and collapsible panels",
+    "whatsNewQuickAddMod": "Quick add mods from Modrinth with instant search and install",
+    "whatsNewConsoleFontSize": "Console font size controls (Ctrl+Scroll, slider, +/- buttons)",
     "devtools": "DevTools"
   },
   "devtools": {

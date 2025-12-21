@@ -61,6 +61,59 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.6.9",
+    date: "2025-12-21",
+    highlights: [
+      "Panel-Based Playground",
+      "Quick Add Mods",
+      "Console Font Controls",
+    ],
+    features: [
+      {
+        icon: <Layout className="h-5 w-5" />,
+        title: "Panel-Based Playground Layout",
+        description: "Complete redesign of the Playground from node-based to a 3-panel layout. Left panel for mod list, center for console, right for details. All panels are resizable and collapsible with drag handles.",
+        tag: "new",
+      },
+      {
+        icon: <Package className="h-5 w-5" />,
+        title: "Quick Add Mod Dialog",
+        description: "New dialog to quickly search and install mods from Modrinth. Search by name, see download counts, and install compatible versions with one click. Infinite scroll for browsing results.",
+        tag: "new",
+      },
+      {
+        icon: <Upload className="h-5 w-5" />,
+        title: "Import Local Mods",
+        description: "New upload button in the mod list to import .jar files directly from your computer. Select multiple files at once and they're copied to your instance's mods folder.",
+        tag: "new",
+      },
+      {
+        icon: <Terminal className="h-5 w-5" />,
+        title: "Console Font Size Controls",
+        description: "Adjust console text size with Ctrl+Scroll, a slider, or +/- buttons. Font size ranges from 8px to 20px and persists across sessions via localStorage.",
+        tag: "new",
+      },
+      {
+        icon: <FileCode className="h-5 w-5" />,
+        title: "Visual Config Editor",
+        description: "Full GUI editor for mod configs supporting JSON, TOML, YAML, and properties files. Toggle switches for booleans, sliders for numbers, color pickers, and nested object editing.",
+        tag: "improved",
+      },
+      {
+        icon: <LayoutGrid className="h-5 w-5" />,
+        title: "Mod List with Filters",
+        description: "Enhanced mod list with search, sort (name, enabled/disabled), and filter options (all, enabled, disabled, missing deps). Infinite scroll and batch selection support.",
+        tag: "improved",
+      },
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "Simplified Architecture",
+        description: "Removed React Flow dependency and complex node system. The new panel layout is lighter, faster, and more intuitive for managing mods and server console.",
+        tag: "improved",
+      },
+    ],
+  },
+  {
     version: "0.6.8",
     date: "2025-12-19",
     highlights: [
