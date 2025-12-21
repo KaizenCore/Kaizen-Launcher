@@ -115,6 +115,7 @@ pub struct ModFileInfo {
     pub primary: bool,
     pub size: u64,
     pub sha1: String,
+    pub sha512: String,
 }
 
 impl From<VersionFile> for ModFileInfo {
@@ -125,6 +126,7 @@ impl From<VersionFile> for ModFileInfo {
             primary: f.primary,
             size: f.size,
             sha1: f.hashes.sha1,
+            sha512: f.hashes.sha512,
         }
     }
 }
@@ -794,8 +796,8 @@ pub async fn install_modrinth_modpack(
     instance_name: Option<String>,
 ) -> AppResult<ModpackInstallResult> {
     use crate::db::instances::Instance;
-    use crate::download::client::download_files_parallel_with_progress;
-    use sha1::{Digest, Sha1};
+    use crate::download::client::download_files_parallel_sha512;
+    use sha2::{Digest, Sha512};
     use tauri::Emitter;
 
     // Clone the http_client for use throughout the function
@@ -838,7 +840,7 @@ pub async fn install_modrinth_modpack(
         .or_else(|| version.files.first())
         .ok_or_else(|| AppError::Instance("No modpack file found".to_string()))?;
 
-    let expected_hash = mrpack_file.hashes.sha1.clone();
+    let expected_hash = mrpack_file.hashes.sha512.clone();
     let download_url = mrpack_file.url.clone();
 
     let _ = app.emit(
@@ -871,8 +873,8 @@ pub async fn install_modrinth_modpack(
         .map_err(|e| AppError::Network(format!("Failed to read modpack: {}", e)))?
         .to_vec();
 
-    // Verify hash
-    let mut hasher = Sha1::new();
+    // Verify hash (SHA512 for stronger security)
+    let mut hasher = Sha512::new();
     hasher.update(&mrpack_bytes);
     let hash = format!("{:x}", hasher.finalize());
 
@@ -1108,7 +1110,7 @@ pub async fn install_modrinth_modpack(
             files_to_download.push((
                 url.clone(),
                 file_path,
-                Some(file.hashes.sha1.clone()),
+                Some(file.hashes.sha512.clone()),
             ));
 
             // Pre-extract modrinth IDs for mod metadata fetching
@@ -1153,7 +1155,7 @@ pub async fn install_modrinth_modpack(
         let project_id_for_progress = project_id.clone();
         let instance_id_for_progress = instance.id.clone();
 
-        download_files_parallel_with_progress(
+        download_files_parallel_sha512(
             &http_client,
             files_to_download,
             8, // 8 concurrent downloads for optimal performance

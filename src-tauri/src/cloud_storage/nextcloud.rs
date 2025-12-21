@@ -4,12 +4,22 @@
 //! Authentication is via Basic Auth (username/password).
 
 use crate::error::{AppError, AppResult};
+use once_cell::sync::Lazy;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE};
+use reqwest::Method;
 use std::path::Path;
 use tokio::fs::File;
 use tokio::io::AsyncReadExt;
 
 use super::{ConnectionTestResult, RemoteBackupInfo};
+
+// WebDAV HTTP methods (not standard HTTP methods)
+static METHOD_PROPFIND: Lazy<Method> = Lazy::new(|| {
+    Method::from_bytes(b"PROPFIND").expect("Invalid PROPFIND method")
+});
+static METHOD_MKCOL: Lazy<Method> = Lazy::new(|| {
+    Method::from_bytes(b"MKCOL").expect("Invalid MKCOL method")
+});
 
 /// Build the WebDAV URL for a Nextcloud instance
 fn build_webdav_url(base_url: &str, username: &str, path: &str) -> String {
@@ -38,10 +48,7 @@ pub async fn test_connection(
 
     // Use PROPFIND to check if we can access the root folder
     let response = client
-        .request(
-            reqwest::Method::from_bytes(b"PROPFIND").unwrap(),
-            &webdav_url,
-        )
+        .request(METHOD_PROPFIND.clone(), &webdav_url)
         .header(AUTHORIZATION, &auth)
         .header("Depth", "0")
         .header(CONTENT_TYPE, "application/xml")
@@ -152,7 +159,7 @@ pub async fn create_folder(
         let folder_url = build_webdav_url(url, username, &current_path);
 
         let response = client
-            .request(reqwest::Method::from_bytes(b"MKCOL").unwrap(), &folder_url)
+            .request(METHOD_MKCOL.clone(), &folder_url)
             .header(AUTHORIZATION, &auth)
             .send()
             .await
@@ -255,10 +262,7 @@ pub async fn list_backups(
     let folder_url = build_webdav_url(url, username, folder_path);
 
     let response = client
-        .request(
-            reqwest::Method::from_bytes(b"PROPFIND").unwrap(),
-            &folder_url,
-        )
+        .request(METHOD_PROPFIND.clone(), &folder_url)
         .header(AUTHORIZATION, &auth)
         .header("Depth", "infinity") // Get all files recursively
         .header(CONTENT_TYPE, "application/xml")

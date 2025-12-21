@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 
+/// Full account with tokens - used internally only, NEVER sent to frontend
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Account {
     pub id: String,
@@ -12,6 +13,43 @@ pub struct Account {
     pub skin_url: Option<String>,
     pub is_active: bool,
     pub created_at: String,
+}
+
+/// Safe account info for frontend - NO SENSITIVE TOKENS
+/// This is what gets returned to the frontend via IPC
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountInfo {
+    pub id: String,
+    pub uuid: String,
+    pub username: String,
+    pub expires_at: String,
+    pub skin_url: Option<String>,
+    pub is_active: bool,
+    pub created_at: String,
+    /// Indicates if the account has a valid token (without exposing it)
+    pub has_valid_token: bool,
+    /// Indicates if the account is an offline account
+    pub is_offline: bool,
+}
+
+impl Account {
+    /// Convert to safe AccountInfo for frontend
+    pub fn to_info(&self) -> AccountInfo {
+        let is_offline = self.access_token == "offline";
+        let has_valid_token = is_offline || !self.access_token.is_empty();
+
+        AccountInfo {
+            id: self.id.clone(),
+            uuid: self.uuid.clone(),
+            username: self.username.clone(),
+            expires_at: self.expires_at.clone(),
+            skin_url: self.skin_url.clone(),
+            is_active: self.is_active,
+            created_at: self.created_at.clone(),
+            has_valid_token,
+            is_offline,
+        }
+    }
 }
 
 impl Account {

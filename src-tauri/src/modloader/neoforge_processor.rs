@@ -159,12 +159,11 @@ pub async fn run_processors(
             "profilesFormat": 1
         }
     });
-    tokio::fs::write(
-        &launcher_profiles,
-        serde_json::to_string_pretty(&profiles_content).unwrap(),
-    )
-    .await
-    .map_err(|e| AppError::Io(format!("Failed to create launcher_profiles.json: {}", e)))?;
+    let profiles_json = serde_json::to_string_pretty(&profiles_content)
+        .map_err(|e| AppError::Io(format!("Failed to serialize launcher_profiles.json: {}", e)))?;
+    tokio::fs::write(&launcher_profiles, profiles_json)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to create launcher_profiles.json: {}", e)))?;
 
     // Create versions directory (where the installer will put version JSON)
     let versions_dir = install_dir.join("versions");

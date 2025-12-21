@@ -1,7 +1,7 @@
 use crate::error::{AppError, AppResult};
 use futures_util::StreamExt;
 use sha1::{Digest, Sha1};
-use sha2::Sha256;
+use sha2::{Sha256, Sha512};
 use std::path::Path;
 use std::time::Duration;
 use tokio::fs::{self, File};
@@ -13,6 +13,7 @@ use tracing::{debug, info, warn};
 pub enum HashAlgorithm {
     Sha1,
     Sha256,
+    Sha512,
 }
 
 /// Configuration for download retry behavior
@@ -55,6 +56,16 @@ pub async fn download_file_sha256(
     download_file_with_hash(client, url, dest, expected_sha256, HashAlgorithm::Sha256).await
 }
 
+/// Download a file with SHA512 verification (preferred for Modrinth downloads)
+pub async fn download_file_sha512(
+    client: &reqwest::Client,
+    url: &str,
+    dest: &Path,
+    expected_sha512: Option<&str>,
+) -> AppResult<()> {
+    download_file_with_hash(client, url, dest, expected_sha512, HashAlgorithm::Sha512).await
+}
+
 /// Download a file from URL to the specified path with configurable hash algorithm
 pub async fn download_file_with_hash(
     client: &reqwest::Client,
@@ -80,6 +91,7 @@ pub async fn download_file_with_hash(
             let matches = match algorithm {
                 HashAlgorithm::Sha1 => verify_sha1(dest, expected).await?,
                 HashAlgorithm::Sha256 => verify_sha256(dest, expected).await?,
+                HashAlgorithm::Sha512 => verify_sha512(dest, expected).await?,
             };
             if matches {
                 return Ok(());
@@ -114,6 +126,7 @@ pub async fn download_file_with_hash(
     // Use appropriate hasher based on algorithm
     let mut sha1_hasher = Sha1::new();
     let mut sha256_hasher = Sha256::new();
+    let mut sha512_hasher = Sha512::new();
 
     while let Some(chunk) = stream.next().await {
         let chunk =
@@ -122,6 +135,7 @@ pub async fn download_file_with_hash(
         match algorithm {
             HashAlgorithm::Sha1 => sha1_hasher.update(&chunk),
             HashAlgorithm::Sha256 => sha256_hasher.update(&chunk),
+            HashAlgorithm::Sha512 => sha512_hasher.update(&chunk),
         }
         file.write_all(&chunk)
             .await
@@ -137,6 +151,7 @@ pub async fn download_file_with_hash(
         let hash = match algorithm {
             HashAlgorithm::Sha1 => format!("{:x}", sha1_hasher.finalize()),
             HashAlgorithm::Sha256 => format!("{:x}", sha256_hasher.finalize()),
+            HashAlgorithm::Sha512 => format!("{:x}", sha512_hasher.finalize()),
         };
         if hash != expected {
             // Delete the corrupted file
@@ -173,6 +188,19 @@ pub async fn verify_sha256(path: &Path, expected: &str) -> AppResult<bool> {
         .map_err(|e| AppError::Io(format!("Failed to read {}: {}", path.display(), e)))?;
 
     let mut hasher = Sha256::new();
+    hasher.update(&content);
+    let hash = format!("{:x}", hasher.finalize());
+
+    Ok(hash == expected)
+}
+
+/// Verify SHA512 hash of a file
+pub async fn verify_sha512(path: &Path, expected: &str) -> AppResult<bool> {
+    let content = fs::read(path)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read {}: {}", path.display(), e)))?;
+
+    let mut hasher = Sha512::new();
     hasher.update(&content);
     let hash = format!("{:x}", hasher.finalize());
 
@@ -288,6 +316,50 @@ pub async fn download_files_parallel_with_retry<F>(
 where
     F: Fn(usize, usize) + Send + Sync,
 {
+    download_files_parallel_with_algorithm(
+        client,
+        downloads,
+        max_concurrent,
+        on_progress,
+        retry_config,
+        HashAlgorithm::Sha1,
+    )
+    .await
+}
+
+/// Download multiple files in parallel with SHA512 verification (for Modrinth modpacks)
+pub async fn download_files_parallel_sha512<F>(
+    client: &reqwest::Client,
+    downloads: Vec<(String, std::path::PathBuf, Option<String>)>,
+    max_concurrent: usize,
+    on_progress: F,
+) -> AppResult<()>
+where
+    F: Fn(usize, usize) + Send + Sync,
+{
+    download_files_parallel_with_algorithm(
+        client,
+        downloads,
+        max_concurrent,
+        on_progress,
+        RetryConfig::default(),
+        HashAlgorithm::Sha512,
+    )
+    .await
+}
+
+/// Download multiple files in parallel with configurable hash algorithm
+pub async fn download_files_parallel_with_algorithm<F>(
+    client: &reqwest::Client,
+    downloads: Vec<(String, std::path::PathBuf, Option<String>)>,
+    max_concurrent: usize,
+    on_progress: F,
+    retry_config: RetryConfig,
+    algorithm: HashAlgorithm,
+) -> AppResult<()>
+where
+    F: Fn(usize, usize) + Send + Sync,
+{
     use futures_util::stream::FuturesUnordered;
     use std::sync::atomic::{AtomicUsize, Ordering};
     use std::sync::Arc;
@@ -310,7 +382,7 @@ where
     while pending.peek().is_some() || !futures.is_empty() {
         // Add more tasks if we have capacity
         while futures.len() < max_concurrent {
-            if let Some((url, dest, sha1)) = pending.next() {
+            if let Some((url, dest, hash)) = pending.next() {
                 let client = client.clone();
                 let completed = Arc::clone(&completed);
                 let failed = Arc::clone(&failed);
@@ -319,8 +391,8 @@ where
                         &client,
                         &url,
                         &dest,
-                        sha1.as_deref(),
-                        HashAlgorithm::Sha1,
+                        hash.as_deref(),
+                        algorithm,
                         retry_config,
                     )
                     .await;

@@ -1,6 +1,6 @@
 [package]
 name = "kaizen-launcher"
-version = "0.6.9"
+version = "0.7.0"
 description = "A modern Minecraft launcher"
 authors = ["Kaizen"]
 edition = "2021"
@@ -22,8 +22,16 @@ tauri-plugin-opener = "2"
 tauri-plugin-updater = "2"
 tauri-plugin-process = "2"
 
-# Async runtime
-tokio = { version = "1", features = ["full"] }
+# Async runtime - selected features only (not "full")
+# fs: async file operations
+# io-util: AsyncReadExt, AsyncWriteExt, BufReader
+# time: sleep, timeout
+# net: TcpListener, TcpStream
+# process: Command for spawning processes
+# sync: RwLock, broadcast channels
+# rt-multi-thread: multi-threaded runtime
+# macros: #[tokio::test] and other macros
+tokio = { version = "1", features = ["fs", "io-util", "time", "net", "process", "sync", "rt-multi-thread", "macros"] }
 
 # HTTP client
 reqwest = { version = "0.12", features = ["json", "stream", "multipart"] }
@@ -49,6 +57,7 @@ aes-gcm = "0.10"
 rand = "0.8"
 hex = "0.4"
 hmac = "0.12"
+argon2 = "0.5"  # Password hashing
 
 # Utils
 chrono = { version = "0.4", features = ["serde"] }
@@ -70,6 +79,10 @@ once_cell = "1"
 base64 = "0.22"
 walkdir = "2"
 fastnbt = "2"
+
+# Windows-specific security (DPAPI for key protection)
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Security_Cryptography", "Win32_Storage_FileSystem", "Win32_Foundation"] }
 
 [dev-dependencies]
 tempfile = "3"

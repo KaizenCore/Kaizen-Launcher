@@ -11,36 +11,203 @@ use crate::error::{AppError, AppResult};
 const KEY_FILE: &str = ".encryption_key";
 const NONCE_SIZE: usize = 12;
 
+/// Windows DPAPI protection for the encryption key
+#[cfg(windows)]
+mod windows_protection {
+    use std::path::Path;
+    use windows_sys::Win32::Security::Cryptography::{
+        CryptProtectData, CryptUnprotectData, CRYPT_INTEGER_BLOB,
+    };
+    use windows_sys::Win32::Foundation::LocalFree;
+
+    // CRYPT_INTEGER_BLOB is the same structure as DATA_BLOB (alias)
+    type DATA_BLOB = CRYPT_INTEGER_BLOB;
+
+    /// Encrypt data using Windows DPAPI (tied to user account)
+    pub fn dpapi_encrypt(data: &[u8]) -> Result<Vec<u8>, String> {
+        unsafe {
+            let mut input_blob = DATA_BLOB {
+                cbData: data.len() as u32,
+                pbData: data.as_ptr() as *mut u8,
+            };
+            let mut output_blob = DATA_BLOB {
+                cbData: 0,
+                pbData: std::ptr::null_mut(),
+            };
+
+            let result = CryptProtectData(
+                &mut input_blob,
+                std::ptr::null(),      // description
+                std::ptr::null_mut(),  // entropy (optional)
+                std::ptr::null_mut(),  // reserved
+                std::ptr::null_mut(),  // prompt struct
+                0,                     // flags (0 = user-specific encryption)
+                &mut output_blob,
+            );
+
+            if result == 0 {
+                return Err("DPAPI encryption failed".to_string());
+            }
+
+            let encrypted = std::slice::from_raw_parts(
+                output_blob.pbData,
+                output_blob.cbData as usize,
+            ).to_vec();
+
+            LocalFree(output_blob.pbData as *mut _);
+            Ok(encrypted)
+        }
+    }
+
+    /// Decrypt data using Windows DPAPI
+    pub fn dpapi_decrypt(data: &[u8]) -> Result<Vec<u8>, String> {
+        unsafe {
+            let mut input_blob = DATA_BLOB {
+                cbData: data.len() as u32,
+                pbData: data.as_ptr() as *mut u8,
+            };
+            let mut output_blob = DATA_BLOB {
+                cbData: 0,
+                pbData: std::ptr::null_mut(),
+            };
+
+            let result = CryptUnprotectData(
+                &mut input_blob,
+                std::ptr::null_mut(),  // description
+                std::ptr::null_mut(),  // entropy
+                std::ptr::null_mut(),  // reserved
+                std::ptr::null_mut(),  // prompt struct
+                0,                     // flags
+                &mut output_blob,
+            );
+
+            if result == 0 {
+                return Err("DPAPI decryption failed".to_string());
+            }
+
+            let decrypted = std::slice::from_raw_parts(
+                output_blob.pbData,
+                output_blob.cbData as usize,
+            ).to_vec();
+
+            LocalFree(output_blob.pbData as *mut _);
+            Ok(decrypted)
+        }
+    }
+
+    /// Set file as hidden on Windows
+    pub fn set_file_hidden(path: &Path) -> Result<(), String> {
+        use windows_sys::Win32::Storage::FileSystem::{
+            SetFileAttributesW, FILE_ATTRIBUTE_HIDDEN, FILE_ATTRIBUTE_SYSTEM,
+        };
+        use std::os::windows::ffi::OsStrExt;
+
+        let wide_path: Vec<u16> = path.as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+
+        unsafe {
+            let result = SetFileAttributesW(
+                wide_path.as_ptr(),
+                FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_SYSTEM,
+            );
+            if result == 0 {
+                return Err("Failed to set file attributes".to_string());
+            }
+        }
+        Ok(())
+    }
+}
+
 /// Get or create the encryption key
+/// On Windows: Key is protected with DPAPI (user-specific encryption)
+/// On Unix: Key file has 0600 permissions (owner read/write only)
 pub async fn get_or_create_key(data_dir: &Path) -> AppResult<[u8; 32]> {
     let key_path = data_dir.join(KEY_FILE);
 
     if key_path.exists() {
-        let key_hex = fs::read_to_string(&key_path)
-            .await
-            .map_err(|e| AppError::Io(format!("Failed to read encryption key: {}", e)))?;
-        let key_bytes = hex::decode(key_hex.trim())
-            .map_err(|e| AppError::Io(format!("Failed to decode encryption key: {}", e)))?;
-        let mut key = [0u8; 32];
-        if key_bytes.len() != 32 {
-            return Err(AppError::Io("Invalid encryption key length".to_string()));
+        // Read the stored key
+        #[cfg(windows)]
+        {
+            let raw_data = fs::read(&key_path)
+                .await
+                .map_err(|e| AppError::Io(format!("Failed to read encryption key: {}", e)))?;
+
+            // Try DPAPI first (new format)
+            if let Ok(key_bytes) = windows_protection::dpapi_decrypt(&raw_data) {
+                if key_bytes.len() == 32 {
+                    let mut key = [0u8; 32];
+                    key.copy_from_slice(&key_bytes);
+                    return Ok(key);
+                }
+            }
+
+            // Fallback: try legacy hex format and migrate to DPAPI
+            let key_hex = String::from_utf8_lossy(&raw_data);
+            if let Ok(key_bytes) = hex::decode(key_hex.trim()) {
+                if key_bytes.len() == 32 {
+                    let mut key = [0u8; 32];
+                    key.copy_from_slice(&key_bytes);
+
+                    // Migrate: re-save with DPAPI protection
+                    tracing::info!("Migrating encryption key to DPAPI format");
+                    if let Ok(encrypted_key) = windows_protection::dpapi_encrypt(&key) {
+                        let _ = fs::write(&key_path, &encrypted_key).await;
+                        windows_protection::set_file_hidden(&key_path).ok();
+                    }
+
+                    return Ok(key);
+                }
+            }
+
+            return Err(AppError::Io("Invalid encryption key format".to_string()));
         }
-        key.copy_from_slice(&key_bytes);
-        Ok(key)
+
+        #[cfg(not(windows))]
+        {
+            // On Unix, key is stored as hex with file permissions
+            let key_hex = fs::read_to_string(&key_path)
+                .await
+                .map_err(|e| AppError::Io(format!("Failed to read encryption key: {}", e)))?;
+            let key_bytes = hex::decode(key_hex.trim())
+                .map_err(|e| AppError::Io(format!("Failed to decode encryption key: {}", e)))?;
+            let mut key = [0u8; 32];
+            if key_bytes.len() != 32 {
+                return Err(AppError::Io("Invalid encryption key length".to_string()));
+            }
+            key.copy_from_slice(&key_bytes);
+            return Ok(key);
+        }
     } else {
         // Generate a new key
         let mut key = [0u8; 32];
         rand::thread_rng().fill_bytes(&mut key);
 
-        // Save the key
-        let key_hex = hex::encode(key);
-        fs::write(&key_path, &key_hex)
-            .await
-            .map_err(|e| AppError::Io(format!("Failed to save encryption key: {}", e)))?;
-
-        // Set restrictive permissions on Unix
-        #[cfg(unix)]
+        // Save the key with platform-specific protection
+        #[cfg(windows)]
         {
+            // Encrypt the key with DPAPI before saving
+            let encrypted_key = windows_protection::dpapi_encrypt(&key)
+                .map_err(|e| AppError::Io(format!("Failed to encrypt key with DPAPI: {}", e)))?;
+
+            fs::write(&key_path, &encrypted_key)
+                .await
+                .map_err(|e| AppError::Io(format!("Failed to save encryption key: {}", e)))?;
+
+            // Also set file as hidden + system
+            windows_protection::set_file_hidden(&key_path).ok();
+        }
+
+        #[cfg(not(windows))]
+        {
+            // On Unix, save as hex and set restrictive permissions
+            let key_hex = hex::encode(key);
+            fs::write(&key_path, &key_hex)
+                .await
+                .map_err(|e| AppError::Io(format!("Failed to save encryption key: {}", e)))?;
+
+            // Set restrictive permissions (owner read/write only)
             use std::os::unix::fs::PermissionsExt;
             let perms = std::fs::Permissions::from_mode(0o600);
             std::fs::set_permissions(&key_path, perms).ok();

@@ -68,13 +68,15 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
+// Safe account info from backend - NO TOKENS (security)
 interface Account {
   id: string
   uuid: string
   username: string
-  access_token: string
   skin_url: string | null
   is_active: boolean
+  has_valid_token: boolean
+  is_offline: boolean
 }
 
 interface Skin {
@@ -275,7 +277,7 @@ export function Skins() {
   const [skinToApply, setSkinToApply] = useState<CommunitySkin | null>(null)
   const [applyVariant, setApplyVariant] = useState<"classic" | "slim">("classic")
 
-  const isOfflineAccount = activeAccount?.access_token === "offline"
+  const isOfflineAccount = activeAccount?.is_offline ?? false
 
   // Load active account and profile
   const loadProfile = useCallback(async () => {

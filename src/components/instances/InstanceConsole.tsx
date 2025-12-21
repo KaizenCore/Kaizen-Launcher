@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, memo, useCallback, lazy, Suspense } from "react"
-import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { invoke } from "@tauri-apps/api/core"
+import { useTauriListener } from "@/hooks/useTauriListener"
 import {
   Send,
   Trash2,
@@ -452,48 +452,35 @@ export function InstanceConsole({ instanceId, isRunning, isServer, mcVersion, lo
     }
   }, [selectedLogFile, instanceId, loadHistoricalLog])
 
-  // Listen for real-time logs (only in live mode)
-  useEffect(() => {
+  // Handle instance log events with proper cleanup (only in live mode)
+  const handleLogEvent = useCallback((event: { payload: InstanceLogEvent }) => {
     if (selectedLogFile !== "live") return
+    if (event.payload.instance_id !== instanceId || isPaused) return
 
-    let unlisten: UnlistenFn | null = null
+    const line = event.payload.line
 
-    const setupListener = async () => {
-      unlisten = await listen<InstanceLogEvent>("instance-log", (event) => {
-        if (event.payload.instance_id === instanceId && !isPaused) {
-          const line = event.payload.line
-
-          // Deduplicate
-          const recentLines = lastLinesRef.current
-          if (recentLines.includes(line)) {
-            return
-          }
-
-          lastLinesRef.current = [...recentLines.slice(-9), line]
-
-          setLogs((prev) => {
-            const newLogs = [...prev, {
-              text: line,
-              isError: event.payload.is_error,
-              timestamp: new Date()
-            }]
-            if (newLogs.length > 5000) {
-              return newLogs.slice(-5000)
-            }
-            return newLogs
-          })
-        }
-      })
+    // Deduplicate
+    const recentLines = lastLinesRef.current
+    if (recentLines.includes(line)) {
+      return
     }
 
-    setupListener()
+    lastLinesRef.current = [...recentLines.slice(-9), line]
 
-    return () => {
-      if (unlisten) {
-        unlisten()
+    setLogs((prev) => {
+      const newLogs = [...prev, {
+        text: line,
+        isError: event.payload.is_error,
+        timestamp: new Date()
+      }]
+      if (newLogs.length > 5000) {
+        return newLogs.slice(-5000)
       }
-    }
+      return newLogs
+    })
   }, [instanceId, isPaused, selectedLogFile])
+
+  useTauriListener<InstanceLogEvent>("instance-log", handleLogEvent, [instanceId, isPaused, selectedLogFile])
 
   // Auto-scroll to bottom
   useEffect(() => {

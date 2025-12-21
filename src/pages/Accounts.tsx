@@ -12,22 +12,25 @@ import { AddAccountDialog } from "@/components/dialogs/AddAccountDialog"
 import { DeleteAccountDialog } from "@/components/dialogs/DeleteAccountDialog"
 import { AddKaizenAccountDialog } from "@/components/dialogs/AddKaizenAccountDialog"
 
+// Safe account info from backend - NO TOKENS (security)
 interface Account {
   id: string
   uuid: string
   username: string
-  access_token: string
+  expires_at: string
   skin_url: string | null
   is_active: boolean
+  created_at: string
+  has_valid_token: boolean
+  is_offline: boolean
 }
 
+// Safe Kaizen account info from backend - NO TOKENS (security)
 interface KaizenAccount {
   id: string
   user_id: string
   username: string
   email: string
-  access_token: string
-  refresh_token: string | null
   expires_at: string
   permissions: string
   tags: string
@@ -35,6 +38,7 @@ interface KaizenAccount {
   is_patron: boolean
   is_active: boolean
   created_at: string
+  has_valid_token: boolean
 }
 
 interface KaizenBadge {
@@ -52,7 +56,7 @@ interface KaizenBadge {
 }
 
 function isOfflineAccount(account: Account): boolean {
-  return account.access_token === "offline"
+  return account.is_offline
 }
 
 function getKaizenPermissions(account: KaizenAccount): string[] {

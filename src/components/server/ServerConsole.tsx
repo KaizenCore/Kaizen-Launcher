@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef, useMemo, memo } from "react"
-import { listen, UnlistenFn } from "@tauri-apps/api/event"
+import { useState, useEffect, useRef, useMemo, memo, useCallback } from "react"
 import { invoke } from "@tauri-apps/api/core"
+import { useTauriListener } from "@/hooks/useTauriListener"
 import { Send, Trash2, Download, Pause, Play } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -308,47 +308,36 @@ export function ServerConsole({ instanceId, isRunning }: ServerConsoleProps) {
   // Track last lines to deduplicate
   const lastLinesRef = useRef<string[]>([])
 
-  useEffect(() => {
-    let unlisten: UnlistenFn | null = null
+  // Handle server log events with proper cleanup
+  const handleLogEvent = useCallback((event: { payload: ServerLogEvent }) => {
+    if (event.payload.instance_id !== instanceId || isPaused) return
 
-    const setupListener = async () => {
-      unlisten = await listen<ServerLogEvent>("server-log", (event) => {
-        if (event.payload.instance_id === instanceId && !isPaused) {
-          const line = event.payload.line
+    const line = event.payload.line
 
-          // Deduplicate: check if this line was recently added
-          const recentLines = lastLinesRef.current
-          if (recentLines.includes(line)) {
-            return // Skip duplicate
-          }
-
-          // Add to recent lines buffer (keep last 10)
-          lastLinesRef.current = [...recentLines.slice(-9), line]
-
-          setLogs((prev) => {
-            const newLogs = [...prev, {
-              text: line,
-              isError: event.payload.is_error,
-              timestamp: new Date()
-            }]
-            // Keep last 5000 lines
-            if (newLogs.length > 5000) {
-              return newLogs.slice(-5000)
-            }
-            return newLogs
-          })
-        }
-      })
+    // Deduplicate: check if this line was recently added
+    const recentLines = lastLinesRef.current
+    if (recentLines.includes(line)) {
+      return // Skip duplicate
     }
 
-    setupListener()
+    // Add to recent lines buffer (keep last 10)
+    lastLinesRef.current = [...recentLines.slice(-9), line]
 
-    return () => {
-      if (unlisten) {
-        unlisten()
+    setLogs((prev) => {
+      const newLogs = [...prev, {
+        text: line,
+        isError: event.payload.is_error,
+        timestamp: new Date()
+      }]
+      // Keep last 5000 lines
+      if (newLogs.length > 5000) {
+        return newLogs.slice(-5000)
       }
-    }
+      return newLogs
+    })
   }, [instanceId, isPaused])
+
+  useTauriListener<ServerLogEvent>("server-log", handleLogEvent, [instanceId, isPaused])
 
   // Auto-scroll to bottom
   useEffect(() => {

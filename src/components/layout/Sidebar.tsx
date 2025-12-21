@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { NavLink, useLocation } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
-import { listen } from "@tauri-apps/api/event"
+import { useTauriListener } from "@/hooks/useTauriListener"
 import {
   Home,
   Layers,
@@ -28,21 +28,18 @@ import {
 } from "@/components/ui/tooltip"
 import { useSharingStore } from "@/stores/sharingStore"
 
+// Safe account info from backend - NO TOKENS (security)
 interface Account {
   id: string
   uuid: string
   username: string
-  access_token: string
-  refresh_token: string
   is_active: boolean
+  is_offline: boolean
+  has_valid_token: boolean
 }
 
 function isOfflineAccount(account: Account): boolean {
-  return (
-    account.access_token === "offline" ||
-    account.refresh_token === "offline" ||
-    account.access_token.length < 50
-  )
+  return account.is_offline
 }
 
 interface NavItemProps {
@@ -132,25 +129,31 @@ export function Sidebar() {
     syncSharing()
   }, [syncSharing])
 
+  // Load active account - extracted for reuse
+  const loadActiveAccount = useCallback(async () => {
+    // Skip if page is hidden (visibility optimization)
+    if (document.hidden) return
+
+    try {
+      const account = await invoke<Account | null>("get_active_account")
+      if (account) {
+        console.log(`[Sidebar] Active account loaded: ${account.username}`)
+      }
+      setActiveAccount(account)
+    } catch (err) {
+      console.error("[Sidebar] Failed to load active account:", err)
+    }
+  }, [])
+
+  // Listen for account changes from backend with proper cleanup
+  useTauriListener("active-account-changed", () => {
+    console.log("[Sidebar] Received active-account-changed event")
+    loadActiveAccount()
+  }, [loadActiveAccount])
+
+  // Polling and visibility handling
   useEffect(() => {
     let interval: NodeJS.Timeout | null = null
-    let isPaused = false
-    let unlisten: (() => void) | null = null
-
-    const loadActiveAccount = async () => {
-      // Skip if page is hidden (visibility optimization)
-      if (document.hidden || isPaused) return
-
-      try {
-        const account = await invoke<Account | null>("get_active_account")
-        if (account) {
-          console.log(`[Sidebar] Active account loaded: ${account.username}`)
-        }
-        setActiveAccount(account)
-      } catch (err) {
-        console.error("[Sidebar] Failed to load active account:", err)
-      }
-    }
 
     const startPolling = () => {
       if (interval) clearInterval(interval)
@@ -161,25 +164,15 @@ export function Sidebar() {
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        isPaused = true
         if (interval) {
           clearInterval(interval)
           interval = null
         }
       } else {
-        isPaused = false
         loadActiveAccount()
         startPolling()
       }
     }
-
-    // Listen for account change events from the backend
-    listen("active-account-changed", () => {
-      console.log("[Sidebar] Received active-account-changed event")
-      loadActiveAccount()
-    }).then((fn) => {
-      unlisten = fn
-    })
 
     loadActiveAccount()
     startPolling()
@@ -192,9 +185,8 @@ export function Sidebar() {
       window.removeEventListener("focus", handleFocus)
       document.removeEventListener("visibilitychange", handleVisibilityChange)
       if (interval) clearInterval(interval)
-      if (unlisten) unlisten()
     }
-  }, [])
+  }, [loadActiveAccount])
 
   const isAccountsActive = location.pathname === "/accounts"
 

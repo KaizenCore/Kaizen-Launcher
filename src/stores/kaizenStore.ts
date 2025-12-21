@@ -29,13 +29,12 @@ export interface KaizenBadge {
   permissions: string[];
 }
 
+/// Safe account info from backend - NO TOKENS (security)
 export interface KaizenAccount {
   id: string;
   user_id: string;
   username: string;
   email: string;
-  access_token: string;
-  refresh_token: string | null;
   expires_at: string;
   permissions: string; // JSON string
   tags: string; // JSON string
@@ -43,6 +42,7 @@ export interface KaizenAccount {
   is_patron: boolean;
   is_active: boolean;
   created_at: string;
+  has_valid_token: boolean; // Indicates if backend has valid token
 }
 
 interface KaizenState {

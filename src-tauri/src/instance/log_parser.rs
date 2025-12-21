@@ -1,5 +1,85 @@
+use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
+
+// ===== Static Regex Patterns =====
+// Compiled once at first use to avoid repeated compilation
+
+// Fabric patterns
+static FABRIC_NEW_MISSING_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)Mod\s+'([^']+)'\s*\(([^)]+)\)\s+[\d.]+\s+requires\s+(?:version\s+([^\s]+)\s+or\s+later\s+of|any\s+version\s+of)\s+(\w+),\s*which\s+is\s+missing"
+    ).expect("Invalid FABRIC_NEW_MISSING_REGEX")
+});
+
+static FABRIC_RECOMMENDS_MISSING_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)Mod\s+'([^']+)'\s*\(([^)]+)\)\s+[\d.+\-\w]+\s+recommends\s+(?:version\s+([^\s]+)\s+or\s+later\s+of|any\s+(?:([\d]+\.x)\s+)?version\s+of)\s+([\w\-]+),\s*which\s+is\s+missing"
+    ).expect("Invalid FABRIC_RECOMMENDS_MISSING_REGEX")
+});
+
+static FABRIC_RECOMMENDS_WRONG_VERSION_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)Mod\s+'([^']+)'\s*\(([^)]+)\)\s+[\d.+\-\w]+\s+recommends\s+version\s+([^\s]+)\s+of\s+mod\s+'([^']+)'\s*\(([^)]+)\),\s*but\s+only\s+the\s+wrong\s+version\s+is\s+present:\s*([^!]+)"
+    ).expect("Invalid FABRIC_RECOMMENDS_WRONG_VERSION_REGEX")
+});
+
+static FABRIC_INSTALL_SUGGESTION_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)-\s*Install\s+([\w\-]+),\s*(?:version\s+([^\s.]+(?:\.[^\s.]+)*)\s+or\s+later|any\s+(?:[\d]+\.x\s+)?version)\."
+    ).expect("Invalid FABRIC_INSTALL_SUGGESTION_REGEX")
+});
+
+static FABRIC_OLD_MISSING_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)Mod\s+'?([^']+)'?\s*\(([^)]+)\)\s+requires\s+(?:mod\s+)?'?([^',\s]+)'?,?\s*which\s+is\s+missing"
+    ).expect("Invalid FABRIC_OLD_MISSING_REGEX")
+});
+
+static FABRIC_VERSION_MISMATCH_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)Mod\s+'?([^']+)'?\s*\(([^)]+)\)\s+requires\s+(?:mod\s+)?'?([^']+)'?\s+(?:with\s+)?(?:version\s+)?([><=~^]+\s*[\d.x\-+a-zA-Z]+|\*|any),?\s*but\s+(?:only\s+)?(?:version\s+)?([\d.x\-+a-zA-Z]+)\s+is\s+(?:present|loaded|installed)"
+    ).expect("Invalid FABRIC_VERSION_MISMATCH_REGEX")
+});
+
+static FABRIC_BREAKS_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)Mod\s+'?([^']+)'?\s*(?:\(([^)]+)\))?\s+breaks\s+(?:mod\s+)?'?([^']+)'?"
+    ).expect("Invalid FABRIC_BREAKS_REGEX")
+});
+
+static FABRIC_SIMPLE_REQUIRES_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)(?:^|\s)requires\s+(?:mod\s+)?'?(\w+)'?\s*(?:,|$|\s*but)"
+    ).expect("Invalid FABRIC_SIMPLE_REQUIRES_REGEX")
+});
+
+// Forge patterns
+static FORGE_MISSING_MODS_SECTION_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)Missing\s+Mods?:\s*\n((?:\s*[\w-]+\s*:?\s*[^\n]*\n?)+)"
+    ).expect("Invalid FORGE_MISSING_MODS_SECTION_REGEX")
+});
+
+static FORGE_MOD_LINE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"^\s*([\w-]+)\s*:?\s*(.*)$").expect("Invalid FORGE_MOD_LINE_REGEX")
+});
+
+static FORGE_MISSING_EXCEPTION_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)MissingModsException.*?Mod\s+(\w+)\s+requires\s+\{(\w+)\s*@\s*\[([^\]]+)\]"
+    ).expect("Invalid FORGE_MISSING_EXCEPTION_REGEX")
+});
+
+static FORGE_DUPLICATE_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)Duplicate\s+mods?\s+found.*?(\w+)").expect("Invalid FORGE_DUPLICATE_REGEX")
+});
+
+static FORGE_VERSION_REGEX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(
+        r"(?i)(?:requires|needs)\s+(?:Minecraft\s+)?Forge\s+(?:version\s+)?([\d.]+)"
+    ).expect("Invalid FORGE_VERSION_REGEX")
+});
 
 /// Represents a detected issue from parsing server/client logs
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -104,11 +184,7 @@ fn parse_fabric_issues(log_content: &str) -> Vec<DetectedIssue> {
     // Pattern 1: New Fabric format (0.16+)
     // "Mod 'FancyMenu' (fancymenu) 3.7.0 requires version 1.0.0 or later of melody, which is missing!"
     // "Mod 'Forge Config Screens' (forgeconfigscreens) 8.0.2 requires any version of modmenu, which is missing!"
-    let new_fabric_missing_regex = Regex::new(
-        r"(?i)Mod\s+'([^']+)'\s*\(([^)]+)\)\s+[\d.]+\s+requires\s+(?:version\s+([^\s]+)\s+or\s+later\s+of|any\s+version\s+of)\s+(\w+),\s*which\s+is\s+missing"
-    ).unwrap();
-
-    for cap in new_fabric_missing_regex.captures_iter(log_content) {
+    for cap in FABRIC_NEW_MISSING_REGEX.captures_iter(log_content) {
         let mod_name = cap.get(1).map(|m| m.as_str().to_string());
         let mod_id = cap.get(2).map(|m| m.as_str().to_string());
         let required_version = cap.get(3).map(|m| m.as_str().to_string()); // None for "any version"
@@ -136,11 +212,7 @@ fn parse_fabric_issues(log_content: &str) -> Vec<DetectedIssue> {
     // "Mod 'Alloy Forgery' (alloy_forgery) 2.1.2+1.20 recommends version 12.0.0 or later of roughlyenoughitems, which is missing!"
     // "Mod 'Debugify' (debugify) 1.20.1+2.0 recommends any 3.x version of yet-another-config-lib, which is missing!"
     // "Mod 'Debugify' (debugify) 1.20.1+2.0 recommends any version of modmenu, which is missing!"
-    let recommends_missing_regex = Regex::new(
-        r"(?i)Mod\s+'([^']+)'\s*\(([^)]+)\)\s+[\d.+\-\w]+\s+recommends\s+(?:version\s+([^\s]+)\s+or\s+later\s+of|any\s+(?:([\d]+\.x)\s+)?version\s+of)\s+([\w\-]+),\s*which\s+is\s+missing"
-    ).unwrap();
-
-    for cap in recommends_missing_regex.captures_iter(log_content) {
+    for cap in FABRIC_RECOMMENDS_MISSING_REGEX.captures_iter(log_content) {
         let mod_name = cap.get(1).map(|m| m.as_str().to_string());
         let mod_id = cap.get(2).map(|m| m.as_str().to_string());
         let required_version = cap.get(3).map(|m| m.as_str().to_string())
@@ -167,11 +239,7 @@ fn parse_fabric_issues(log_content: &str) -> Vec<DetectedIssue> {
 
     // Pattern 3: Fabric "recommends" format - wrong version installed
     // "Mod 'Spellblades and Such' (spellbladenext) 2.3.0+1.20.1 recommends version 1.2.0+1.20.1 of mod 'Paladins & Priests (RPG Series)' (paladins), but only the wrong version is present: 1.4.0+1.20.1!"
-    let recommends_wrong_version_regex = Regex::new(
-        r"(?i)Mod\s+'([^']+)'\s*\(([^)]+)\)\s+[\d.+\-\w]+\s+recommends\s+version\s+([^\s]+)\s+of\s+mod\s+'([^']+)'\s*\(([^)]+)\),\s*but\s+only\s+the\s+wrong\s+version\s+is\s+present:\s*([^!]+)"
-    ).unwrap();
-
-    for cap in recommends_wrong_version_regex.captures_iter(log_content) {
+    for cap in FABRIC_RECOMMENDS_WRONG_VERSION_REGEX.captures_iter(log_content) {
         let mod_name = cap.get(1).map(|m| m.as_str().to_string());
         let mod_id = cap.get(2).map(|m| m.as_str().to_string());
         let required_version = cap.get(3).map(|m| m.as_str().to_string());
@@ -202,11 +270,7 @@ fn parse_fabric_issues(log_content: &str) -> Vec<DetectedIssue> {
     // Pattern 4: Fabric "Install X" suggestion format
     // "- Install melody, version 1.0.0 or later."
     // "- Install modmenu, any version."
-    let install_suggestion_regex = Regex::new(
-        r"(?i)-\s*Install\s+([\w\-]+),\s*(?:version\s+([^\s.]+(?:\.[^\s.]+)*)\s+or\s+later|any\s+(?:[\d]+\.x\s+)?version)\."
-    ).unwrap();
-
-    for cap in install_suggestion_regex.captures_iter(log_content) {
+    for cap in FABRIC_INSTALL_SUGGESTION_REGEX.captures_iter(log_content) {
         let required_mod_id = cap.get(1).map(|m| m.as_str().to_string());
         let required_version = cap.get(2).map(|m| m.as_str().to_string());
 
@@ -231,13 +295,9 @@ fn parse_fabric_issues(log_content: &str) -> Vec<DetectedIssue> {
         }
     }
 
-    // Pattern 3: Old Fabric format (fallback)
+    // Pattern 5: Old Fabric format (fallback)
     // "Mod 'fancymenu' (fancymenu) requires mod melody, which is missing!"
-    let old_fabric_missing_regex = Regex::new(
-        r"(?i)Mod\s+'?([^']+)'?\s*\(([^)]+)\)\s+requires\s+(?:mod\s+)?'?([^',\s]+)'?,?\s*which\s+is\s+missing"
-    ).unwrap();
-
-    for cap in old_fabric_missing_regex.captures_iter(log_content) {
+    for cap in FABRIC_OLD_MISSING_REGEX.captures_iter(log_content) {
         let mod_name = cap.get(1).map(|m| m.as_str().to_string());
         let mod_id = cap.get(2).map(|m| m.as_str().to_string());
         let required_mod_id = cap.get(3).map(|m| m.as_str().to_string());
@@ -264,13 +324,9 @@ fn parse_fabric_issues(log_content: &str) -> Vec<DetectedIssue> {
         }
     }
 
-    // Pattern 4: Version mismatch
+    // Pattern 6: Version mismatch
     // "Mod X requires mod Y with version >= Z, but only A is present"
-    let version_mismatch_regex = Regex::new(
-        r"(?i)Mod\s+'?([^']+)'?\s*\(([^)]+)\)\s+requires\s+(?:mod\s+)?'?([^']+)'?\s+(?:with\s+)?(?:version\s+)?([><=~^]+\s*[\d.x\-+a-zA-Z]+|\*|any),?\s*but\s+(?:only\s+)?(?:version\s+)?([\d.x\-+a-zA-Z]+)\s+is\s+(?:present|loaded|installed)"
-    ).unwrap();
-
-    for cap in version_mismatch_regex.captures_iter(log_content) {
+    for cap in FABRIC_VERSION_MISMATCH_REGEX.captures_iter(log_content) {
         let mod_name = cap.get(1).map(|m| m.as_str().to_string());
         let mod_id = cap.get(2).map(|m| m.as_str().to_string());
         let required_mod_id = cap.get(3).map(|m| m.as_str().to_string());
@@ -297,12 +353,8 @@ fn parse_fabric_issues(log_content: &str) -> Vec<DetectedIssue> {
         });
     }
 
-    // Pattern: "Mod X breaks mod Y" (incompatibility)
-    let breaks_regex = Regex::new(
-        r"(?i)Mod\s+'?([^']+)'?\s*(?:\(([^)]+)\))?\s+breaks\s+(?:mod\s+)?'?([^']+)'?"
-    ).unwrap();
-
-    for cap in breaks_regex.captures_iter(log_content) {
+    // Pattern 7: "Mod X breaks mod Y" (incompatibility)
+    for cap in FABRIC_BREAKS_REGEX.captures_iter(log_content) {
         let mod_name = cap.get(1).map(|m| m.as_str().to_string());
         let mod_id = cap.get(2).map(|m| m.as_str().to_string());
         let conflicting_mod = cap.get(3).map(|m| m.as_str().to_string());
@@ -325,14 +377,10 @@ fn parse_fabric_issues(log_content: &str) -> Vec<DetectedIssue> {
         });
     }
 
-    // Pattern: Simple "requires mod X" or "requires X" without the full sentence
-    let simple_requires_regex = Regex::new(
-        r"(?i)(?:^|\s)requires\s+(?:mod\s+)?'?(\w+)'?\s*(?:,|$|\s*but)"
-    ).unwrap();
-
+    // Pattern 8: Simple "requires mod X" or "requires X" without the full sentence
     // Only use simple pattern if we didn't find anything with the detailed patterns
     if issues.is_empty() {
-        for cap in simple_requires_regex.captures_iter(log_content) {
+        for cap in FABRIC_SIMPLE_REQUIRES_REGEX.captures_iter(log_content) {
             let required_mod_id = cap.get(1).map(|m| m.as_str().to_string());
 
             // Check if this line contains "missing" to confirm it's about a missing mod
@@ -366,20 +414,15 @@ fn parse_forge_issues(log_content: &str) -> Vec<DetectedIssue> {
 
     // Pattern: "Missing Mods:" followed by list
     // Example: "Missing Mods:\n\tmodid : modname"
-    let missing_mods_section_regex = Regex::new(
-        r"(?i)Missing\s+Mods?:\s*\n((?:\s*[\w-]+\s*:?\s*[^\n]*\n?)+)"
-    ).unwrap();
-
-    if let Some(cap) = missing_mods_section_regex.captures(log_content) {
+    if let Some(cap) = FORGE_MISSING_MODS_SECTION_REGEX.captures(log_content) {
         let mods_section = cap.get(1).map(|m| m.as_str()).unwrap_or("");
-        let mod_line_regex = Regex::new(r"^\s*([\w-]+)\s*:?\s*(.*)$").unwrap();
 
         for line in mods_section.lines() {
-            if let Some(mod_cap) = mod_line_regex.captures(line.trim()) {
+            if let Some(mod_cap) = FORGE_MOD_LINE_REGEX.captures(line.trim()) {
                 let mod_id = mod_cap.get(1).map(|m| m.as_str().to_string());
                 let mod_name = mod_cap.get(2).map(|m| m.as_str().trim().to_string());
 
-                if mod_id.is_some() && !mod_id.as_ref().unwrap().is_empty() {
+                if mod_id.as_ref().is_some_and(|id| !id.is_empty()) {
                     issues.push(DetectedIssue {
                         issue_type: IssueType::MissingDependency,
                         description: format!(
@@ -404,11 +447,7 @@ fn parse_forge_issues(log_content: &str) -> Vec<DetectedIssue> {
 
     // Pattern: MissingModsException with mod requirements
     // Example: "net.minecraftforge.fml.common.MissingModsException: Mod modid requires {othermod @ [1.0,)}"
-    let missing_exception_regex = Regex::new(
-        r"(?i)MissingModsException.*?Mod\s+(\w+)\s+requires\s+\{(\w+)\s*@\s*\[([^\]]+)\]"
-    ).unwrap();
-
-    for cap in missing_exception_regex.captures_iter(log_content) {
+    for cap in FORGE_MISSING_EXCEPTION_REGEX.captures_iter(log_content) {
         let mod_id = cap.get(1).map(|m| m.as_str().to_string());
         let required_mod_id = cap.get(2).map(|m| m.as_str().to_string());
         let required_version = cap.get(3).map(|m| m.as_str().to_string());
@@ -433,11 +472,7 @@ fn parse_forge_issues(log_content: &str) -> Vec<DetectedIssue> {
     }
 
     // Pattern: Duplicate mods
-    let duplicate_regex = Regex::new(
-        r"(?i)Duplicate\s+mods?\s+found.*?(\w+)"
-    ).unwrap();
-
-    for cap in duplicate_regex.captures_iter(log_content) {
+    for cap in FORGE_DUPLICATE_REGEX.captures_iter(log_content) {
         let mod_id = cap.get(1).map(|m| m.as_str().to_string());
 
         issues.push(DetectedIssue {
@@ -458,11 +493,7 @@ fn parse_forge_issues(log_content: &str) -> Vec<DetectedIssue> {
     }
 
     // Pattern: Mod requires specific Forge version
-    let forge_version_regex = Regex::new(
-        r"(?i)(?:requires|needs)\s+(?:Minecraft\s+)?Forge\s+(?:version\s+)?([\d.]+)"
-    ).unwrap();
-
-    for cap in forge_version_regex.captures_iter(log_content) {
+    for cap in FORGE_VERSION_REGEX.captures_iter(log_content) {
         let required_version = cap.get(1).map(|m| m.as_str().to_string());
 
         issues.push(DetectedIssue {

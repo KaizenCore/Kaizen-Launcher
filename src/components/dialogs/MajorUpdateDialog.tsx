@@ -12,16 +12,17 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import {
-  Boxes,
   Sparkles,
   Zap,
-  Share2,
-  Search,
-  Tag,
-  Cloud,
   ArrowRight,
   Heart,
   PartyPopper,
+  Shield,
+  Lock,
+  Key,
+  Hash,
+  Code2,
+  MemoryStick,
 } from "lucide-react";
 import { useUpdateStore } from "@/stores/updateStore";
 import { useTranslation } from "@/i18n";
@@ -64,40 +65,40 @@ export function MajorUpdateDialog() {
     navigate("/changelog");
   };
 
-  const handleTrySchematics = () => {
+  const handleTryFeature = () => {
     setIsOpen(false);
     setLastSeenMajorVersion(appVersion);
-    navigate("/schematics");
+    navigate("/changelog");
   };
 
   const features = [
     {
-      icon: <Boxes className="h-5 w-5 text-purple-500" />,
+      icon: <Lock className="h-5 w-5 text-red-500" />,
       title: t("majorUpdate.feature1Title"),
       description: t("majorUpdate.feature1Desc"),
     },
     {
-      icon: <Share2 className="h-5 w-5 text-blue-500" />,
+      icon: <Key className="h-5 w-5 text-amber-500" />,
       title: t("majorUpdate.feature2Title"),
       description: t("majorUpdate.feature2Desc"),
     },
     {
-      icon: <Search className="h-5 w-5 text-green-500" />,
+      icon: <Shield className="h-5 w-5 text-green-500" />,
       title: t("majorUpdate.feature3Title"),
       description: t("majorUpdate.feature3Desc"),
     },
     {
-      icon: <Tag className="h-5 w-5 text-amber-500" />,
+      icon: <Hash className="h-5 w-5 text-blue-500" />,
       title: t("majorUpdate.feature4Title"),
       description: t("majorUpdate.feature4Desc"),
     },
     {
-      icon: <Cloud className="h-5 w-5 text-cyan-500" />,
+      icon: <Code2 className="h-5 w-5 text-purple-500" />,
       title: t("majorUpdate.feature5Title"),
       description: t("majorUpdate.feature5Desc"),
     },
     {
-      icon: <Zap className="h-5 w-5 text-orange-500" />,
+      icon: <MemoryStick className="h-5 w-5 text-cyan-500" />,
       title: t("majorUpdate.feature6Title"),
       description: t("majorUpdate.feature6Desc"),
     },
@@ -109,18 +110,18 @@ export function MajorUpdateDialog() {
         <DialogHeader className="text-center pb-2">
           <div className="flex justify-center mb-4">
             <div className="relative">
-              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/20 via-purple-500/20 to-pink-500/20 flex items-center justify-center">
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary/20 via-primary/10 to-secondary/20 flex items-center justify-center">
                 <PartyPopper className="h-10 w-10 text-primary" />
               </div>
               <div className="absolute -top-1 -right-1">
-                <Badge className="bg-gradient-to-r from-primary to-purple-500 text-white border-0">
+                <Badge className="bg-primary text-primary-foreground border-0">
                   v{appVersion}
                 </Badge>
               </div>
             </div>
           </div>
 
-          <DialogTitle className="text-2xl font-bold bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent">
+          <DialogTitle className="text-2xl font-bold text-primary">
             {t("majorUpdate.title")}
           </DialogTitle>
 
@@ -171,23 +172,23 @@ export function MajorUpdateDialog() {
 
         <Separator />
 
-        {/* v0.5.x recap */}
+        {/* v0.6.x recap */}
         <div className="py-4">
           <div className="flex items-center gap-2 mb-3">
             <Zap className="h-4 w-4 text-muted-foreground" />
             <p className="text-sm text-muted-foreground font-medium">
-              {t("majorUpdate.v05Recap")}
+              {t("majorUpdate.v06Recap")}
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="secondary" className="text-xs">Skin Manager</Badge>
-            <Badge variant="secondary" className="text-xs">Mod Browser</Badge>
-            <Badge variant="secondary" className="text-xs">Dev Tools</Badge>
-            <Badge variant="secondary" className="text-xs">Cloud Backups</Badge>
-            <Badge variant="secondary" className="text-xs">Discord RPC</Badge>
-            <Badge variant="secondary" className="text-xs">P2P Sharing</Badge>
-            <Badge variant="secondary" className="text-xs">4K Support</Badge>
-            <Badge variant="secondary" className="text-xs">i18n (4 languages)</Badge>
+            <Badge variant="secondary" className="text-xs">Playground</Badge>
+            <Badge variant="secondary" className="text-xs">Quick Add Mods</Badge>
+            <Badge variant="secondary" className="text-xs">Kaizen OAuth</Badge>
+            <Badge variant="secondary" className="text-xs">Permissions</Badge>
+            <Badge variant="secondary" className="text-xs">Schematics</Badge>
+            <Badge variant="secondary" className="text-xs">Extended Browse</Badge>
+            <Badge variant="secondary" className="text-xs">60% Faster Install</Badge>
+            <Badge variant="secondary" className="text-xs">NeoForge 1.20.1</Badge>
           </div>
         </div>
 
@@ -201,10 +202,10 @@ export function MajorUpdateDialog() {
             {t("majorUpdate.viewChangelog")}
           </Button>
           <Button
-            className="flex-1 bg-gradient-to-r from-primary to-purple-500 hover:from-primary/90 hover:to-purple-500/90"
-            onClick={handleTrySchematics}
+            className="flex-1"
+            onClick={handleTryFeature}
           >
-            {t("majorUpdate.trySchematics")}
+            {t("majorUpdate.seeDetails")}
             <ArrowRight className="h-4 w-4 ml-2" />
           </Button>
         </div>

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, SqlitePool};
 
-/// Kaizen account with permissions, tags, and badges
+/// Full Kaizen account with tokens - used internally only, NEVER sent to frontend
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct KaizenAccount {
     pub id: String,
@@ -17,6 +17,45 @@ pub struct KaizenAccount {
     pub is_patron: bool,
     pub is_active: bool,
     pub created_at: String,
+}
+
+/// Safe Kaizen account info for frontend - NO SENSITIVE TOKENS
+/// This is what gets returned to the frontend via IPC
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct KaizenAccountInfo {
+    pub id: String,
+    pub user_id: String,
+    pub username: String,
+    pub email: String,
+    pub expires_at: String,
+    pub permissions: String, // JSON array of permission strings
+    pub tags: String,        // JSON array of tag objects
+    pub badges: String,      // JSON array of badge objects
+    pub is_patron: bool,
+    pub is_active: bool,
+    pub created_at: String,
+    /// Indicates if the account has a valid token (without exposing it)
+    pub has_valid_token: bool,
+}
+
+impl KaizenAccount {
+    /// Convert to safe KaizenAccountInfo for frontend
+    pub fn to_info(&self) -> KaizenAccountInfo {
+        KaizenAccountInfo {
+            id: self.id.clone(),
+            user_id: self.user_id.clone(),
+            username: self.username.clone(),
+            email: self.email.clone(),
+            expires_at: self.expires_at.clone(),
+            permissions: self.permissions.clone(),
+            tags: self.tags.clone(),
+            badges: self.badges.clone(),
+            is_patron: self.is_patron,
+            is_active: self.is_active,
+            created_at: self.created_at.clone(),
+            has_valid_token: !self.access_token.is_empty() && !self.is_token_expired(),
+        }
+    }
 }
 
 /// Tag with name and permissions
@@ -217,8 +256,58 @@ impl KaizenAccount {
     }
 
     /// Check if account has a specific permission
+    /// IMPORTANT: Only use this for UI display. For security-critical operations,
+    /// always validate permissions with the server using validate_permission_with_server()
     #[allow(dead_code)]
     pub fn has_permission(&self, permission: &str) -> bool {
+        // Don't trust locally cached permissions if token is expired
+        if self.is_token_expired() {
+            return false;
+        }
         self.get_permissions().contains(&permission.to_string())
+    }
+
+    /// Check if permissions might be stale (older than 1 hour)
+    /// Returns true if permissions should be refreshed from server
+    #[allow(dead_code)]
+    pub fn should_refresh_permissions(&self) -> bool {
+        // If token is expired, permissions are definitely stale
+        if self.is_token_expired() {
+            return true;
+        }
+
+        // Check if account was updated more than 1 hour ago
+        if let Ok(created) = chrono::DateTime::parse_from_rfc3339(&self.created_at) {
+            let now = chrono::Utc::now();
+            let age = now.signed_duration_since(created.with_timezone(&chrono::Utc));
+            // Refresh permissions every hour
+            age > chrono::Duration::hours(1)
+        } else {
+            true // If we can't parse date, refresh to be safe
+        }
+    }
+
+    /// Validate a permission with the server (async)
+    /// Use this for security-critical operations that grant elevated privileges
+    /// Returns the validated permission status from the server
+    #[allow(dead_code)]
+    pub async fn validate_permission_with_server(
+        &self,
+        http_client: &reqwest::Client,
+        permission: &str,
+    ) -> Result<bool, String> {
+        // If token is expired, we can't validate
+        if self.is_token_expired() {
+            return Err("Token expired. Please refresh your Kaizen session.".to_string());
+        }
+
+        // Fetch fresh user info from server
+        match crate::auth::kaizen::get_user_info(http_client, &self.access_token).await {
+            Ok(user) => {
+                let permissions = crate::auth::kaizen::extract_permissions(&user);
+                Ok(permissions.contains(&permission.to_string()))
+            }
+            Err(e) => Err(format!("Failed to validate permission: {}", e)),
+        }
     }
 }

@@ -50,12 +50,15 @@ interface Instance {
   is_server: boolean
 }
 
+// Safe account info from backend - NO TOKENS (security)
 interface Account {
   id: string
   username: string
   uuid: string
   is_active: boolean
   skin_url: string | null
+  has_valid_token: boolean
+  is_offline: boolean
 }
 
 type InstanceStatus = "not_installed" | "installing" | "ready" | "running"

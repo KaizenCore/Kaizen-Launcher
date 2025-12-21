@@ -1,7 +1,7 @@
 use crate::auth::{kaizen, microsoft, minecraft, xbox};
 use crate::crypto;
-use crate::db::accounts::Account;
-use crate::db::kaizen_accounts::KaizenAccount;
+use crate::db::accounts::{Account, AccountInfo};
+use crate::db::kaizen_accounts::{KaizenAccount, KaizenAccountInfo};
 use crate::error::{AppError, AppResult};
 use crate::state::SharedState;
 use chrono::{Duration, Utc};
@@ -18,58 +18,33 @@ pub struct DeviceCodeInfo {
     pub interval: u64,
 }
 
+/// Get all accounts - returns safe AccountInfo WITHOUT tokens
+/// Tokens are never exposed to the frontend for security
 #[tauri::command]
-pub async fn get_accounts(state: State<'_, SharedState>) -> AppResult<Vec<Account>> {
+pub async fn get_accounts(state: State<'_, SharedState>) -> AppResult<Vec<AccountInfo>> {
     let state = state.read().await;
     let accounts = Account::get_all(&state.db).await.map_err(AppError::from)?;
 
-    // Decrypt tokens for each account before returning
-    let decrypted_accounts: Vec<Account> = accounts
+    // Convert to safe AccountInfo (no tokens exposed)
+    let account_infos: Vec<AccountInfo> = accounts
         .into_iter()
-        .map(|mut account| {
-            // Decrypt access_token if it's encrypted
-            if crypto::is_encrypted(&account.access_token) {
-                if let Ok(decrypted) = crypto::decrypt(&state.encryption_key, &account.access_token)
-                {
-                    account.access_token = decrypted;
-                }
-            }
-            // Decrypt refresh_token if it's encrypted
-            if crypto::is_encrypted(&account.refresh_token) {
-                if let Ok(decrypted) =
-                    crypto::decrypt(&state.encryption_key, &account.refresh_token)
-                {
-                    account.refresh_token = decrypted;
-                }
-            }
-            account
-        })
+        .map(|account| account.to_info())
         .collect();
 
-    Ok(decrypted_accounts)
+    Ok(account_infos)
 }
 
+/// Get active account - returns safe AccountInfo WITHOUT tokens
+/// Tokens are never exposed to the frontend for security
 #[tauri::command]
-pub async fn get_active_account(state: State<'_, SharedState>) -> AppResult<Option<Account>> {
+pub async fn get_active_account(state: State<'_, SharedState>) -> AppResult<Option<AccountInfo>> {
     let state = state.read().await;
     let account = Account::get_active(&state.db)
         .await
         .map_err(AppError::from)?;
 
-    // Decrypt tokens if present
-    Ok(account.map(|mut acc| {
-        if crypto::is_encrypted(&acc.access_token) {
-            if let Ok(decrypted) = crypto::decrypt(&state.encryption_key, &acc.access_token) {
-                acc.access_token = decrypted;
-            }
-        }
-        if crypto::is_encrypted(&acc.refresh_token) {
-            if let Ok(decrypted) = crypto::decrypt(&state.encryption_key, &acc.refresh_token) {
-                acc.refresh_token = decrypted;
-            }
-        }
-        acc
-    }))
+    // Convert to safe AccountInfo (no tokens exposed)
+    Ok(account.map(|acc| acc.to_info()))
 }
 
 #[tauri::command]
@@ -122,13 +97,14 @@ pub async fn login_microsoft_start(state: State<'_, SharedState>) -> AppResult<D
 }
 
 /// Complete Microsoft login - poll for token and authenticate
+/// Returns safe AccountInfo (no tokens exposed to frontend)
 #[tauri::command]
 pub async fn login_microsoft_complete(
     state: State<'_, SharedState>,
     device_code: String,
     interval: u64,
     expires_in: u64,
-) -> AppResult<Account> {
+) -> AppResult<AccountInfo> {
     let state_guard = state.read().await;
     let client = &state_guard.http_client;
 
@@ -193,28 +169,17 @@ pub async fn login_microsoft_complete(
     // Insert the new account
     account_for_db.insert(db).await.map_err(AppError::from)?;
 
-    // Return account with decrypted tokens for immediate use
-    let account = Account {
-        id: account_for_db.id,
-        uuid: profile.id,
-        username: profile.name,
-        access_token: mc_token.access_token,
-        refresh_token: ms_token.refresh_token,
-        expires_at: expires_at.to_rfc3339(),
-        skin_url,
-        is_active: true,
-        created_at: account_for_db.created_at,
-    };
-
-    Ok(account)
+    // Return safe AccountInfo (no tokens exposed to frontend)
+    Ok(account_for_db.to_info())
 }
 
 /// Create an offline account for development/testing
+/// Returns safe AccountInfo (no tokens exposed to frontend)
 #[tauri::command]
 pub async fn create_offline_account(
     state: State<'_, SharedState>,
     username: String,
-) -> AppResult<Account> {
+) -> AppResult<AccountInfo> {
     let state_guard = state.read().await;
     let db = &state_guard.db;
 
@@ -242,15 +207,17 @@ pub async fn create_offline_account(
     // Insert the offline account
     account.insert(db).await.map_err(AppError::from)?;
 
-    Ok(account)
+    // Return safe AccountInfo (no tokens exposed)
+    Ok(account.to_info())
 }
 
 /// Refresh an account's token
+/// Returns safe AccountInfo (no tokens exposed to frontend)
 #[tauri::command]
 pub async fn refresh_account_token(
     state: State<'_, SharedState>,
     account_id: String,
-) -> AppResult<Account> {
+) -> AppResult<AccountInfo> {
     let state_guard = state.read().await;
     let client = &state_guard.http_client;
     let db = &state_guard.db;
@@ -312,20 +279,8 @@ pub async fn refresh_account_token(
 
     account_for_db.insert(db).await.map_err(AppError::from)?;
 
-    // Return account with decrypted tokens for immediate use
-    let updated_account = Account {
-        id: account.id,
-        uuid: profile.id,
-        username: profile.name,
-        access_token: mc_token.access_token,
-        refresh_token: ms_token.refresh_token,
-        expires_at: expires_at.to_rfc3339(),
-        skin_url,
-        is_active: account.is_active,
-        created_at: account.created_at,
-    };
-
-    Ok(updated_account)
+    // Return safe AccountInfo (no tokens exposed to frontend)
+    Ok(account_for_db.to_info())
 }
 
 // ============================================================================
@@ -357,13 +312,14 @@ pub async fn login_kaizen_start(state: State<'_, SharedState>) -> AppResult<Kaiz
 }
 
 /// Complete Kaizen login - poll for token and fetch user info
+/// Returns safe KaizenAccountInfo (no tokens exposed to frontend)
 #[tauri::command]
 pub async fn login_kaizen_complete(
     state: State<'_, SharedState>,
     device_code: String,
     interval: u64,
     expires_in: u64,
-) -> AppResult<KaizenAccount> {
+) -> AppResult<KaizenAccountInfo> {
     let state_guard = state.read().await;
     let client = &state_guard.http_client;
 
@@ -433,55 +389,24 @@ pub async fn login_kaizen_complete(
     // Insert the new account
     account_for_db.insert(db).await.map_err(AppError::from)?;
 
-    // Return account with decrypted tokens for immediate use
-    let account = KaizenAccount {
-        id: account_for_db.id,
-        user_id: user.id,
-        username: user.name,
-        email: user.email,
-        access_token: token.access_token,
-        refresh_token: token.refresh_token,
-        expires_at: expires_at.to_rfc3339(),
-        permissions: permissions_json,
-        tags: tags_json,
-        badges: badges_json,
-        is_patron,
-        is_active: true,
-        created_at: account_for_db.created_at,
-    };
-
-    Ok(account)
+    // Return safe KaizenAccountInfo (no tokens exposed to frontend)
+    Ok(account_for_db.to_info())
 }
 
-/// Get all Kaizen accounts
+/// Get all Kaizen accounts - returns safe KaizenAccountInfo WITHOUT tokens
+/// Tokens are never exposed to the frontend for security
 #[tauri::command]
-pub async fn get_kaizen_accounts(state: State<'_, SharedState>) -> AppResult<Vec<KaizenAccount>> {
+pub async fn get_kaizen_accounts(state: State<'_, SharedState>) -> AppResult<Vec<KaizenAccountInfo>> {
     let state = state.read().await;
     let accounts = KaizenAccount::get_all(&state.db).await.map_err(AppError::from)?;
 
-    // Decrypt tokens for each account before returning
-    let decrypted_accounts: Vec<KaizenAccount> = accounts
+    // Convert to safe KaizenAccountInfo (no tokens exposed)
+    let account_infos: Vec<KaizenAccountInfo> = accounts
         .into_iter()
-        .map(|mut account| {
-            // Decrypt access_token if encrypted
-            if crypto::is_encrypted(&account.access_token) {
-                if let Ok(decrypted) = crypto::decrypt(&state.encryption_key, &account.access_token) {
-                    account.access_token = decrypted;
-                }
-            }
-            // Decrypt refresh_token if encrypted
-            if let Some(ref rt) = account.refresh_token {
-                if crypto::is_encrypted(rt) {
-                    if let Ok(decrypted) = crypto::decrypt(&state.encryption_key, rt) {
-                        account.refresh_token = Some(decrypted);
-                    }
-                }
-            }
-            account
-        })
+        .map(|account| account.to_info())
         .collect();
 
-    Ok(decrypted_accounts)
+    Ok(account_infos)
 }
 
 /// Sync all Kaizen accounts - refresh user info (tags, badges, permissions) from API
@@ -586,8 +511,9 @@ pub async fn sync_kaizen_accounts(state: State<'_, SharedState>) -> AppResult<()
 }
 
 /// Get the active Kaizen account (auto-refreshes if token expired)
+/// Returns safe KaizenAccountInfo (no tokens exposed to frontend)
 #[tauri::command]
-pub async fn get_active_kaizen_account(state: State<'_, SharedState>) -> AppResult<Option<KaizenAccount>> {
+pub async fn get_active_kaizen_account(state: State<'_, SharedState>) -> AppResult<Option<KaizenAccountInfo>> {
     let state_guard = state.read().await;
     let account = KaizenAccount::get_active(&state_guard.db)
         .await
@@ -596,7 +522,7 @@ pub async fn get_active_kaizen_account(state: State<'_, SharedState>) -> AppResu
     match account {
         None => Ok(None),
         Some(mut acc) => {
-            // Check if token is expired and we have a refresh token
+            // Check if token is expired and we have a refresh token - auto-refresh in background
             if acc.is_token_expired() {
                 if let Some(ref rt) = acc.refresh_token {
                     let decrypted_refresh = if crypto::is_encrypted(rt) {
@@ -628,12 +554,9 @@ pub async fn get_active_kaizen_account(state: State<'_, SharedState>) -> AppResu
                                         &expires_at.to_rfc3339(),
                                     ).await;
 
-                                    // Update the account object
-                                    acc.access_token = new_token.access_token;
-                                    acc.refresh_token = new_token.refresh_token.or(acc.refresh_token);
+                                    // Update local copy for accurate to_info()
+                                    acc.access_token = encrypted_access;
                                     acc.expires_at = expires_at.to_rfc3339();
-
-                                    return Ok(Some(acc));
                                 }
                             }
                             Err(e) => {
@@ -645,20 +568,8 @@ pub async fn get_active_kaizen_account(state: State<'_, SharedState>) -> AppResu
                 }
             }
 
-            // Decrypt tokens if present
-            if crypto::is_encrypted(&acc.access_token) {
-                if let Ok(decrypted) = crypto::decrypt(&state_guard.encryption_key, &acc.access_token) {
-                    acc.access_token = decrypted;
-                }
-            }
-            if let Some(ref rt) = acc.refresh_token {
-                if crypto::is_encrypted(rt) {
-                    if let Ok(decrypted) = crypto::decrypt(&state_guard.encryption_key, rt) {
-                        acc.refresh_token = Some(decrypted);
-                    }
-                }
-            }
-            Ok(Some(acc))
+            // Return safe KaizenAccountInfo (no tokens exposed to frontend)
+            Ok(Some(acc.to_info()))
         }
     }
 }
@@ -715,12 +626,13 @@ pub async fn delete_kaizen_account(
 }
 
 /// Refresh a Kaizen account's token
+/// Returns safe KaizenAccountInfo (no tokens exposed to frontend)
 #[tauri::command]
 pub async fn refresh_kaizen_account(
     state: State<'_, SharedState>,
     app: AppHandle,
     account_id: String,
-) -> AppResult<KaizenAccount> {
+) -> AppResult<KaizenAccountInfo> {
     let state_guard = state.read().await;
 
     // Get the account
@@ -777,25 +689,11 @@ pub async fn refresh_kaizen_account(
     // Emit event
     let _ = app.emit("kaizen-account-changed", ());
 
-    // Return updated account (with decrypted tokens)
-    let mut updated_account = KaizenAccount::get_by_id(&state_guard.db, &account_id)
+    // Return safe KaizenAccountInfo (no tokens exposed to frontend)
+    let updated_account = KaizenAccount::get_by_id(&state_guard.db, &account_id)
         .await
         .map_err(AppError::from)?
         .ok_or_else(|| AppError::Auth("Account not found after refresh".to_string()))?;
 
-    // Decrypt for return
-    if crypto::is_encrypted(&updated_account.access_token) {
-        if let Ok(decrypted) = crypto::decrypt(&state_guard.encryption_key, &updated_account.access_token) {
-            updated_account.access_token = decrypted;
-        }
-    }
-    if let Some(ref rt) = updated_account.refresh_token {
-        if crypto::is_encrypted(rt) {
-            if let Ok(decrypted) = crypto::decrypt(&state_guard.encryption_key, rt) {
-                updated_account.refresh_token = Some(decrypted);
-            }
-        }
-    }
-
-    Ok(updated_account)
+    Ok(updated_account.to_info())
 }

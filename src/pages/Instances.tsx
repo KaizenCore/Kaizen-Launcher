@@ -44,10 +44,12 @@ interface Instance {
   is_proxy: boolean
 }
 
+// Safe account info from backend - NO TOKENS (security)
 interface Account {
   id: string
   username: string
   is_active: boolean
+  has_valid_token: boolean
 }
 
 interface InstallProgress {

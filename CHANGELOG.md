@@ -2,6 +2,71 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.7.0] - 2025-12-21
+
+### Security
+- **HTTPS Only** - All HTTP URLs are now blocked; only HTTPS connections are allowed
+  - Prevents man-in-the-middle attacks on downloads and API calls
+  - URL validation rejects any `http://` scheme
+- **Windows DPAPI Key Protection** - AES encryption key is now protected by Windows DPAPI
+  - Key file encrypted at OS level, accessible only by the current user
+  - Automatic migration of existing unprotected keys
+  - Falls back gracefully on non-Windows platforms
+- **Token Security Hardening** - Sensitive tokens are never exposed to the frontend
+  - New `AccountInfo` struct without `access_token` or `refresh_token` fields
+  - Frontend receives `has_valid_token: bool` instead of actual tokens
+  - All IPC responses sanitized before transmission
+- **Encrypted Secret Storage** - All sensitive data encrypted with AES-256-GCM
+  - Discord webhooks, cloud storage tokens, and API keys encrypted at rest
+  - Encryption applied to all settings containing sensitive URLs or credentials
+- **Sensitive URL Redaction** - Error messages no longer expose sensitive URLs
+  - New `redact_sensitive_url()` utility masks tokens, keys, and credentials
+  - Applies to logs, error dialogs, and user-facing messages
+- **SHA-512 File Verification** - Upgraded from SHA-1 to SHA-512 for mod verification
+  - All Modrinth downloads now verified with SHA-512 hashes
+  - Stronger collision resistance for integrity checks
+  - Backwards compatible with existing SHA-1/SHA-256 verification
+- **Server-Side Permission Validation** - Permissions validated with Kaizen API
+  - New `validate_permission_with_server()` for security-critical operations
+  - Local permission cache rejected if token expired
+  - Prevents privilege escalation via cached permissions
+- **Argon2id Password Hashing** - Sharing passwords now use Argon2id instead of SHA-256
+  - Memory-hard algorithm resistant to GPU/ASIC attacks
+  - Parameters: m=19456 KiB, t=2 iterations, p=1 parallelism
+  - Automatic migration from legacy SHA-256 hashes
+- **Share Token Expiration & Revocation** - Enhanced sharing security
+  - Default 24-hour expiration for all shares
+  - Optional max download limit per share
+  - Manual revocation support via `revoke_share()`
+  - Expired/revoked shares automatically rejected
+
+### Performance & Quality
+- **Static Regex Compilation** - All regex patterns now use `once_cell::Lazy<Regex>`
+  - Eliminates repeated regex compilation on each call
+  - Applied to log parser, URL redaction, and NeoForge processor
+- **Memory Leak Prevention** - New `useTauriListener` hook for safe Tauri event handling
+  - Properly handles async cleanup when components unmount
+  - Prevents race conditions with pending `listen()` calls
+  - Applied to Console, ServerConsole, and Sidebar components
+- **Optimized Tokio Runtime** - Reduced tokio features from "full" to only required features
+  - Only includes: fs, io-util, time, net, process, sync, rt-multi-thread, macros
+  - Smaller binary size and faster compilation
+- **Shared Browser Utilities** - Extracted common code from browse components
+  - New `src/types/browse.ts` for shared types (ModSearchResult, ModVersionInfo, etc.)
+  - New `src/lib/browse-utils.ts` for shared functions (formatDownloads, pagination)
+  - Reduces code duplication across ModBrowser, PluginBrowser, etc.
+
+### Technical
+- Added `argon2 = "0.5"` dependency for password hashing
+- New `src-tauri/src/utils/redact.rs` module for URL sanitization
+- Modified `crypto.rs` with DPAPI integration via `windows-sys` crate
+- Enhanced `download/client.rs` with `HashAlgorithm::Sha512` support
+- New validation methods in `db/kaizen_accounts.rs` for permission checks
+- Updated `sharing/server.rs` with expiration, revocation, and Argon2 hashing
+- New `src/hooks/useTauriListener.ts` hook for safe Tauri event subscription
+- New `src/types/browse.ts` and `src/lib/browse-utils.ts` for shared browser code
+- Optimized `src-tauri/Cargo.toml` tokio features for minimal footprint
+
 ## [0.6.9] - 2025-12-21
 
 ### Added

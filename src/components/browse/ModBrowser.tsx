@@ -45,46 +45,14 @@ import {
 import { Checkbox } from "@/components/ui/checkbox"
 import { useTranslation } from "@/i18n"
 import { useBrowseCache } from "@/hooks/useBrowseCache"
-
-// Types
-interface ModSearchResult {
-  project_id: string
-  slug: string
-  title: string
-  description: string
-  author: string
-  downloads: number
-  icon_url: string | null
-  categories: string[]
-  game_versions: string[]
-  loaders: string[]
-}
-
-interface ModVersionInfo {
-  id: string
-  name: string
-  version_number: string
-  game_versions: string[]
-  loaders: string[]
-  version_type: string
-  downloads: number
-  date_published: string
-}
+import type { ModSearchResult, ModVersionInfo, ViewMode } from "@/types/browse"
+import { SORT_OPTIONS, ITEMS_PER_PAGE } from "@/types/browse"
+import { formatDownloads, getStoredViewMode, setStoredViewMode, getPageNumbers } from "@/lib/browse-utils"
 
 // Props interface
 interface ModBrowserProps {
   selectedInstance: BrowseInstance | null
 }
-
-// Constants
-const ITEMS_PER_PAGE = 20
-
-const SORT_OPTIONS = [
-  { value: "relevance", labelKey: "modrinth.sortRelevance" as const },
-  { value: "downloads", labelKey: "modrinth.sortDownloads" as const },
-  { value: "newest", labelKey: "modrinth.sortNewest" as const },
-  { value: "updated", labelKey: "modrinth.sortUpdated" as const },
-]
 
 const LOADER_FILTERS = [
   { value: "fabric", label: "Fabric" },
@@ -115,32 +83,8 @@ const MOD_CATEGORIES = [
   { value: "worldgen", label: "World Gen" },
 ]
 
-// View modes
-type ViewMode = "grid" | "list" | "compact"
+// View mode storage key (specific to ModBrowser)
 const VIEW_MODE_STORAGE_KEY = "kaizen_browse_mods_view_mode"
-
-function getStoredViewMode(): ViewMode {
-  try {
-    const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY)
-    if (stored === "grid" || stored === "list" || stored === "compact") {
-      return stored
-    }
-  } catch {
-    // Ignore localStorage errors
-  }
-  return "list" // Default
-}
-
-// Helper to format download count
-function formatDownloads(count: number): string {
-  if (count >= 1000000) {
-    return `${(count / 1000000).toFixed(1)}M`
-  }
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}K`
-  }
-  return count.toString()
-}
 
 export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   const { t } = useTranslation()
@@ -155,15 +99,11 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // View mode with localStorage persistence
-  const [viewMode, setViewMode] = useState<ViewMode>(getStoredViewMode)
+  const [viewMode, setViewMode] = useState<ViewMode>(() => getStoredViewMode(VIEW_MODE_STORAGE_KEY))
 
   const handleViewModeChange = useCallback((mode: ViewMode) => {
     setViewMode(mode)
-    try {
-      localStorage.setItem(VIEW_MODE_STORAGE_KEY, mode)
-    } catch {
-      // Ignore localStorage errors
-    }
+    setStoredViewMode(VIEW_MODE_STORAGE_KEY, mode)
   }, [])
 
   // Installed mods tracking
@@ -307,33 +247,6 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
       setCurrentPage(page)
     }
   }, [totalPages])
-
-  const getPageNumbers = useCallback(() => {
-    const pages: (number | "ellipsis")[] = []
-    const maxVisible = 5
-
-    if (totalPages <= maxVisible) {
-      for (let i = 1; i <= totalPages; i++) {
-        pages.push(i)
-      }
-    } else {
-      pages.push(1)
-      if (currentPage > 3) {
-        pages.push("ellipsis")
-      }
-      const start = Math.max(2, currentPage - 1)
-      const end = Math.min(totalPages - 1, currentPage + 1)
-      for (let i = start; i <= end; i++) {
-        pages.push(i)
-      }
-      if (currentPage < totalPages - 2) {
-        pages.push("ellipsis")
-      }
-      pages.push(totalPages)
-    }
-
-    return pages
-  }, [currentPage, totalPages])
 
   // Open install dialog
   const handleSelectMod = useCallback(async (mod: ModSearchResult) => {
@@ -773,7 +686,7 @@ export function ModBrowser({ selectedInstance }: ModBrowserProps) {
             <ChevronLeft className="h-4 w-4" />
           </Button>
 
-          {getPageNumbers().map((page, index) =>
+          {getPageNumbers(currentPage, totalPages).map((page, index) =>
             page === "ellipsis" ? (
               <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground">...</span>
             ) : (

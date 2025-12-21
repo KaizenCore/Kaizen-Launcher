@@ -43,6 +43,13 @@ import {
   Paintbrush,
   Star,
   FlaskConical,
+  Lock,
+  Key,
+  ShieldCheck,
+  Hash,
+  Timer,
+  Code2,
+  MemoryStick,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -51,6 +58,8 @@ interface ChangelogEntry {
   date: string
   highlights?: string[]
   isMajor?: boolean
+  // For major versions: list of key features included from previous minor versions
+  alsoIncludes?: string[]
   features: {
     icon: React.ReactNode
     title: string
@@ -60,6 +69,90 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.7.0",
+    date: "2025-12-21",
+    isMajor: true,
+    highlights: [
+      "Security Hardening",
+      "HTTPS Only",
+      "Token Protection",
+      "Performance Boost",
+    ],
+    alsoIncludes: [
+      "Panel-Based Playground",
+      "Quick Add Mods from Modrinth",
+      "Visual Config Editor",
+      "Kaizen Account OAuth",
+      "Permissions System",
+      "Extended Browse (Plugins, Shaders, Datapacks)",
+      "60% Faster Modpack Install",
+      "Mod Sync from Modrinth",
+      "NeoForge 1.20.1 Support",
+    ],
+    features: [
+      {
+        icon: <Lock className="h-5 w-5" />,
+        title: "HTTPS Only Connections",
+        description: "All HTTP URLs are now blocked. Only HTTPS connections are allowed, preventing man-in-the-middle attacks on downloads and API calls.",
+        tag: "new",
+      },
+      {
+        icon: <Key className="h-5 w-5" />,
+        title: "Windows DPAPI Key Protection",
+        description: "AES encryption key is now protected by Windows DPAPI. Key file encrypted at OS level, accessible only by the current user with automatic migration.",
+        tag: "new",
+      },
+      {
+        icon: <ShieldCheck className="h-5 w-5" />,
+        title: "Token Security Hardening",
+        description: "Sensitive tokens are never exposed to the frontend. New AccountInfo struct without access_token or refresh_token fields. Frontend receives has_valid_token instead.",
+        tag: "new",
+      },
+      {
+        icon: <Shield className="h-5 w-5" />,
+        title: "Encrypted Secret Storage",
+        description: "All sensitive data encrypted with AES-256-GCM: Discord webhooks, cloud storage tokens, and API keys are now encrypted at rest.",
+        tag: "new",
+      },
+      {
+        icon: <Hash className="h-5 w-5" />,
+        title: "SHA-512 File Verification",
+        description: "Upgraded from SHA-1 to SHA-512 for mod verification. All Modrinth downloads now verified with SHA-512 hashes for stronger integrity checks.",
+        tag: "improved",
+      },
+      {
+        icon: <Timer className="h-5 w-5" />,
+        title: "Share Token Expiration",
+        description: "Enhanced sharing security with 24-hour default expiration, optional max download limits, manual revocation support, and Argon2id password hashing.",
+        tag: "new",
+      },
+      {
+        icon: <Code2 className="h-5 w-5" />,
+        title: "Static Regex Compilation",
+        description: "All regex patterns now use once_cell::Lazy<Regex>, eliminating repeated compilation on each call. Applied to log parser, URL redaction, and NeoForge processor.",
+        tag: "improved",
+      },
+      {
+        icon: <MemoryStick className="h-5 w-5" />,
+        title: "Memory Leak Prevention",
+        description: "New useTauriListener hook for safe Tauri event handling. Properly handles async cleanup when components unmount, preventing race conditions.",
+        tag: "improved",
+      },
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "Optimized Tokio Runtime",
+        description: "Reduced tokio features from 'full' to only required features (fs, io-util, time, net, process, sync). Smaller binary size and faster compilation.",
+        tag: "improved",
+      },
+      {
+        icon: <FileCode className="h-5 w-5" />,
+        title: "Shared Browser Utilities",
+        description: "Extracted common code from browse components into shared types and utilities. Reduces code duplication across ModBrowser, PluginBrowser, and more.",
+        tag: "improved",
+      },
+    ],
+  },
   {
     version: "0.6.9",
     date: "2025-12-21",
@@ -1209,8 +1302,8 @@ export default function Changelog() {
     }
   }
 
-  // Split changelog into v0.6+ and v0.5.x
-  const majorReleases = changelog.filter(e => e.version.startsWith("0.6"))
+  // Split changelog into v0.6+/v0.7+ and v0.5.x
+  const majorReleases = changelog.filter(e => e.version.startsWith("0.7") || e.version.startsWith("0.6"))
   const v05Releases = changelog.filter(e => e.version.startsWith("0.5") || e.version.startsWith("0.4") || e.version.startsWith("0.3"))
 
   return (
@@ -1228,31 +1321,31 @@ export default function Changelog() {
               key={entry.version}
               className={`relative overflow-hidden ${
                 entry.isMajor
-                  ? "border-2 border-primary/50 bg-gradient-to-br from-primary/5 via-purple-500/5 to-pink-500/5"
+                  ? "border-2 border-primary/50 bg-gradient-to-br from-primary/5 via-primary/3 to-secondary/5"
                   : index === 0 ? "border-primary/50" : ""
               }`}
             >
               {entry.isMajor && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-purple-500/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
               )}
               <CardHeader className="pb-3 relative">
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-3">
                     {entry.isMajor && (
-                      <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-purple-500 flex items-center justify-center">
-                        <PartyPopper className="h-4 w-4 text-white" />
+                      <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                        <PartyPopper className="h-4 w-4 text-primary-foreground" />
                       </div>
                     )}
-                    <span className={`text-xl ${entry.isMajor ? "bg-gradient-to-r from-primary via-purple-500 to-pink-500 bg-clip-text text-transparent font-bold" : ""}`}>
+                    <span className={`text-xl ${entry.isMajor ? "text-primary font-bold" : ""}`}>
                       v{entry.version}
                     </span>
                     {index === 0 && (
-                      <Badge className="bg-gradient-to-r from-primary to-purple-500 text-white border-0">
+                      <Badge className="bg-primary text-primary-foreground border-0">
                         {t("changelog.latest")}
                       </Badge>
                     )}
                     {entry.isMajor && (
-                      <Badge variant="outline" className="bg-purple-500/10 text-purple-500 border-purple-500/30">
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
                         {t("changelog.majorRelease")}
                       </Badge>
                     )}
@@ -1294,6 +1387,22 @@ export default function Changelog() {
                     </div>
                   </div>
                 ))}
+
+                {/* Also includes section for major releases */}
+                {entry.alsoIncludes && entry.alsoIncludes.length > 0 && (
+                  <div className="pt-4 mt-4 border-t border-border/50">
+                    <p className="text-sm font-medium text-muted-foreground mb-3">
+                      {t("changelog.alsoIncludes")}
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {entry.alsoIncludes.map((item, i) => (
+                        <Badge key={i} variant="secondary" className="font-normal">
+                          {item}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

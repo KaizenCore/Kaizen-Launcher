@@ -53,6 +53,7 @@ pub enum SharingProvider {
 const AUTH_TOKEN_LENGTH: usize = 32; // 256-bit token
 const MAX_CONCURRENT_CONNECTIONS: usize = 10;
 const REQUEST_TIMEOUT_SECS: u64 = 300; // 5 minutes per request
+const DEFAULT_SHARE_EXPIRY_HOURS: u64 = 24; // Default share expiration: 24 hours
 
 /// Information about an active share session
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -69,12 +70,43 @@ pub struct ActiveShare {
     pub provider: SharingProvider,
     /// Whether this share requires a password
     pub has_password: bool,
+    /// When the share expires (RFC 3339 format)
+    pub expires_at: String,
+    /// Maximum number of downloads allowed (None = unlimited)
+    pub max_downloads: Option<u32>,
+    /// Whether the share has been manually revoked
+    pub is_revoked: bool,
     #[serde(skip_serializing)] // Never expose token to frontend
     #[allow(dead_code)] // Stored for security validation, not directly read
     pub auth_token: String,
     #[serde(skip_serializing)] // Never expose password hash to frontend
     #[allow(dead_code)]
     pub password_hash: Option<String>,
+}
+
+impl ActiveShare {
+    /// Check if the share has expired
+    pub fn is_expired(&self) -> bool {
+        if let Ok(expires_at) = chrono::DateTime::parse_from_rfc3339(&self.expires_at) {
+            chrono::Utc::now() >= expires_at.with_timezone(&chrono::Utc)
+        } else {
+            false // If we can't parse, assume not expired
+        }
+    }
+
+    /// Check if max downloads have been reached
+    pub fn max_downloads_reached(&self) -> bool {
+        if let Some(max) = self.max_downloads {
+            self.download_count >= max
+        } else {
+            false
+        }
+    }
+
+    /// Check if share is still valid (not expired, not revoked, not max downloads)
+    pub fn is_valid(&self) -> bool {
+        !self.is_revoked && !self.is_expired() && !self.max_downloads_reached()
+    }
 }
 
 /// Event emitted when share status changes
@@ -133,19 +165,63 @@ fn validate_token(provided: &str, expected: &str) -> bool {
         == 0
 }
 
-/// Hash password using SHA-256 (with salt derived from share_id for uniqueness)
+/// Hash password using Argon2id (memory-hard, secure password hashing)
+/// This is resistant to GPU attacks and provides proper key stretching
 fn hash_password(password: &str, share_id: &str) -> String {
-    use sha2::{Digest, Sha256};
-    let mut hasher = Sha256::new();
-    hasher.update(password.as_bytes());
-    hasher.update(share_id.as_bytes()); // Salt with share_id
-    let result = hasher.finalize();
-    result.iter().map(|b| format!("{:02x}", b)).collect()
+    use argon2::{
+        password_hash::{rand_core::OsRng, PasswordHasher, SaltString},
+        Argon2, Algorithm, Params, Version,
+    };
+
+    // Use Argon2id with recommended parameters for interactive login
+    // m=19456 (19 MiB), t=2 (iterations), p=1 (parallelism)
+    let params = Params::new(19456, 2, 1, None).expect("Invalid Argon2 params");
+    let argon2 = Argon2::new(Algorithm::Argon2id, Version::V0x13, params);
+
+    // Generate a random salt (combined with share_id for additional uniqueness)
+    let salt_input = format!("{}:{}", share_id, uuid::Uuid::new_v4());
+    let salt = SaltString::encode_b64(salt_input.as_bytes())
+        .unwrap_or_else(|_| SaltString::generate(&mut OsRng));
+
+    // Hash the password
+    let password_hash = argon2
+        .hash_password(password.as_bytes(), &salt)
+        .expect("Failed to hash password");
+
+    password_hash.to_string()
 }
 
-/// Validate password against stored hash
-fn validate_password(provided: &str, share_id: &str, expected_hash: &str) -> bool {
-    let provided_hash = hash_password(provided, share_id);
+/// Validate password against stored Argon2 hash
+fn validate_password(provided: &str, _share_id: &str, expected_hash: &str) -> bool {
+    use argon2::{
+        password_hash::{PasswordHash, PasswordVerifier},
+        Argon2,
+    };
+
+    // Parse the stored hash
+    let parsed_hash = match PasswordHash::new(expected_hash) {
+        Ok(hash) => hash,
+        Err(e) => {
+            warn!("[SECURITY] Failed to parse password hash: {}", e);
+            // Fall back to legacy SHA-256 verification for migration
+            return validate_password_legacy(provided, _share_id, expected_hash);
+        }
+    };
+
+    // Verify the password
+    Argon2::default()
+        .verify_password(provided.as_bytes(), &parsed_hash)
+        .is_ok()
+}
+
+/// Legacy SHA-256 password validation (for backwards compatibility during migration)
+fn validate_password_legacy(provided: &str, share_id: &str, expected_hash: &str) -> bool {
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(provided.as_bytes());
+    hasher.update(share_id.as_bytes());
+    let result = hasher.finalize();
+    let provided_hash: String = result.iter().map(|b| format!("{:02x}", b)).collect();
     validate_token(&provided_hash, expected_hash)
 }
 
@@ -1041,6 +1117,9 @@ pub async fn start_share(
 
     info!("[SHARE] Share URL generated with auth token");
 
+    // Calculate expiration time (default: 24 hours from now)
+    let expires_at = (chrono::Utc::now() + chrono::Duration::hours(DEFAULT_SHARE_EXPIRY_HOURS as i64)).to_rfc3339();
+
     let info = ActiveShare {
         share_id: share_id.clone(),
         instance_name: instance_name.to_string(),
@@ -1053,6 +1132,9 @@ pub async fn start_share(
         file_size: metadata.len(),
         provider,
         has_password: password_hash.is_some(),
+        expires_at,
+        max_downloads: None, // Unlimited by default
+        is_revoked: false,
         auth_token,
         password_hash,
     };
@@ -1191,6 +1273,9 @@ pub async fn start_share_with_password_hash(
 
     info!("[SHARE] Restored share URL generated with auth token");
 
+    // Calculate expiration time (default: 24 hours from now)
+    let expires_at = (chrono::Utc::now() + chrono::Duration::hours(DEFAULT_SHARE_EXPIRY_HOURS as i64)).to_rfc3339();
+
     let info = ActiveShare {
         share_id: share_id.clone(),
         instance_name: instance_name.to_string(),
@@ -1203,6 +1288,9 @@ pub async fn start_share_with_password_hash(
         file_size: metadata.len(),
         provider,
         has_password: password_hash.is_some(),
+        expires_at,
+        max_downloads: None, // Unlimited by default
+        is_revoked: false,
         auth_token,
         password_hash,
     };
@@ -1311,5 +1399,57 @@ pub async fn stop_all_shares(running_shares: RunningShares) {
 
     for share_id in share_ids {
         let _ = stop_share(&share_id, running_shares.clone()).await;
+    }
+}
+
+/// Revoke a share (mark it as invalid without stopping the server)
+/// This allows immediate token invalidation while gracefully stopping
+pub async fn revoke_share(share_id: &str, running_shares: RunningShares) -> AppResult<()> {
+    let mut shares = running_shares.write().await;
+
+    if let Some(session) = shares.get_mut(share_id) {
+        session.info.is_revoked = true;
+        info!("[SECURITY] Share {} has been revoked", share_id);
+        Ok(())
+    } else {
+        Err(AppError::Custom(format!("Share {} not found", share_id)))
+    }
+}
+
+/// Check if a share is valid (for use in connection handlers)
+pub async fn is_share_valid(share_id: &str, running_shares: RunningShares) -> bool {
+    let shares = running_shares.read().await;
+
+    if let Some(session) = shares.get(share_id) {
+        session.info.is_valid()
+    } else {
+        false
+    }
+}
+
+/// Update max downloads limit for a share
+pub async fn set_max_downloads(share_id: &str, max_downloads: Option<u32>, running_shares: RunningShares) -> AppResult<()> {
+    let mut shares = running_shares.write().await;
+
+    if let Some(session) = shares.get_mut(share_id) {
+        session.info.max_downloads = max_downloads;
+        info!("[SHARE] Share {} max downloads set to {:?}", share_id, max_downloads);
+        Ok(())
+    } else {
+        Err(AppError::Custom(format!("Share {} not found", share_id)))
+    }
+}
+
+/// Extend share expiration time
+pub async fn extend_share_expiration(share_id: &str, hours: u64, running_shares: RunningShares) -> AppResult<String> {
+    let mut shares = running_shares.write().await;
+
+    if let Some(session) = shares.get_mut(share_id) {
+        let new_expires_at = (chrono::Utc::now() + chrono::Duration::hours(hours as i64)).to_rfc3339();
+        session.info.expires_at = new_expires_at.clone();
+        info!("[SHARE] Share {} expiration extended to {}", share_id, new_expires_at);
+        Ok(new_expires_at)
+    } else {
+        Err(AppError::Custom(format!("Share {} not found", share_id)))
     }
 }

@@ -558,15 +558,15 @@ impl<'a> ModrinthClient<'a> {
             .await
             .map_err(|e| ModrinthError::Network(e.to_string()))?;
 
-        // Verify SHA1 hash
-        use sha1::{Digest, Sha1};
-        let mut hasher = Sha1::new();
+        // Verify SHA512 hash (stronger than SHA1, always provided by Modrinth)
+        use sha2::{Digest, Sha512};
+        let mut hasher = Sha512::new();
         hasher.update(&bytes);
         let hash = format!("{:x}", hasher.finalize());
 
-        if hash != file.hashes.sha1 {
+        if hash != file.hashes.sha512 {
             return Err(ModrinthError::HashMismatch {
-                expected: file.hashes.sha1.clone(),
+                expected: file.hashes.sha512.clone(),
                 actual: hash,
             });
         }

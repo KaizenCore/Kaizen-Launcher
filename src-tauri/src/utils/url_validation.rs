@@ -140,10 +140,11 @@ pub fn validate_url_for_ssrf(url_str: &str, strict_domain_check: bool) -> Result
     // Parse URL
     let url = Url::parse(url_str).map_err(|e| format!("Invalid URL: {}", e))?;
 
-    // Check scheme
+    // Check scheme - HTTPS only for security (prevents MITM attacks)
     match url.scheme() {
-        "http" | "https" => {}
-        scheme => return Err(format!("Invalid URL scheme: {}. Only HTTP/HTTPS allowed", scheme)),
+        "https" => {}
+        "http" => return Err("HTTP is not allowed. Use HTTPS for secure connections".to_string()),
+        scheme => return Err(format!("Invalid URL scheme: {}. Only HTTPS allowed", scheme)),
     }
 
     // Get host
@@ -176,8 +177,8 @@ pub fn validate_url_for_ssrf(url_str: &str, strict_domain_check: bool) -> Result
         }
     }
 
-    // Resolve hostname and check for private IPs
-    let port = url.port().unwrap_or(if url.scheme() == "https" { 443 } else { 80 });
+    // Resolve hostname and check for private IPs (HTTPS only, default port 443)
+    let port = url.port().unwrap_or(443);
     let socket_addrs: Vec<_> = format!("{}:{}", host, port)
         .to_socket_addrs()
         .map_err(|e| format!("Failed to resolve hostname '{}': {}", host, e))?
@@ -205,19 +206,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_http_blocked() {
+        // HTTP should always be rejected (security: MITM protection)
+        assert!(validate_url_for_ssrf("http://example.com/icon.png", false).is_err());
+        assert!(validate_url_for_ssrf("http://cdn.modrinth.com/icon.png", true).is_err());
+    }
+
+    #[test]
     fn test_localhost_blocked() {
-        assert!(validate_url_for_ssrf("http://localhost/icon.png", false).is_err());
-        assert!(validate_url_for_ssrf("http://127.0.0.1/icon.png", false).is_err());
-        assert!(validate_url_for_ssrf("http://[::1]/icon.png", false).is_err());
-        assert!(validate_url_for_ssrf("http://0.0.0.0/icon.png", false).is_err());
+        assert!(validate_url_for_ssrf("https://localhost/icon.png", false).is_err());
+        assert!(validate_url_for_ssrf("https://127.0.0.1/icon.png", false).is_err());
+        assert!(validate_url_for_ssrf("https://[::1]/icon.png", false).is_err());
+        assert!(validate_url_for_ssrf("https://0.0.0.0/icon.png", false).is_err());
     }
 
     #[test]
     fn test_private_ip_blocked() {
         // These would fail at DNS resolution in practice, but the hostname check catches them
-        assert!(validate_url_for_ssrf("http://10.0.0.1/icon.png", false).is_err());
-        assert!(validate_url_for_ssrf("http://192.168.1.1/icon.png", false).is_err());
-        assert!(validate_url_for_ssrf("http://172.16.0.1/icon.png", false).is_err());
+        assert!(validate_url_for_ssrf("https://10.0.0.1/icon.png", false).is_err());
+        assert!(validate_url_for_ssrf("https://192.168.1.1/icon.png", false).is_err());
+        assert!(validate_url_for_ssrf("https://172.16.0.1/icon.png", false).is_err());
     }
 
     #[test]
@@ -229,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_allowed_domains() {
-        // With strict check, only allowed domains work
+        // With strict check, only allowed domains work (HTTPS only)
         assert!(validate_url_for_ssrf("https://cdn.modrinth.com/icon.png", true).is_ok());
         assert!(validate_url_for_ssrf("https://raw.githubusercontent.com/icon.png", true).is_ok());
 
