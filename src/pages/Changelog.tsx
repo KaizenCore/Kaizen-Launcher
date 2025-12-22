@@ -70,6 +70,41 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.7.2",
+    date: "2025-12-22",
+    highlights: [
+      "Forge Support",
+      "Modloader Fix",
+      "1.18+ Compatibility",
+    ],
+    features: [
+      {
+        icon: <Blocks className="h-5 w-5" />,
+        title: "Forge Modloader Installation",
+        description: "Complete Forge modloader support for Minecraft 1.18+. New installer processor runs Forge installer headlessly, copies patched client and libraries, and properly configures the module system for BootstrapLauncher.",
+        tag: "new",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "Forge Launch Target Fix",
+        description: "Fixed 'Missing LaunchHandler forgeclient' error when launching Forge. The --launchTarget argument now correctly uses 'forge_client' (with underscore) instead of 'forgeclient'.",
+        tag: "fix",
+      },
+      {
+        icon: <Wrench className="h-5 w-5" />,
+        title: "Forge Bootstrap Cleanup",
+        description: "Added bootstrap version conflict resolution. When multiple bootstrap versions exist from processor libraries, only the highest version is kept to prevent module conflicts.",
+        tag: "improved",
+      },
+      {
+        icon: <Terminal className="h-5 w-5" />,
+        title: "Enhanced Forge Logging",
+        description: "Comprehensive logging with tracing macros for Forge installation troubleshooting. Track installer progress, library copies, and bootstrap operations in detail.",
+        tag: "improved",
+      },
+    ],
+  },
+  {
     version: "0.7.1",
     date: "2025-12-21",
     highlights: [

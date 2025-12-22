@@ -489,10 +489,10 @@
     "restartOnboardingButton": "Herstarten",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Wat is nieuw in v0.6.9",
-    "whatsNewPanelLayout": "Nieuwe 3-panel Playground-layout met aanpasbare en inklapbare panelen",
-    "whatsNewQuickAddMod": "Snel mods toevoegen van Modrinth met directe zoek- en installatie",
-    "whatsNewConsoleFontSize": "Console lettergrootte bediening (Ctrl+Scroll, schuifregelaar, +/- knoppen)",
+    "whatsNew": "Wat is nieuw in v0.7.2",
+    "whatsNewForgeInstaller": "Volledige Forge modloader ondersteuning voor Minecraft 1.18+ met headless installer",
+    "whatsNewForgeLaunchFix": "Fout 'Missing LaunchHandler forgeclient' bij Forge starten opgelost",
+    "whatsNewForgeBootstrap": "Bootstrap versieconflictoplossing voorkomt moduleconflicten",
     "devtools": "DevTools"
   },
   "devtools": {

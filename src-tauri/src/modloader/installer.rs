@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::io::{Cursor, Read};
 use std::path::Path;
 use tauri::{AppHandle, Emitter};
+use tracing::{debug, error, info, warn};
 use zip::ZipArchive;
 
 const FABRIC_MAVEN: &str = "https://maven.fabricmc.net";
@@ -203,10 +204,25 @@ async fn install_forge(
     loader_version: &str,
     app: &AppHandle,
 ) -> AppResult<LoaderProfile> {
+    use super::forge_processor;
+    use crate::launcher::java;
+
     emit_loader_progress(
         app,
         "loader",
-        10,
+        2,
+        100,
+        "Nettoyage des anciennes bibliotheques Forge...",
+    );
+
+    // Clean up old Forge libraries to prevent version conflicts
+    let libraries_dir = instance_dir.join("libraries");
+    clean_forge_libraries(&libraries_dir).await;
+
+    emit_loader_progress(
+        app,
+        "loader",
+        5,
         100,
         "Telechargement de l'installeur Forge...",
     );
@@ -215,7 +231,7 @@ async fn install_forge(
     let installer_url = forge::get_installer_url(mc_version, loader_version);
     let installer_bytes = download_installer_bytes(client, &installer_url).await?;
 
-    emit_loader_progress(app, "loader", 30, 100, "Extraction des fichiers Forge...");
+    emit_loader_progress(app, "loader", 15, 100, "Extraction des fichiers Forge...");
 
     // Extract and parse version.json from installer
     let (version_profile, libraries) =
@@ -227,7 +243,7 @@ async fn install_forge(
     emit_loader_progress(
         app,
         "loader",
-        50,
+        25,
         100,
         "Telechargement des bibliotheques Forge...",
     );
@@ -240,8 +256,51 @@ async fn install_forge(
         &libraries,
         &installer_bytes,
         app,
+        25,
         50,
-        95,
+    )
+    .await?;
+
+    emit_loader_progress(
+        app,
+        "loader",
+        50,
+        100,
+        "Execution des processeurs Forge...",
+    );
+
+    // Get Java path for running processors
+    // instance_dir is like .../com.kaizen.launcher/instances/forge
+    // data_dir should be .../com.kaizen.launcher (two levels up)
+    let data_dir = instance_dir
+        .parent() // instances/
+        .and_then(|p| p.parent()) // com.kaizen.launcher/
+        .unwrap_or(instance_dir);
+
+    let java_path = java::get_bundled_java_path(data_dir);
+    let java_str = if java_path.exists() {
+        java_path.to_string_lossy().to_string()
+    } else {
+        // Fallback to system java with proper detection
+        java::find_system_java().ok_or_else(|| {
+            AppError::Launcher(
+                "Java n'est pas installe. Installez Java depuis les parametres avant d'installer Forge.".to_string()
+            )
+        })?
+    };
+
+    println!("[FORGE] Using Java: {}", java_str);
+
+    // Run processors to generate patched client and other required files
+    forge_processor::run_processors(
+        client,
+        &installer_bytes,
+        instance_dir,
+        data_dir,
+        mc_version,
+        loader_version,
+        &java_str,
+        app,
     )
     .await?;
 
@@ -647,6 +706,13 @@ async fn download_forge_libraries(
     end_percent: u32,
 ) -> AppResult<()> {
     let total = libraries.len();
+    info!("[FORGE] Downloading {} libraries...", total);
+
+    // Log all libraries for debugging
+    for lib in libraries.iter() {
+        debug!("[FORGE] Library to download: {}", lib.name);
+    }
+
     let cursor = Cursor::new(installer_bytes);
     let mut archive = ZipArchive::new(cursor)
         .map_err(|e| AppError::Io(format!("Failed to open installer JAR: {}", e)))?;
@@ -674,7 +740,7 @@ async fn download_forge_libraries(
 
         // Skip if already exists
         if dest.exists() {
-            println!("[FORGE] Already exists: {}", lib.name);
+            debug!("[FORGE] Already exists: {}", lib.name);
             continue;
         }
 
@@ -686,7 +752,7 @@ async fn download_forge_libraries(
             tokio::fs::write(&dest, lib_bytes)
                 .await
                 .map_err(|e| AppError::Io(format!("Failed to write library: {}", e)))?;
-            println!("[FORGE] Extracted from installer: {}", lib.name);
+            info!("[FORGE] Extracted from installer: {}", lib.name);
             downloaded = true;
         }
 
@@ -699,11 +765,11 @@ async fn download_forge_libraries(
                             .await
                         {
                             Ok(_) => {
-                                println!("[FORGE] Downloaded: {}", lib.name);
+                                info!("[FORGE] Downloaded: {}", lib.name);
                                 downloaded = true;
                             }
                             Err(e) => {
-                                println!("[FORGE] Download failed for {}: {}", lib.name, e);
+                                warn!("[FORGE] Download failed for {}: {}", lib.name, e);
                             }
                         }
                     }
@@ -716,7 +782,7 @@ async fn download_forge_libraries(
             if let Some(ref url) = lib.url {
                 let full_url = format!("{}/{}", url.trim_end_matches('/'), path);
                 if download_file(client, &full_url, &dest, None).await.is_ok() {
-                    println!("[FORGE] Downloaded from maven: {}", lib.name);
+                    info!("[FORGE] Downloaded from maven: {}", lib.name);
                     downloaded = true;
                 }
             }
@@ -726,7 +792,7 @@ async fn download_forge_libraries(
         if !downloaded {
             let full_url = format!("{}/{}", FORGE_MAVEN, path);
             if download_file(client, &full_url, &dest, None).await.is_ok() {
-                println!("[FORGE] Downloaded from Forge maven: {}", lib.name);
+                info!("[FORGE] Downloaded from Forge maven: {}", lib.name);
                 downloaded = true;
             }
         }
@@ -735,13 +801,13 @@ async fn download_forge_libraries(
         if !downloaded {
             let mc_url = format!("https://libraries.minecraft.net/{}", path);
             if download_file(client, &mc_url, &dest, None).await.is_ok() {
-                println!("[FORGE] Downloaded from Minecraft: {}", lib.name);
+                info!("[FORGE] Downloaded from Minecraft: {}", lib.name);
                 downloaded = true;
             }
         }
 
         if !downloaded {
-            println!("[FORGE] WARNING: Could not obtain library: {}", lib.name);
+            error!("[FORGE] FAILED to obtain library: {}", lib.name);
         }
 
         // Update progress
@@ -1072,6 +1138,36 @@ pub fn merge_loader_profile(version: &mut VersionDetails, loader_profile: &Loade
                 "[LOADER] Total JVM arguments after merge: {}",
                 args.jvm.len()
             );
+        }
+    }
+}
+
+/// Clean up Forge-specific libraries to prevent version conflicts on reinstall
+/// This removes directories that may contain version-specific files
+async fn clean_forge_libraries(libraries_dir: &std::path::Path) {
+    // Forge-specific library prefixes to clean
+    // Note: Do NOT include net/sf/jopt-simple - it's a vanilla dependency that Forge uses
+    let forge_prefixes = [
+        "net/minecraftforge",
+        "cpw/mods",
+        "de/oceanlabs",
+    ];
+
+    for prefix in forge_prefixes {
+        let dir = libraries_dir.join(prefix);
+        if dir.exists() {
+            println!("[FORGE] Cleaning old libraries: {:?}", dir);
+            if let Err(e) = tokio::fs::remove_dir_all(&dir).await {
+                println!("[FORGE] Warning: Failed to clean {:?}: {}", dir, e);
+            }
+        }
+    }
+
+    // Also clean up old forge_meta.json to ensure fresh metadata
+    let forge_meta = libraries_dir.parent().map(|p| p.join("forge_meta.json"));
+    if let Some(ref meta_path) = forge_meta {
+        if meta_path.exists() {
+            let _ = tokio::fs::remove_file(meta_path).await;
         }
     }
 }

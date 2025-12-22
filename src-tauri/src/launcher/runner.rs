@@ -151,7 +151,7 @@ pub async fn launch_minecraft(
         } else if loader == "forge" {
             // Required FML arguments for BootstrapLauncher (Forge 1.18+)
             game_args.push("--launchTarget".to_string());
-            game_args.push("forgeclient".to_string());
+            game_args.push("forge_client".to_string());
             game_args.push(format!("--fml.mcVersion={}", instance.mc_version));
 
             // Read MCP version from metadata file (Forge uses mcpVersion, not neoFormVersion)
@@ -170,18 +170,18 @@ pub async fn launch_minecraft(
     }
 
     // Log the full command for debugging
-    debug!("=== FULL LAUNCH COMMAND ===");
-    debug!("Java: {}", java);
-    debug!("JVM args ({}):", jvm_args.len());
+    info!("=== FULL LAUNCH COMMAND ===");
+    info!("Java: {}", java);
+    info!("JVM args ({}):", jvm_args.len());
     for (i, arg) in jvm_args.iter().enumerate() {
-        debug!("  JVM[{}]: {}", i, arg);
+        info!("  JVM[{}]: {}", i, arg);
     }
-    debug!("Main class: {}", version.main_class);
-    debug!("Game args ({}):", game_args.len());
+    info!("Main class: {}", version.main_class);
+    info!("Game args ({}):", game_args.len());
     for (i, arg) in game_args.iter().enumerate() {
-        debug!("  Game[{}]: {}", i, arg);
+        info!("  Game[{}]: {}", i, arg);
     }
-    debug!("=== END COMMAND ===");
+    info!("=== END COMMAND ===");
 
     // Build the command
     let mut cmd = Command::new(&java);

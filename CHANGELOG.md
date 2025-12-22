@@ -2,6 +2,39 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.7.2] - 2025-12-22
+
+### Added
+- **Forge Modloader Installation** - Complete Forge support for Minecraft 1.18+
+  - New `forge_processor.rs` module runs Forge installer headlessly
+  - Copies patched client JAR (`forge-{version}-client.jar`) to instance
+  - Properly installs all Forge libraries including processors
+  - Configures Java module system for BootstrapLauncher
+
+### Fixed
+- **Forge Launch Target** - Fixed `Missing LaunchHandler forgeclient` error when launching Forge
+  - Changed `--launchTarget` argument from `forgeclient` to `forge_client` (with underscore)
+  - Forge version.json specifies `forge_client`, not `forgeclient`
+  - This was the root cause of all Forge 1.18+ launch failures
+
+### Improved
+- **Forge Bootstrap Cleanup** - Added bootstrap version conflict resolution
+  - Detects when multiple bootstrap versions exist in libraries
+  - Keeps only the highest version to prevent module conflicts
+  - Forge installer may download processor libs that conflict with runtime libs
+- **Enhanced Forge Logging** - Comprehensive logging with tracing macros
+  - Track installer progress, library copies, and bootstrap operations
+  - Easier debugging of Forge installation issues
+  - Uses `tracing::info!` and `tracing::debug!` throughout
+
+### Technical
+- New `src-tauri/src/modloader/forge_processor.rs` module
+- Added `forge_version` parameter to `run_processors` function
+- Modified `src-tauri/src/launcher/runner.rs` line 154 for correct launch target
+- Modified `src-tauri/src/modloader/installer.rs` to pass forge version
+- Added `copy_directory_contents` with overwrite-always behavior
+- Uses `tracing` crate for structured logging
+
 ## [0.7.1] - 2025-12-21
 
 ### Added

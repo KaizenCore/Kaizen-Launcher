@@ -489,10 +489,10 @@
     "restartOnboardingButton": "Neustart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Was ist neu in v0.6.9",
-    "whatsNewPanelLayout": "Neues 3-Panel Playground-Layout mit anpassbaren und einklappbaren Panels",
-    "whatsNewQuickAddMod": "Schnelles Hinzufugen von Mods aus Modrinth mit Sofortsuche und Installation",
-    "whatsNewConsoleFontSize": "Konsolen-Schriftgrosse-Steuerung (Ctrl+Scroll, Slider, +/- Tasten)",
+    "whatsNew": "Was ist neu in v0.7.2",
+    "whatsNewForgeInstaller": "Vollstaendige Forge Modloader-Unterstuetzung fuer Minecraft 1.18+ mit Headless-Installer",
+    "whatsNewForgeLaunchFix": "Fehler 'Missing LaunchHandler forgeclient' beim Forge-Start behoben",
+    "whatsNewForgeBootstrap": "Bootstrap-Versionskonfliktloesung verhindert Modulkonflikte",
     "devtools": "DevTools"
   },
   "devtools": {

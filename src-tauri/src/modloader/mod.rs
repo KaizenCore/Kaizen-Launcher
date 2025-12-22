@@ -6,6 +6,7 @@
 pub mod commands;
 pub mod fabric;
 pub mod forge;
+pub mod forge_processor;
 pub mod installer;
 pub mod neoforge;
 pub mod neoforge_processor;
