@@ -962,13 +962,15 @@ export function Settings() {
                 <div className="flex items-center gap-2">
                   <Newspaper className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">{t("settings.whatsNew")}</span>
-                  <span className="text-xs bg-gradient-to-r from-primary to-purple-500 text-white px-2 py-0.5 rounded-full">v0.7.2</span>
+                  <span className="text-xs bg-gradient-to-r from-primary to-purple-500 text-white px-2 py-0.5 rounded-full">v0.7.3</span>
                 </div>
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <ul className="list-disc list-inside space-y-1">
-                    <li>{t("settings.whatsNewForgeInstaller")}</li>
-                    <li>{t("settings.whatsNewForgeLaunchFix")}</li>
-                    <li>{t("settings.whatsNewForgeBootstrap")}</li>
+                    <li>{t("settings.whatsNewSecurityGate")}</li>
+                    <li>{t("settings.whatsNewSSRFProtection")}</li>
+                    <li>{t("settings.whatsNewTunnelTrait")}</li>
+                    <li>{t("settings.whatsNewErrorCodes")}</li>
+                    <li>{t("settings.whatsNewUnitTests")}</li>
                   </ul>
                 </div>
               </div>

@@ -70,6 +70,66 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.7.3",
+    date: "2025-12-26",
+    highlights: [
+      "Security Hardening",
+      "Code Quality",
+      "UI/UX Polish",
+      "123 Unit Tests",
+    ],
+    features: [
+      {
+        icon: <Lock className="h-5 w-5" />,
+        title: "Offline Account Permission Gate",
+        description: "Offline accounts now require launcher.dev permission. Server-side validation prevents bypass attempts. Requires active Kaizen account with valid token.",
+        tag: "new",
+      },
+      {
+        icon: <ShieldCheck className="h-5 w-5" />,
+        title: "Enhanced SSRF Protection",
+        description: "Comprehensive IP range blocking for URL validation. Blocks all private IPv4/IPv6 ranges, AWS metadata service, and link-local addresses. 18 new unit tests.",
+        tag: "improved",
+      },
+      {
+        icon: <Network className="h-5 w-5" />,
+        title: "TunnelProvider Trait",
+        description: "New unified trait interface for tunnel providers (Playit, Cloudflare, Ngrok, Bore). Reduces code duplication with start(), stop(), name(), requires_auth() methods.",
+        tag: "new",
+      },
+      {
+        icon: <Code2 className="h-5 w-5" />,
+        title: "Structured Error Codes",
+        description: "AppError now includes 60+ categorized error codes across 15 categories (AUTH_001, INST_001, etc.). Frontend receives structured JSON with code, category, and message.",
+        tag: "new",
+      },
+      {
+        icon: <Sparkles className="h-5 w-5" />,
+        title: "Framer Motion Dialogs",
+        description: "All dialogs now use smooth fade + scale animations via Framer Motion. AnimatedDialog and AnimatedDialogContent components for better UX.",
+        tag: "improved",
+      },
+      {
+        icon: <Users className="h-5 w-5" />,
+        title: "Accessibility Improvements",
+        description: "Comprehensive aria-labels for screen readers on all interactive elements. New accessibility section in i18n locales with 20+ translation keys.",
+        tag: "improved",
+      },
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "React Performance",
+        description: "React.memo and useCallback optimizations for SkinCard, ModsList, PlaygroundModList, and Accounts. Memoized list item components prevent unnecessary re-renders.",
+        tag: "improved",
+      },
+      {
+        icon: <FileCode className="h-5 w-5" />,
+        title: "59 New Unit Tests",
+        description: "Test count increased from 64 to 123. Coverage for LoaderType, NeoForge/Forge utilities, Java detection, and SSRF protection.",
+        tag: "new",
+      },
+    ],
+  },
+  {
     version: "0.7.2",
     date: "2025-12-22",
     highlights: [

@@ -2,6 +2,56 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.7.3] - 2025-12-26
+
+### Security
+- **Offline Account Permission Gate** - Offline accounts now require `launcher.dev` permission
+  - Option hidden from account creation dialog for regular users
+  - Server-side validation prevents bypass attempts via direct Tauri command invocation
+  - Requires active Kaizen account with valid token for permission verification
+- **Enhanced SSRF Protection** - Comprehensive IP range blocking for URL validation
+  - Blocks all private IPv4 ranges (10.x, 172.16-31.x, 192.168.x, 127.x)
+  - Blocks AWS metadata service (169.254.169.254)
+  - Blocks IPv6 private ranges (::1, fe80::, fc00::, fd00::)
+  - 18 new unit tests for IP validation
+
+### Added
+- **TunnelProvider Trait** - New trait interface for tunnel providers
+  - Unified interface with `start()`, `stop()`, `name()`, `requires_auth()`, `is_configured()`
+  - Implemented for Playit, Cloudflare, Ngrok, and Bore providers
+  - Factory function `get_provider()` for provider instantiation
+  - Reduces code duplication across tunnel implementations
+- **Structured Error Codes** - AppError now includes categorized error codes
+  - 60+ error codes across 15 categories (AUTH, INST, DL, LAUNCH, CRYPTO, etc.)
+  - `code()` method returns error code (e.g., "AUTH_001")
+  - `category()` method returns human-readable category
+  - Frontend receives structured JSON with code, category, and message
+- **59 New Unit Tests** - Comprehensive test coverage for critical functions
+  - LoaderType parsing and validation (12 tests)
+  - NeoForge version utilities (9 tests)
+  - Forge installer URL generation (5 tests)
+  - Java version detection and vendor parsing (15 tests)
+  - URL/IP validation for SSRF protection (18 tests)
+
+### Improved
+- **UI/UX Enhancements**
+  - Framer Motion animations for all dialogs (fade + scale transitions)
+  - Comprehensive aria-labels for accessibility (screen reader support)
+  - Dismiss buttons on error states across all pages
+  - React.memo and useCallback optimizations for SkinCard, ModsList, Accounts
+  - Responsive mobile improvements for dialogs and tabs
+- **Type Safety** - skinStore.ts now fully typed
+  - New interfaces: Skin, Cape, SkinProfile, StoreFavoriteSkin
+  - Union types: SkinVariant, SkinSource, CapeSource
+  - Removed all `any` type usage
+
+### Technical
+- New `src-tauri/src/tunnel/mod.rs` TunnelProviderTrait
+- Enhanced `src-tauri/src/error.rs` with ErrorCode enum and serialization
+- New `src/components/ui/dialog.tsx` AnimatedDialog components
+- Added accessibility section to i18n locales (en.json, fr.json)
+- Test count increased from 64 to 123 (all passing)
+
 ## [0.7.2] - 2025-12-22
 
 ### Added

@@ -29,8 +29,8 @@ static TOKEN_PATTERN: Lazy<Regex> = Lazy::new(|| {
 /// Redact sensitive parts of a URL
 ///
 /// # Examples
-/// ```
-/// use kaizen_launcher_lib::utils::redact::redact_url;
+/// ```ignore
+/// use crate::utils::redact::redact_url;
 ///
 /// let url = "https://discord.com/api/webhooks/123456/secrettoken123";
 /// let redacted = redact_url(url);

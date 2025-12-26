@@ -1,8 +1,8 @@
 use crate::error::{AppError, AppResult};
 use crate::state::SharedState;
 use crate::tunnel::{
-    agent::get_agent_binary_path, RunningTunnel, TunnelConfig, TunnelProvider, TunnelStatus,
-    TunnelStatusEvent, TunnelUrlEvent,
+    agent::get_agent_binary_path, BoxFuture, PlayitProvider, RunningTunnel, TunnelConfig,
+    TunnelProvider, TunnelProviderTrait, TunnelStatus, TunnelStatusEvent, TunnelUrlEvent,
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -319,4 +319,35 @@ pub async fn start_playit_tunnel(
     });
 
     Ok(running_tunnel)
+}
+
+// ============================================================================
+// TunnelProviderTrait Implementation
+// ============================================================================
+
+impl TunnelProviderTrait for PlayitProvider {
+    fn provider_type(&self) -> TunnelProvider {
+        TunnelProvider::Playit
+    }
+
+    fn name(&self) -> &'static str {
+        "playit"
+    }
+
+    fn start<'a>(
+        &'a self,
+        data_dir: &'a Path,
+        config: &'a TunnelConfig,
+        app: &'a AppHandle,
+    ) -> BoxFuture<'a, AppResult<RunningTunnel>> {
+        Box::pin(start_playit_tunnel(data_dir, config, app))
+    }
+
+    fn requires_auth(&self) -> bool {
+        false // Playit uses claim URL flow, not upfront auth
+    }
+
+    fn is_configured(&self, _config: &TunnelConfig) -> bool {
+        true // Playit can start without pre-configuration
+    }
 }

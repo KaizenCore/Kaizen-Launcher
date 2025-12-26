@@ -7,8 +7,11 @@ pub mod manager;
 pub mod ngrok;
 pub mod playit;
 
+use crate::error::AppResult;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 use std::sync::Arc;
+use tauri::AppHandle;
 use tokio::sync::RwLock;
 
 /// Tunnel provider types
@@ -132,4 +135,131 @@ pub struct TunnelStatusEvent {
 pub struct TunnelUrlEvent {
     pub instance_id: String,
     pub url: String,
+}
+
+// ============================================================================
+// Tunnel Provider Trait
+// ============================================================================
+
+/// Boxed future type for async trait methods (required for dyn compatibility)
+pub type BoxFuture<'a, T> = std::pin::Pin<Box<dyn std::future::Future<Output = T> + Send + 'a>>;
+
+/// Trait for tunnel provider implementations
+///
+/// This trait abstracts the common behavior across different tunnel providers
+/// (Playit, Cloudflare, Ngrok, Bore) to reduce code duplication and provide
+/// a consistent interface for tunnel management.
+///
+/// # Example
+///
+/// ```ignore
+/// let provider = get_provider(TunnelProvider::Playit);
+/// println!("Using provider: {}", provider.name());
+///
+/// if provider.requires_auth() && !provider.is_configured(&config) {
+///     return Err("Provider requires authentication".into());
+/// }
+///
+/// let tunnel = provider.start(data_dir, &config, &app).await?;
+/// ```
+pub trait TunnelProviderTrait: Send + Sync {
+    /// Get the provider type enum value
+    fn provider_type(&self) -> TunnelProvider;
+
+    /// Get the provider name as a static string (e.g., "playit", "cloudflare")
+    fn name(&self) -> &'static str;
+
+    /// Start the tunnel and return a RunningTunnel instance
+    ///
+    /// This method spawns the tunnel process and sets up output monitoring
+    /// for status updates and URL discovery.
+    ///
+    /// # Arguments
+    /// * `data_dir` - The data directory where tunnel binaries are stored
+    /// * `config` - The tunnel configuration containing port, auth tokens, etc.
+    /// * `app` - The Tauri app handle for emitting events to the frontend
+    ///
+    /// # Returns
+    /// A `RunningTunnel` instance containing the process ID and status
+    fn start<'a>(
+        &'a self,
+        data_dir: &'a Path,
+        config: &'a TunnelConfig,
+        app: &'a AppHandle,
+    ) -> BoxFuture<'a, AppResult<RunningTunnel>>;
+
+    /// Check if this provider requires authentication before starting
+    ///
+    /// Providers like ngrok require an authtoken to be configured,
+    /// while providers like Cloudflare quick tunnels work without auth.
+    fn requires_auth(&self) -> bool {
+        false
+    }
+
+    /// Check if the provider is properly configured with required credentials
+    ///
+    /// # Arguments
+    /// * `config` - The tunnel configuration to check
+    ///
+    /// # Returns
+    /// `true` if the provider has all required configuration, `false` otherwise
+    fn is_configured(&self, _config: &TunnelConfig) -> bool {
+        !self.requires_auth()
+    }
+}
+
+// ============================================================================
+// Provider Implementations (struct definitions)
+// ============================================================================
+
+/// Playit.gg tunnel provider
+///
+/// Playit provides free Minecraft server hosting through their tunneling service.
+/// Uses a claim URL flow for first-time setup (no upfront auth required).
+pub struct PlayitProvider;
+
+/// Cloudflare Tunnel provider (Quick Tunnels)
+///
+/// Uses Cloudflare's free quick tunnel feature to expose local ports.
+/// No authentication required - generates temporary public URLs.
+pub struct CloudflareProvider;
+
+/// ngrok tunnel provider
+///
+/// Popular tunneling service that requires a free account and authtoken.
+/// Provides stable TCP tunnels with a web inspection interface.
+pub struct NgrokProvider;
+
+/// Bore tunnel provider
+///
+/// Open-source, self-hostable tunnel solution.
+/// Works without authentication using public bore servers.
+pub struct BoreProvider;
+
+// ============================================================================
+// Provider Factory
+// ============================================================================
+
+/// Get a tunnel provider instance by type
+///
+/// Returns a boxed trait object that can be used to start tunnels
+/// through a unified interface.
+///
+/// # Arguments
+/// * `provider` - The type of tunnel provider to create
+///
+/// # Example
+/// ```ignore
+/// let provider = get_provider(TunnelProvider::Ngrok);
+/// if provider.requires_auth() {
+///     // Handle auth requirement
+/// }
+/// ```
+pub fn get_provider(provider: TunnelProvider) -> Box<dyn TunnelProviderTrait> {
+    match provider {
+        TunnelProvider::Playit => Box::new(PlayitProvider),
+        TunnelProvider::Cloudflare => Box::new(CloudflareProvider),
+        TunnelProvider::Ngrok => Box::new(NgrokProvider),
+        TunnelProvider::Bore => Box::new(BoreProvider),
+    }
 }

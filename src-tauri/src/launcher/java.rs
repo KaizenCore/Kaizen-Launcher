@@ -912,3 +912,139 @@ pub async fn uninstall_java_version(data_dir: &Path, major_version: u32) -> AppR
     info!("Java {} uninstalled successfully", major_version);
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_extract_major_version_modern() {
+        // Modern Java versions (9+)
+        assert_eq!(extract_major_version("21.0.1"), 21);
+        assert_eq!(extract_major_version("17.0.9"), 17);
+        assert_eq!(extract_major_version("11.0.21"), 11);
+        assert_eq!(extract_major_version("21"), 21);
+    }
+
+    #[test]
+    fn test_extract_major_version_legacy() {
+        // Legacy Java versions (8 and earlier used "1.x" format)
+        assert_eq!(extract_major_version("1.8.0_362"), 8);
+        assert_eq!(extract_major_version("1.7.0_80"), 7);
+        assert_eq!(extract_major_version("1.6.0_45"), 6);
+    }
+
+    #[test]
+    fn test_extract_major_version_edge_cases() {
+        assert_eq!(extract_major_version(""), 0);
+        assert_eq!(extract_major_version("invalid"), 0);
+        assert_eq!(extract_major_version("abc.def.ghi"), 0);
+    }
+
+    #[test]
+    fn test_detect_vendor_temurin() {
+        assert_eq!(detect_vendor("temurin-21-jdk"), "Eclipse Temurin");
+        assert_eq!(detect_vendor("jdk-21.0.1+12-temurin"), "Eclipse Temurin");
+        assert_eq!(detect_vendor("adoptium-jdk-21"), "Eclipse Temurin");
+    }
+
+    #[test]
+    fn test_detect_vendor_zulu() {
+        assert_eq!(detect_vendor("zulu-21"), "Azul Zulu");
+        assert_eq!(detect_vendor("zulu21.30.15-ca-jdk21.0.1"), "Azul Zulu");
+    }
+
+    #[test]
+    fn test_detect_vendor_corretto() {
+        assert_eq!(detect_vendor("corretto-21"), "Amazon Corretto");
+        assert_eq!(detect_vendor("amazon-corretto-21.jdk"), "Amazon Corretto");
+    }
+
+    #[test]
+    fn test_detect_vendor_graalvm() {
+        assert_eq!(detect_vendor("graalvm-ce-java21"), "GraalVM");
+        assert_eq!(detect_vendor("graalvm-jdk-21"), "GraalVM");
+    }
+
+    #[test]
+    fn test_detect_vendor_microsoft() {
+        assert_eq!(detect_vendor("microsoft-jdk-21"), "Microsoft OpenJDK");
+    }
+
+    #[test]
+    fn test_detect_vendor_oracle() {
+        assert_eq!(detect_vendor("oracle-jdk-21"), "Oracle JDK");
+    }
+
+    #[test]
+    fn test_detect_vendor_openjdk() {
+        assert_eq!(detect_vendor("openjdk-21"), "OpenJDK");
+        assert_eq!(detect_vendor("java-21-openjdk"), "OpenJDK");
+    }
+
+    #[test]
+    fn test_detect_vendor_unknown() {
+        assert_eq!(detect_vendor("some-random-jdk"), "Unknown");
+        assert_eq!(detect_vendor("jdk-21"), "Unknown");
+    }
+
+    #[test]
+    fn test_detect_vendor_case_insensitive() {
+        assert_eq!(detect_vendor("TEMURIN-21"), "Eclipse Temurin");
+        assert_eq!(detect_vendor("ZULU-21"), "Azul Zulu");
+        assert_eq!(detect_vendor("GraalVM-CE"), "GraalVM");
+    }
+
+    #[test]
+    fn test_get_platform_info() {
+        let (os, arch) = get_platform_info();
+
+        // OS should be one of the expected values
+        assert!(["mac", "windows", "linux"].contains(&os));
+
+        // Arch should be one of the expected values
+        assert!(["aarch64", "x64"].contains(&arch));
+    }
+
+    #[test]
+    fn test_java_info_struct() {
+        let info = JavaInfo {
+            version: "21.0.1".to_string(),
+            path: "/usr/bin/java".to_string(),
+            is_bundled: false,
+        };
+
+        assert_eq!(info.version, "21.0.1");
+        assert_eq!(info.path, "/usr/bin/java");
+        assert!(!info.is_bundled);
+    }
+
+    #[test]
+    fn test_java_installation_struct() {
+        let installation = JavaInstallation {
+            version: "21.0.1".to_string(),
+            major_version: 21,
+            path: "/usr/bin/java".to_string(),
+            vendor: "Eclipse Temurin".to_string(),
+            is_bundled: true,
+        };
+
+        assert_eq!(installation.version, "21.0.1");
+        assert_eq!(installation.major_version, 21);
+        assert_eq!(installation.vendor, "Eclipse Temurin");
+        assert!(installation.is_bundled);
+    }
+
+    #[test]
+    fn test_available_java_version_struct() {
+        let version = AvailableJavaVersion {
+            major_version: 21,
+            release_name: "Java 21 (LTS)".to_string(),
+            release_type: "LTS".to_string(),
+        };
+
+        assert_eq!(version.major_version, 21);
+        assert_eq!(version.release_name, "Java 21 (LTS)");
+        assert_eq!(version.release_type, "LTS");
+    }
+}

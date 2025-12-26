@@ -244,4 +244,172 @@ mod tests {
         // Unknown domains should fail with strict check
         assert!(validate_url_for_ssrf("https://evil.com/icon.png", true).is_err());
     }
+
+    // Tests for is_private_ipv4
+    #[test]
+    fn test_is_private_ipv4_loopback() {
+        assert!(is_private_ipv4(&Ipv4Addr::new(127, 0, 0, 1)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(127, 255, 255, 255)));
+    }
+
+    #[test]
+    fn test_is_private_ipv4_class_a() {
+        // 10.0.0.0/8
+        assert!(is_private_ipv4(&Ipv4Addr::new(10, 0, 0, 0)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(10, 255, 255, 255)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(10, 100, 50, 25)));
+    }
+
+    #[test]
+    fn test_is_private_ipv4_class_b() {
+        // 172.16.0.0/12
+        assert!(is_private_ipv4(&Ipv4Addr::new(172, 16, 0, 0)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(172, 31, 255, 255)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(172, 20, 10, 5)));
+
+        // 172.15.x.x and 172.32.x.x should NOT be private
+        assert!(!is_private_ipv4(&Ipv4Addr::new(172, 15, 0, 0)));
+        assert!(!is_private_ipv4(&Ipv4Addr::new(172, 32, 0, 0)));
+    }
+
+    #[test]
+    fn test_is_private_ipv4_class_c() {
+        // 192.168.0.0/16
+        assert!(is_private_ipv4(&Ipv4Addr::new(192, 168, 0, 0)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(192, 168, 255, 255)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(192, 168, 1, 100)));
+
+        // 192.169.x.x should NOT be private
+        assert!(!is_private_ipv4(&Ipv4Addr::new(192, 169, 0, 0)));
+    }
+
+    #[test]
+    fn test_is_private_ipv4_link_local() {
+        // 169.254.0.0/16
+        assert!(is_private_ipv4(&Ipv4Addr::new(169, 254, 0, 0)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(169, 254, 255, 255)));
+    }
+
+    #[test]
+    fn test_is_private_ipv4_aws_metadata() {
+        // AWS metadata service
+        assert!(is_private_ipv4(&Ipv4Addr::new(169, 254, 169, 254)));
+    }
+
+    #[test]
+    fn test_is_private_ipv4_documentation() {
+        // Documentation ranges
+        assert!(is_private_ipv4(&Ipv4Addr::new(192, 0, 2, 0)));   // TEST-NET-1
+        assert!(is_private_ipv4(&Ipv4Addr::new(198, 51, 100, 0))); // TEST-NET-2
+        assert!(is_private_ipv4(&Ipv4Addr::new(203, 0, 113, 0)));  // TEST-NET-3
+    }
+
+    #[test]
+    fn test_is_private_ipv4_cgn() {
+        // Carrier-grade NAT (100.64.0.0/10)
+        assert!(is_private_ipv4(&Ipv4Addr::new(100, 64, 0, 0)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(100, 127, 255, 255)));
+
+        // Just outside the range
+        assert!(!is_private_ipv4(&Ipv4Addr::new(100, 63, 255, 255)));
+        assert!(!is_private_ipv4(&Ipv4Addr::new(100, 128, 0, 0)));
+    }
+
+    #[test]
+    fn test_is_private_ipv4_current_network() {
+        // 0.0.0.0/8
+        assert!(is_private_ipv4(&Ipv4Addr::new(0, 0, 0, 0)));
+        assert!(is_private_ipv4(&Ipv4Addr::new(0, 255, 255, 255)));
+    }
+
+    #[test]
+    fn test_is_private_ipv4_public() {
+        // Public IP addresses should NOT be private
+        assert!(!is_private_ipv4(&Ipv4Addr::new(8, 8, 8, 8)));       // Google DNS
+        assert!(!is_private_ipv4(&Ipv4Addr::new(1, 1, 1, 1)));       // Cloudflare DNS
+        assert!(!is_private_ipv4(&Ipv4Addr::new(93, 184, 216, 34))); // example.com
+        assert!(!is_private_ipv4(&Ipv4Addr::new(151, 101, 1, 69)));  // cdn.modrinth.com
+    }
+
+    // Tests for is_private_ipv6
+    #[test]
+    fn test_is_private_ipv6_loopback() {
+        assert!(is_private_ipv6(&Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1))); // ::1
+    }
+
+    #[test]
+    fn test_is_private_ipv6_unspecified() {
+        assert!(is_private_ipv6(&Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0))); // ::
+    }
+
+    #[test]
+    fn test_is_private_ipv6_link_local() {
+        // fe80::/10
+        assert!(is_private_ipv6(&Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1)));
+        assert!(is_private_ipv6(&Ipv6Addr::new(0xfebf, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff, 0xffff)));
+    }
+
+    #[test]
+    fn test_is_private_ipv6_unique_local() {
+        // fc00::/7 (includes fd00::/8)
+        assert!(is_private_ipv6(&Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, 1)));
+        assert!(is_private_ipv6(&Ipv6Addr::new(0xfd00, 0, 0, 0, 0, 0, 0, 1)));
+    }
+
+    #[test]
+    fn test_is_private_ipv6_public() {
+        // Public IPv6 addresses should NOT be private
+        assert!(!is_private_ipv6(&Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888))); // Google DNS
+        assert!(!is_private_ipv6(&Ipv6Addr::new(0x2606, 0x4700, 0x4700, 0, 0, 0, 0, 0x1111))); // Cloudflare DNS
+    }
+
+    // Tests for is_private_ip (combined IPv4/IPv6)
+    #[test]
+    fn test_is_private_ip_ipv4() {
+        assert!(is_private_ip(&IpAddr::V4(Ipv4Addr::new(10, 0, 0, 1))));
+        assert!(is_private_ip(&IpAddr::V4(Ipv4Addr::new(192, 168, 1, 1))));
+        assert!(!is_private_ip(&IpAddr::V4(Ipv4Addr::new(8, 8, 8, 8))));
+    }
+
+    #[test]
+    fn test_is_private_ip_ipv6() {
+        assert!(is_private_ip(&IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 1))));
+        assert!(is_private_ip(&IpAddr::V6(Ipv6Addr::new(0xfe80, 0, 0, 0, 0, 0, 0, 1))));
+        assert!(!is_private_ip(&IpAddr::V6(Ipv6Addr::new(0x2001, 0x4860, 0x4860, 0, 0, 0, 0, 0x8888))));
+    }
+
+    #[test]
+    fn test_localhost_variants() {
+        // Test various localhost variants that should be blocked
+        assert!(validate_url_for_ssrf("https://localhost/", false).is_err());
+        assert!(validate_url_for_ssrf("https://LOCALHOST/", false).is_err());
+        assert!(validate_url_for_ssrf("https://foo.localhost/", false).is_err());
+        assert!(validate_url_for_ssrf("https://bar.local/", false).is_err());
+    }
+
+    #[test]
+    fn test_allowed_icon_domains() {
+        // Test all allowed domains
+        let allowed = [
+            "https://cdn.modrinth.com/data/icon.png",
+            "https://github.com/user/repo/icon.png",
+            "https://raw.githubusercontent.com/user/repo/main/icon.png",
+            "https://avatars.githubusercontent.com/u/12345",
+            "https://i.imgur.com/abc123.png",
+            "https://imgur.com/abc123.png",
+            "https://media.forgecdn.net/icon.png",
+            "https://crafatar.com/avatars/uuid",
+            "https://mc-heads.net/avatar/uuid",
+            "https://minotar.net/helm/username",
+            "https://cravatar.eu/helmhead/uuid",
+        ];
+
+        for url in &allowed {
+            assert!(
+                validate_url_for_ssrf(url, true).is_ok(),
+                "Expected {} to be allowed",
+                url
+            );
+        }
+    }
 }

@@ -3,7 +3,8 @@ use crate::state::SharedState;
 use crate::tunnel::{
     agent::get_agent_binary_path,
     health::{find_available_bore_server, get_default_bore_servers},
-    RunningTunnel, TunnelConfig, TunnelProvider, TunnelStatus, TunnelStatusEvent, TunnelUrlEvent,
+    BoreProvider, BoxFuture, RunningTunnel, TunnelConfig, TunnelProvider, TunnelProviderTrait,
+    TunnelStatus, TunnelStatusEvent, TunnelUrlEvent,
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -321,4 +322,35 @@ pub async fn start_bore_tunnel(
     });
 
     Ok(running_tunnel)
+}
+
+// ============================================================================
+// TunnelProviderTrait Implementation
+// ============================================================================
+
+impl TunnelProviderTrait for BoreProvider {
+    fn provider_type(&self) -> TunnelProvider {
+        TunnelProvider::Bore
+    }
+
+    fn name(&self) -> &'static str {
+        "bore"
+    }
+
+    fn start<'a>(
+        &'a self,
+        data_dir: &'a Path,
+        config: &'a TunnelConfig,
+        app: &'a AppHandle,
+    ) -> BoxFuture<'a, AppResult<RunningTunnel>> {
+        Box::pin(start_bore_tunnel(data_dir, config, app))
+    }
+
+    fn requires_auth(&self) -> bool {
+        false // Bore doesn't require authentication
+    }
+
+    fn is_configured(&self, _config: &TunnelConfig) -> bool {
+        true // Bore works without configuration (uses default servers)
+    }
 }

@@ -601,10 +601,12 @@
     "restartOnboardingButton": "Relancer",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Nouveautés v0.7.2",
-    "whatsNewForgeInstaller": "Support complet du modloader Forge pour Minecraft 1.18+ avec installateur headless",
-    "whatsNewForgeLaunchFix": "Correction de l'erreur 'Missing LaunchHandler forgeclient' au lancement de Forge",
-    "whatsNewForgeBootstrap": "Résolution des conflits de version bootstrap pour éviter les conflits de modules",
+    "whatsNew": "Nouveautés v0.7.3",
+    "whatsNewSecurityGate": "Les comptes hors-ligne nécessitent désormais la permission launcher.dev avec validation serveur",
+    "whatsNewSSRFProtection": "Protection SSRF renforcée bloquant toutes les plages IP privées et services de métadonnées",
+    "whatsNewTunnelTrait": "Nouveau trait TunnelProvider unifiant Playit, Cloudflare, Ngrok et Bore",
+    "whatsNewErrorCodes": "Codes d'erreur structurés (60+ codes dans 15 catégories) pour un meilleur débogage",
+    "whatsNewUnitTests": "59 nouveaux tests unitaires (123 au total) pour une couverture complète du code",
     "devtools": "DevTools"
   },
   "devtools": {

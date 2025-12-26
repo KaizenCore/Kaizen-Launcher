@@ -1,8 +1,8 @@
 use crate::error::{AppError, AppResult};
 use crate::state::SharedState;
 use crate::tunnel::{
-    agent::get_agent_binary_path, RunningTunnel, TunnelConfig, TunnelProvider, TunnelStatus,
-    TunnelStatusEvent, TunnelUrlEvent,
+    agent::get_agent_binary_path, BoxFuture, CloudflareProvider, RunningTunnel, TunnelConfig,
+    TunnelProvider, TunnelProviderTrait, TunnelStatus, TunnelStatusEvent, TunnelUrlEvent,
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -223,4 +223,35 @@ pub async fn start_cloudflare_tunnel(
     });
 
     Ok(running_tunnel)
+}
+
+// ============================================================================
+// TunnelProviderTrait Implementation
+// ============================================================================
+
+impl TunnelProviderTrait for CloudflareProvider {
+    fn provider_type(&self) -> TunnelProvider {
+        TunnelProvider::Cloudflare
+    }
+
+    fn name(&self) -> &'static str {
+        "cloudflare"
+    }
+
+    fn start<'a>(
+        &'a self,
+        data_dir: &'a Path,
+        config: &'a TunnelConfig,
+        app: &'a AppHandle,
+    ) -> BoxFuture<'a, AppResult<RunningTunnel>> {
+        Box::pin(start_cloudflare_tunnel(data_dir, config, app))
+    }
+
+    fn requires_auth(&self) -> bool {
+        false // Cloudflare quick tunnels don't require auth
+    }
+
+    fn is_configured(&self, _config: &TunnelConfig) -> bool {
+        true // Cloudflare quick tunnels work without configuration
+    }
 }

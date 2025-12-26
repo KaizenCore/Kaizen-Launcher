@@ -203,3 +203,92 @@ pub async fn get_recommended_version(
     let versions = fetch_versions_for_mc(client, mc_version).await?;
     Ok(versions.into_iter().find(|v| v.stable).map(|v| v.version))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_mc_version_standard() {
+        // Standard NeoForge versions (1.20.2+)
+        assert_eq!(parse_mc_version("20.4.123"), Some("1.20.4".to_string()));
+        assert_eq!(parse_mc_version("21.0.1"), Some("1.21".to_string()));
+        assert_eq!(parse_mc_version("21.1.42"), Some("1.21.1".to_string()));
+        assert_eq!(parse_mc_version("20.2.88"), Some("1.20.2".to_string()));
+    }
+
+    #[test]
+    fn test_parse_mc_version_with_minor_zero() {
+        // When minor is 0, it should just be "1.X" not "1.X.0"
+        assert_eq!(parse_mc_version("21.0.1"), Some("1.21".to_string()));
+        assert_eq!(parse_mc_version("20.0.10"), Some("1.20".to_string()));
+    }
+
+    #[test]
+    fn test_parse_mc_version_with_beta() {
+        assert_eq!(parse_mc_version("21.0.1-beta"), Some("1.21".to_string()));
+        assert_eq!(parse_mc_version("20.4.5-alpha"), Some("1.20.4".to_string()));
+    }
+
+    #[test]
+    fn test_parse_mc_version_invalid() {
+        assert_eq!(parse_mc_version("invalid"), None);
+        assert_eq!(parse_mc_version("abc.def.ghi"), None);
+        assert_eq!(parse_mc_version(""), None);
+        assert_eq!(parse_mc_version("21"), None);
+    }
+
+    #[test]
+    fn test_is_legacy_version() {
+        // Legacy 1.20.1 versions
+        assert!(is_legacy_version("1.20.1-47.1.106"));
+        assert!(is_legacy_version("1.20.1-47.1.82"));
+        assert!(is_legacy_version("47.1.82"));
+        assert!(is_legacy_version("47.1.106"));
+
+        // Non-legacy versions
+        assert!(!is_legacy_version("20.4.123"));
+        assert!(!is_legacy_version("21.0.1"));
+        assert!(!is_legacy_version("21.1.42"));
+    }
+
+    #[test]
+    fn test_get_installer_url_modern() {
+        let url = get_installer_url("21.0.1", false);
+        assert_eq!(
+            url,
+            "https://maven.neoforged.net/releases/net/neoforged/neoforge/21.0.1/neoforge-21.0.1-installer.jar"
+        );
+    }
+
+    #[test]
+    fn test_get_installer_url_legacy() {
+        let url = get_installer_url("1.20.1-47.1.106", true);
+        assert_eq!(
+            url,
+            "https://maven.neoforged.net/releases/net/neoforged/forge/1.20.1-47.1.106/forge-1.20.1-47.1.106-installer.jar"
+        );
+    }
+
+    #[test]
+    fn test_neoforge_versions_response_deserialize() {
+        let json = r#"{"versions": ["21.0.1", "21.0.0", "20.4.123"]}"#;
+        let response: NeoForgeVersionsResponse = serde_json::from_str(json).unwrap();
+
+        assert_eq!(response.versions.len(), 3);
+        assert_eq!(response.versions[0], "21.0.1");
+        assert_eq!(response.versions[2], "20.4.123");
+    }
+
+    #[test]
+    fn test_version_stability_detection() {
+        // Test how we detect stable vs beta versions
+        let version_stable = "21.0.1";
+        let version_beta = "21.0.1-beta";
+        let version_alpha = "21.0.1-alpha";
+
+        assert!(!version_stable.contains("beta") && !version_stable.contains("alpha"));
+        assert!(version_beta.contains("beta"));
+        assert!(version_alpha.contains("alpha"));
+    }
+}

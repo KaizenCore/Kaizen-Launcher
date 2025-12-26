@@ -1,8 +1,8 @@
 use crate::error::{AppError, AppResult};
 use crate::state::SharedState;
 use crate::tunnel::{
-    agent::get_agent_binary_path, RunningTunnel, TunnelConfig, TunnelProvider, TunnelStatus,
-    TunnelStatusEvent, TunnelUrlEvent,
+    agent::get_agent_binary_path, BoxFuture, NgrokProvider, RunningTunnel, TunnelConfig,
+    TunnelProvider, TunnelProviderTrait, TunnelStatus, TunnelStatusEvent, TunnelUrlEvent,
 };
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -522,4 +522,35 @@ pub async fn start_ngrok_tunnel(
     });
 
     Ok(running_tunnel)
+}
+
+// ============================================================================
+// TunnelProviderTrait Implementation
+// ============================================================================
+
+impl TunnelProviderTrait for NgrokProvider {
+    fn provider_type(&self) -> TunnelProvider {
+        TunnelProvider::Ngrok
+    }
+
+    fn name(&self) -> &'static str {
+        "ngrok"
+    }
+
+    fn start<'a>(
+        &'a self,
+        data_dir: &'a Path,
+        config: &'a TunnelConfig,
+        app: &'a AppHandle,
+    ) -> BoxFuture<'a, AppResult<RunningTunnel>> {
+        Box::pin(start_ngrok_tunnel(data_dir, config, app))
+    }
+
+    fn requires_auth(&self) -> bool {
+        true // ngrok requires an authtoken
+    }
+
+    fn is_configured(&self, config: &TunnelConfig) -> bool {
+        config.ngrok_authtoken.is_some()
+    }
 }
