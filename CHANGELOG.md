@@ -2,6 +2,47 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.7.4] - 2025-12-26
+
+### Added
+- **External Launcher Import** - Import instances from other Minecraft launchers
+  - Supports Modrinth App, CurseForge, Prism Launcher, MultiMC, and Minecraft Launcher
+  - 4-step wizard: Detection → Selection → Options → Progress
+  - Auto-detects installed launchers on Windows, macOS, and Linux
+  - Select which content to copy: mods, configs, resource packs, shader packs, worlds
+- **Modrinth App SQLite Parsing** - Read profile metadata directly from Modrinth's database
+  - Parses `app.db` to get game version, mod loader (Fabric, NeoForge, Forge, Quilt)
+  - Correctly identifies loader version for all profiles
+  - Falls back to folder structure inference if database unavailable
+- **Modpack File Support** - Import .mrpack and CurseForge .zip files
+  - Extracts `modrinth.index.json` for mod dependencies
+  - Handles `overrides/` folders for config and resource files
+  - Parses manifest for Minecraft version and loader requirements
+- **Content Preview** - See importable content before importing
+  - Shows mod count, config files, resource packs, shader packs, and worlds
+  - Displays estimated size for each content type
+  - Select exactly what to include in the import
+
+### Improved
+- **Smart File Copy with Retry** - Better handling of locked files
+  - Automatic retry logic for Windows file locking errors (error 32/33)
+  - Retries up to 3 times with increasing delays (100ms, 200ms, 300ms)
+  - Fallback to manual read/write if direct copy fails
+  - Clear error messages suggesting to close source launcher
+- **Import UI Redesign** - Modern launcher cards interface
+  - Expand/collapse launchers to see instances
+  - Select all / Deselect all buttons per launcher
+  - Colored badges for loaders (Fabric=amber, Forge=blue, NeoForge=orange, Quilt=purple)
+  - Mod count and last played date display
+  - Visual selection indicator with checkboxes
+
+### Technical
+- New `src-tauri/src/external_import/` module with parsers for each launcher
+- Added `sqlx` queries for reading Modrinth App's SQLite database
+- `copy_file_with_retry()` function with Windows error code handling
+- New `src/components/import/` directory with wizard components
+- `LauncherCard` and `InstanceRow` components with shadcn/ui styling
+
 ## [0.7.3] - 2025-12-26
 
 ### Security

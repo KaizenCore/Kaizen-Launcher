@@ -2403,14 +2403,16 @@ dependencies = [
 
 [[package]]
 name = "kaizen-launcher"
-version = "0.7.3"
+version = "0.7.4"
 dependencies = [
  "aes-gcm",
  "anyhow",
  "argon2",
+ "async-trait",
  "base64 0.22.1",
  "chrono",
  "directories",
+ "dirs",
  "env_logger",
  "fastnbt",
  "flate2",

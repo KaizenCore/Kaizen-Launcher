@@ -7,6 +7,7 @@ mod devtools;
 mod discord;
 mod download;
 mod error;
+mod external_import;
 mod instance;
 mod launcher;
 mod minecraft;
@@ -423,6 +424,12 @@ pub fn run() {
             db::settings::get_appearance_settings,
             db::settings::save_appearance_setting,
             db::settings::save_custom_theme_settings,
+            // External import commands
+            external_import::commands::detect_external_launchers,
+            external_import::commands::parse_external_path,
+            external_import::commands::get_importable_content,
+            external_import::commands::preview_external_mods,
+            external_import::commands::import_external_instance,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

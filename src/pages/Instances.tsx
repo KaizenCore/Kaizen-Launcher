@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { useInstallationStore } from "@/stores/installationStore"
 import { useSharingStore } from "@/stores/sharingStore"
-import { Plus, Play, Trash2, Download, Loader2, Coffee, Monitor, Server, Network, Square, Circle, Search, Star, LayoutGrid, LayoutList, Columns, ArrowUpDown, FolderDown } from "lucide-react"
+import { Plus, Play, Trash2, Download, Loader2, Coffee, Monitor, Server, Network, Square, Circle, Search, Star, LayoutGrid, LayoutList, Columns, ArrowUpDown, FolderDown, Link2, ChevronDown } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslation, TranslationKey } from "@/i18n"
 import { Button } from "@/components/ui/button"
@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { CreateInstanceDialog } from "@/components/dialogs/CreateInstanceDialog"
 import { DeleteInstanceDialog } from "@/components/dialogs/DeleteInstanceDialog"
 import { ImportInstanceDialog } from "@/components/sharing/ImportInstanceDialog"
+import { ExternalLauncherImportDialog } from "@/components/import"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import {
@@ -480,6 +481,7 @@ export function Instances() {
   const [isLoading, setIsLoading] = useState(true)
   const [dialogOpen, setDialogOpen] = useState(false)
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [externalImportDialogOpen, setExternalImportDialogOpen] = useState(false)
   const [installedVersions, setInstalledVersions] = useState<Set<string>>(new Set())
   const [launchingInstance, setLaunchingInstance] = useState<string | null>(null)
   const [launchStep, setLaunchStep] = useState<string | null>(null)
@@ -926,10 +928,25 @@ export function Instances() {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2" onClick={() => setImportDialogOpen(true)}>
-              <FolderDown className="h-4 w-4" />
-              {t("sharing.import")}
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <FolderDown className="h-4 w-4" />
+                  {t("sharing.import")}
+                  <ChevronDown className="h-4 w-4 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setExternalImportDialogOpen(true)}>
+                  <Download className="h-4 w-4 mr-2" />
+                  {t("externalImport.fromLauncher")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setImportDialogOpen(true)}>
+                  <Link2 className="h-4 w-4 mr-2" />
+                  {t("sharing.fromUrl")}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button className="gap-2" onClick={() => setDialogOpen(true)}>
               <Plus className="h-4 w-4" />
               {t("instances.create")}
@@ -1171,6 +1188,13 @@ export function Instances() {
         <ImportInstanceDialog
           open={importDialogOpen}
           onOpenChange={setImportDialogOpen}
+          onSuccess={loadInstances}
+        />
+
+        {/* External Launcher Import Dialog */}
+        <ExternalLauncherImportDialog
+          open={externalImportDialogOpen}
+          onOpenChange={setExternalImportDialogOpen}
           onSuccess={loadInstances}
         />
 

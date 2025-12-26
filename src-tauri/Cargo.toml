@@ -1,6 +1,6 @@
 [package]
 name = "kaizen-launcher"
-version = "0.7.3"
+version = "0.7.4"
 description = "A modern Minecraft launcher"
 authors = ["Kaizen"]
 edition = "2021"
@@ -79,6 +79,8 @@ once_cell = "1"
 base64 = "0.22"
 walkdir = "2"
 fastnbt = "2"
+async-trait = "0.1"
+dirs = "6"
 
 # Windows-specific security (DPAPI for key protection)
 [target.'cfg(windows)'.dependencies]

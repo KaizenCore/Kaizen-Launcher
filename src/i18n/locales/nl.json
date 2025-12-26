@@ -489,10 +489,12 @@
     "restartOnboardingButton": "Herstarten",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Wat is nieuw in v0.7.2",
-    "whatsNewForgeInstaller": "Volledige Forge modloader ondersteuning voor Minecraft 1.18+ met headless installer",
-    "whatsNewForgeLaunchFix": "Fout 'Missing LaunchHandler forgeclient' bij Forge starten opgelost",
-    "whatsNewForgeBootstrap": "Bootstrap versieconflictoplossing voorkomt moduleconflicten",
+    "whatsNew": "Wat is nieuw in v0.7.4",
+    "whatsNewExternalImport": "Importeer instanties van Modrinth App, CurseForge, Prism, MultiMC en Minecraft Launcher",
+    "whatsNewModrinthParsing": "Lees profielmetadata direct uit Modrinth App's SQLite database",
+    "whatsNewModpackSupport": "Import van .mrpack (Modrinth) en CurseForge .zip modpack bestanden",
+    "whatsNewSmartFileCopy": "Slim kopieren met herhaalde pogingen voor vergrendelde bestanden",
+    "whatsNewImportUI": "Moderne import UI met launcher kaarten, gekleurde badges en groepsselectie",
     "devtools": "DevTools"
   },
   "devtools": {

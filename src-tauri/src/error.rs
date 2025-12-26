@@ -59,6 +59,9 @@ pub enum AppError {
     #[error("Schematic error: {0}")]
     Schematic(String),
 
+    #[error("External import error: {0}")]
+    ExternalImport(String),
+
     #[error("{0}")]
     Custom(String),
 }

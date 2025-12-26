@@ -70,6 +70,54 @@ interface ChangelogEntry {
 
 const changelog: ChangelogEntry[] = [
   {
+    version: "0.7.4",
+    date: "2025-12-26",
+    highlights: [
+      "External Launcher Import",
+      "Modrinth App Support",
+      "CurseForge & Prism",
+      "Smart File Handling",
+    ],
+    features: [
+      {
+        icon: <FolderSync className="h-5 w-5" />,
+        title: "External Launcher Import",
+        description: "Import instances from other Minecraft launchers: Modrinth App, CurseForge, Prism Launcher, MultiMC, and Minecraft Official Launcher. 4-step wizard with detection, selection, options, and progress tracking.",
+        tag: "new",
+      },
+      {
+        icon: <Database className="h-5 w-5" />,
+        title: "Modrinth App SQLite Parsing",
+        description: "Read profile metadata directly from Modrinth App's SQLite database (app.db). Correctly detects game version, mod loader (Fabric, NeoForge, Forge, Quilt), and loader version for all profiles.",
+        tag: "new",
+      },
+      {
+        icon: <Package className="h-5 w-5" />,
+        title: "Modpack File Support",
+        description: "Import .mrpack (Modrinth) and CurseForge .zip modpack files directly. Extracts overrides, parses manifest for dependencies, and creates properly configured instances.",
+        tag: "new",
+      },
+      {
+        icon: <RefreshCw className="h-5 w-5" />,
+        title: "Smart File Copy with Retry",
+        description: "Intelligent file copying with automatic retry logic for locked files (Windows error 32/33). Retries up to 3 times with fallback to manual read/write if needed.",
+        tag: "improved",
+      },
+      {
+        icon: <Layout className="h-5 w-5" />,
+        title: "Import UI Redesign",
+        description: "Modern launcher cards with expand/collapse, select all/deselect all buttons, colored loader badges (Fabric=amber, Forge=blue, NeoForge=orange, Quilt=purple), and mod count display.",
+        tag: "improved",
+      },
+      {
+        icon: <Search className="h-5 w-5" />,
+        title: "Content Preview",
+        description: "Preview importable content before import: mods, configs, resource packs, shader packs, and worlds. Choose exactly what to copy with detailed size information.",
+        tag: "new",
+      },
+    ],
+  },
+  {
     version: "0.7.3",
     date: "2025-12-26",
     highlights: [
