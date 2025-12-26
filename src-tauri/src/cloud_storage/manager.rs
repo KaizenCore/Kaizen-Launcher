@@ -397,6 +397,257 @@ pub async fn upload_backup(
     result
 }
 
+/// Upload an instance backup file to cloud storage
+/// Uses a separate folder structure: "Kaizen Instance Backups/{instance_id}/{filename}"
+pub async fn upload_instance_backup(
+    http_client: &reqwest::Client,
+    config: &CloudStorageConfig,
+    encryption_key: &[u8; 32],
+    local_path: &Path,
+    instance_id: &str,
+    backup_filename: &str,
+    app: Option<&AppHandle>,
+) -> AppResult<String> {
+    // Emit progress event helper
+    let emit_progress = |progress: u32, status: CloudSyncStatus, message: &str| {
+        if let Some(app) = app {
+            let _ = app.emit(
+                "cloud-upload-progress",
+                CloudUploadProgressEvent {
+                    backup_filename: backup_filename.to_string(),
+                    progress,
+                    bytes_uploaded: 0,
+                    total_bytes: 0,
+                    status,
+                    message: message.to_string(),
+                },
+            );
+        }
+    };
+
+    emit_progress(0, CloudSyncStatus::Uploading, "Starting upload...");
+
+    let result = match config.provider {
+        CloudProvider::Nextcloud => {
+            let url = config.nextcloud_url.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("Nextcloud URL not configured".to_string())
+            })?;
+            let username = config.nextcloud_username.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("Nextcloud username not configured".to_string())
+            })?;
+            let password_encrypted = config.nextcloud_password.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("Nextcloud password not configured".to_string())
+            })?;
+
+            let password = if crypto::is_encrypted(password_encrypted) {
+                crypto::decrypt(encryption_key, password_encrypted)?
+            } else {
+                password_encrypted.clone()
+            };
+
+            // Build remote path: /Kaizen Instance Backups/instance_id/backup.zip
+            let remote_path = format!(
+                "Kaizen Instance Backups/{}/{}",
+                instance_id, backup_filename
+            );
+
+            nextcloud::upload_file(
+                http_client,
+                url,
+                username,
+                &password,
+                &remote_path,
+                local_path,
+                Some(|uploaded, total| {
+                    if let Some(app) = app {
+                        let progress = if total > 0 {
+                            ((uploaded as f64 / total as f64) * 100.0) as u32
+                        } else {
+                            0
+                        };
+                        let _ = app.emit(
+                            "cloud-upload-progress",
+                            CloudUploadProgressEvent {
+                                backup_filename: backup_filename.to_string(),
+                                progress,
+                                bytes_uploaded: uploaded,
+                                total_bytes: total,
+                                status: CloudSyncStatus::Uploading,
+                                message: format!("Uploading... {}%", progress),
+                            },
+                        );
+                    }
+                }),
+            )
+            .await
+        }
+
+        CloudProvider::GoogleDrive => {
+            let access_token = config.google_access_token.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("Google Drive not authenticated".to_string())
+            })?;
+            let folder_id = config.google_folder_id.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("Google Drive folder not set up".to_string())
+            })?;
+
+            let token = if crypto::is_encrypted(access_token) {
+                crypto::decrypt(encryption_key, access_token)?
+            } else {
+                access_token.clone()
+            };
+
+            // Use prefix to indicate instance backup
+            let upload_filename = format!("instance_{}_{}", instance_id, backup_filename);
+
+            google_drive::upload_file(
+                http_client,
+                &token,
+                folder_id,
+                local_path,
+                &upload_filename,
+                Some(|uploaded, total| {
+                    if let Some(app) = app {
+                        let progress = if total > 0 {
+                            ((uploaded as f64 / total as f64) * 100.0) as u32
+                        } else {
+                            0
+                        };
+                        let _ = app.emit(
+                            "cloud-upload-progress",
+                            CloudUploadProgressEvent {
+                                backup_filename: backup_filename.to_string(),
+                                progress,
+                                bytes_uploaded: uploaded,
+                                total_bytes: total,
+                                status: CloudSyncStatus::Uploading,
+                                message: format!("Uploading... {}%", progress),
+                            },
+                        );
+                    }
+                }),
+            )
+            .await
+        }
+
+        CloudProvider::S3 => {
+            let endpoint = config.s3_endpoint.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("S3 endpoint not configured".to_string())
+            })?;
+            let region = config.s3_region.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("S3 region not configured".to_string())
+            })?;
+            let bucket = config.s3_bucket.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("S3 bucket not configured".to_string())
+            })?;
+            let access_key = config.s3_access_key.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("S3 access key not configured".to_string())
+            })?;
+            let secret_key_encrypted = config.s3_secret_key.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("S3 secret key not configured".to_string())
+            })?;
+
+            let secret_key = if crypto::is_encrypted(secret_key_encrypted) {
+                crypto::decrypt(encryption_key, secret_key_encrypted)?
+            } else {
+                secret_key_encrypted.clone()
+            };
+
+            let s3_config = s3::S3Config {
+                endpoint,
+                region,
+                bucket,
+                access_key,
+                secret_key: &secret_key,
+            };
+
+            // Build S3 key: kaizen-instance-backups/instance_id/backup.zip
+            let key = format!("kaizen-instance-backups/{}/{}", instance_id, backup_filename);
+
+            s3::upload_file(
+                http_client,
+                &s3_config,
+                &key,
+                local_path,
+                Some(|uploaded, total| {
+                    if let Some(app) = app {
+                        let progress = if total > 0 {
+                            ((uploaded as f64 / total as f64) * 100.0) as u32
+                        } else {
+                            0
+                        };
+                        let _ = app.emit(
+                            "cloud-upload-progress",
+                            CloudUploadProgressEvent {
+                                backup_filename: backup_filename.to_string(),
+                                progress,
+                                bytes_uploaded: uploaded,
+                                total_bytes: total,
+                                status: CloudSyncStatus::Uploading,
+                                message: format!("Uploading... {}%", progress),
+                            },
+                        );
+                    }
+                }),
+            )
+            .await
+        }
+
+        CloudProvider::Dropbox => {
+            let access_token = config.dropbox_access_token.as_ref().ok_or_else(|| {
+                AppError::CloudStorage("Dropbox not authenticated".to_string())
+            })?;
+
+            let token = if crypto::is_encrypted(access_token) {
+                crypto::decrypt(encryption_key, access_token)?
+            } else {
+                access_token.clone()
+            };
+
+            // Build remote path
+            let remote_path = format!("/Kaizen Instance Backups/{}/{}", instance_id, backup_filename);
+
+            dropbox::upload_file(
+                http_client,
+                &token,
+                &remote_path,
+                local_path,
+                Some(|uploaded, total| {
+                    if let Some(app) = app {
+                        let progress = if total > 0 {
+                            ((uploaded as f64 / total as f64) * 100.0) as u32
+                        } else {
+                            0
+                        };
+                        let _ = app.emit(
+                            "cloud-upload-progress",
+                            CloudUploadProgressEvent {
+                                backup_filename: backup_filename.to_string(),
+                                progress,
+                                bytes_uploaded: uploaded,
+                                total_bytes: total,
+                                status: CloudSyncStatus::Uploading,
+                                message: format!("Uploading... {}%", progress),
+                            },
+                        );
+                    }
+                }),
+            )
+            .await
+        }
+    };
+
+    match &result {
+        Ok(_) => {
+            emit_progress(100, CloudSyncStatus::Synced, "Upload complete!");
+        }
+        Err(e) => {
+            emit_progress(0, CloudSyncStatus::Failed, &e.to_string());
+        }
+    }
+
+    result
+}
+
 /// List remote backups from cloud storage
 pub async fn list_remote_backups(
     http_client: &reqwest::Client,

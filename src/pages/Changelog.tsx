@@ -1,8 +1,14 @@
+import { useState, useMemo } from "react"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
   Sparkles,
   Cloud,
   Shield,
@@ -50,6 +56,7 @@ import {
   Timer,
   Code2,
   MemoryStick,
+  RotateCcw,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -69,6 +76,72 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.7.5",
+    date: "2025-12-26",
+    highlights: [
+      "Full Instance Backups",
+      "Change Minecraft Version",
+      "Cloud Backup Support",
+      "Mod Compatibility Check",
+    ],
+    features: [
+      {
+        icon: <Archive className="h-5 w-5" />,
+        title: "Full Instance Backups",
+        description: "Create complete backups of your instances including mods, configs, saves, libraries, assets, and client files. 100% autonomous backups that can be restored anywhere.",
+        tag: "new",
+      },
+      {
+        icon: <Cloud className="h-5 w-5" />,
+        title: "Instance Backup Cloud Upload",
+        description: "Upload instance backups to your configured cloud storage (Google Drive, Dropbox, Nextcloud, S3). Same providers as world backups with separate folder structure.",
+        tag: "new",
+      },
+      {
+        icon: <LayoutGrid className="h-5 w-5" />,
+        title: "Backups Page Redesign",
+        description: "New tab-based interface separating World Backups and Instance Backups. Each tab has its own filtering, sorting, and statistics. Quick access to create full backups from instance details.",
+        tag: "new",
+      },
+      {
+        icon: <RotateCcw className="h-5 w-5" />,
+        title: "Instance Backup Restore",
+        description: "Restore instance backups with two options: Replace existing instance (overwrites all files) or Create new instance (from backup with custom name).",
+        tag: "new",
+      },
+      {
+        icon: <RefreshCw className="h-5 w-5" />,
+        title: "Change Minecraft Version",
+        description: "Change the Minecraft version of existing instances. Multi-step dialog with version selection, compatibility report, and progress tracking. Works for both clients and servers.",
+        tag: "new",
+      },
+      {
+        icon: <Search className="h-5 w-5" />,
+        title: "Mod Compatibility Check",
+        description: "Automatically checks all installed mods against the new Minecraft version via Modrinth API. Shows compatible mods (will be auto-updated), incompatible mods (warning), and unknown mods.",
+        tag: "new",
+      },
+      {
+        icon: <Download className="h-5 w-5" />,
+        title: "Auto Mod Updates",
+        description: "Compatible mods are automatically downloaded and updated to their latest version for the new Minecraft version. Old mod files are replaced with new versions.",
+        tag: "new",
+      },
+      {
+        icon: <Package className="h-5 w-5" />,
+        title: "Smart File Handling",
+        description: "Preserves user data (mods folder, config, worlds, saves, resource packs) while removing installation files (client, libraries, assets, natives) for clean reinstallation.",
+        tag: "improved",
+      },
+      {
+        icon: <Bug className="h-5 w-5" />,
+        title: "World Backups Fix",
+        description: "Fixed issue where instance backups were incorrectly displayed in the World Backups tab. Both backup types are now properly separated.",
+        tag: "fix",
+      },
+    ],
+  },
   {
     version: "0.7.4",
     date: "2025-12-26",
@@ -1445,8 +1518,11 @@ const changelog: ChangelogEntry[] = [
   },
 ]
 
+const ITEMS_PER_PAGE = 5
+
 export default function Changelog() {
   const { t } = useTranslation()
+  const [currentPage, setCurrentPage] = useState(1)
 
   const getTagColor = (tag?: string) => {
     switch (tag) {
@@ -1474,197 +1550,288 @@ export default function Changelog() {
     }
   }
 
-  // Split changelog into v0.6+/v0.7+ and v0.5.x
-  const majorReleases = changelog.filter(e => e.version.startsWith("0.7") || e.version.startsWith("0.6"))
-  const v05Releases = changelog.filter(e => e.version.startsWith("0.5") || e.version.startsWith("0.4") || e.version.startsWith("0.3"))
+  // Pagination calculations
+  const totalPages = Math.ceil(changelog.length / ITEMS_PER_PAGE)
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+  const endIndex = startIndex + ITEMS_PER_PAGE
+  const currentEntries = changelog.slice(startIndex, endIndex)
+
+  // Check if we need to show the "Previous Versions" section
+  const showPreviousVersionsHeader = useMemo(() => {
+    // Find the first "old" version index
+    const firstOldIndex = changelog.findIndex(
+      e => e.version.startsWith("0.5") || e.version.startsWith("0.4") || e.version.startsWith("0.3")
+    )
+    // Show header if we're transitioning from new to old versions in this page
+    return firstOldIndex >= startIndex && firstOldIndex < endIndex && firstOldIndex > 0
+  }, [startIndex, endIndex])
+
+  const isOldVersion = (version: string) => {
+    return version.startsWith("0.5") || version.startsWith("0.4") || version.startsWith("0.3")
+  }
+
+  // Get page numbers to display
+  const getPageNumbers = () => {
+    const pages: (number | "ellipsis")[] = []
+
+    if (totalPages <= 7) {
+      // Show all pages if 7 or less
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i)
+      }
+    } else {
+      // Always show first page
+      pages.push(1)
+
+      if (currentPage > 3) {
+        pages.push("ellipsis")
+      }
+
+      // Show pages around current
+      for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+        pages.push(i)
+      }
+
+      if (currentPage < totalPages - 2) {
+        pages.push("ellipsis")
+      }
+
+      // Always show last page
+      if (totalPages > 1) {
+        pages.push(totalPages)
+      }
+    }
+
+    return pages
+  }
+
+  const renderEntry = (entry: ChangelogEntry, globalIndex: number) => {
+    const isOld = isOldVersion(entry.version)
+
+    return (
+      <Card
+        key={entry.version}
+        className={`relative overflow-hidden ${
+          entry.isMajor
+            ? "border-2 border-primary/50 bg-gradient-to-br from-primary/5 via-primary/3 to-secondary/5"
+            : globalIndex === 0 ? "border-primary/50" : ""
+        } ${isOld ? "opacity-80 hover:opacity-100 transition-opacity" : ""}`}
+      >
+        {entry.isMajor && (
+          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        )}
+        <CardHeader className="pb-3 relative">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-3">
+              {entry.isMajor && (
+                <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+                  <PartyPopper className="h-4 w-4 text-primary-foreground" />
+                </div>
+              )}
+              <span className={`text-xl ${entry.isMajor ? "text-primary font-bold" : ""}`}>
+                v{entry.version}
+              </span>
+              {globalIndex === 0 && (
+                <Badge className="bg-primary text-primary-foreground border-0">
+                  {t("changelog.latest")}
+                </Badge>
+              )}
+              {entry.isMajor && (
+                <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                  {t("changelog.majorRelease")}
+                </Badge>
+              )}
+            </CardTitle>
+            <span className="text-sm text-muted-foreground">{entry.date}</span>
+          </div>
+          {entry.highlights && (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {entry.highlights.map((highlight, i) => (
+                <Badge
+                  key={i}
+                  variant="secondary"
+                  className={entry.isMajor ? "bg-primary/10 text-primary border-primary/20 font-normal" : "font-normal"}
+                >
+                  {highlight}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardHeader>
+        <CardContent className="space-y-4 relative">
+          {entry.features.map((feature, i) => (
+            <div key={i} className="flex gap-4">
+              <div className={`flex-shrink-0 h-10 w-10 rounded-lg flex items-center justify-center ${
+                entry.isMajor ? "bg-background border" : "bg-muted"
+              } text-muted-foreground`}>
+                {feature.icon}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="font-medium">{feature.title}</span>
+                  {feature.tag && (
+                    <Badge variant="outline" className={getTagColor(feature.tag)}>
+                      {getTagLabel(feature.tag)}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">{feature.description}</p>
+              </div>
+            </div>
+          ))}
+
+          {/* Also includes section for major releases */}
+          {entry.alsoIncludes && entry.alsoIncludes.length > 0 && (
+            <div className="pt-4 mt-4 border-t border-border/50">
+              <p className="text-sm font-medium text-muted-foreground mb-3">
+                {t("changelog.alsoIncludes")}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {entry.alsoIncludes.map((item, i) => (
+                  <Badge key={i} variant="secondary" className="font-normal">
+                    {item}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6 h-full">
-      <div>
-        <h1 className="text-2xl font-bold">{t("changelog.title")}</h1>
-        <p className="text-muted-foreground">{t("changelog.subtitle")}</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">{t("changelog.title")}</h1>
+          <p className="text-muted-foreground">{t("changelog.subtitle")}</p>
+        </div>
+        <div className="text-sm text-muted-foreground">
+          {t("changelog.pageInfo", { current: currentPage, total: totalPages, count: changelog.length })}
+        </div>
       </div>
 
       <ScrollArea className="flex-1">
         <div className="space-y-6 pr-4">
-          {/* Major Release - Special Design */}
-          {majorReleases.map((entry, index) => (
-            <Card
-              key={entry.version}
-              className={`relative overflow-hidden ${
-                entry.isMajor
-                  ? "border-2 border-primary/50 bg-gradient-to-br from-primary/5 via-primary/3 to-secondary/5"
-                  : index === 0 ? "border-primary/50" : ""
-              }`}
-            >
-              {entry.isMajor && (
-                <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-br from-primary/10 to-primary/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
-              )}
-              <CardHeader className="pb-3 relative">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-3">
-                    {entry.isMajor && (
-                      <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-                        <PartyPopper className="h-4 w-4 text-primary-foreground" />
+          {currentEntries.map((entry, index) => {
+            const globalIndex = startIndex + index
+            const isFirstOldInPage = showPreviousVersionsHeader &&
+              isOldVersion(entry.version) &&
+              (index === 0 || !isOldVersion(currentEntries[index - 1].version))
+
+            return (
+              <div key={entry.version}>
+                {/* Previous Versions Header */}
+                {isFirstOldInPage && (
+                  <div className="pt-4 pb-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Separator className="flex-1" />
+                      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted">
+                        <Archive className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-muted-foreground">
+                          {t("changelog.previousVersions")}
+                        </span>
                       </div>
-                    )}
-                    <span className={`text-xl ${entry.isMajor ? "text-primary font-bold" : ""}`}>
-                      v{entry.version}
-                    </span>
-                    {index === 0 && (
-                      <Badge className="bg-primary text-primary-foreground border-0">
-                        {t("changelog.latest")}
-                      </Badge>
-                    )}
-                    {entry.isMajor && (
-                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                        {t("changelog.majorRelease")}
-                      </Badge>
-                    )}
-                  </CardTitle>
-                  <span className="text-sm text-muted-foreground">{entry.date}</span>
-                </div>
-                {entry.highlights && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {entry.highlights.map((highlight, i) => (
-                      <Badge
-                        key={i}
-                        variant="secondary"
-                        className={entry.isMajor ? "bg-primary/10 text-primary border-primary/20 font-normal" : "font-normal"}
-                      >
-                        {highlight}
-                      </Badge>
-                    ))}
+                      <Separator className="flex-1" />
+                    </div>
+
+                    {/* v0.5.x Summary Card */}
+                    <Card className="bg-muted/30 border-dashed">
+                      <CardHeader className="pb-3">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Sparkles className="h-5 w-5 text-primary" />
+                          {t("changelog.v05RecapTitle")}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          {t("changelog.v05RecapDesc")}
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          <Badge variant="secondary">Skin Manager</Badge>
+                          <Badge variant="secondary">Mod Browser</Badge>
+                          <Badge variant="secondary">Dev Tools</Badge>
+                          <Badge variant="secondary">Cloud Backups</Badge>
+                          <Badge variant="secondary">Discord RPC</Badge>
+                          <Badge variant="secondary">P2P Sharing</Badge>
+                          <Badge variant="secondary">HTTP Tunnels</Badge>
+                          <Badge variant="secondary">Onboarding</Badge>
+                          <Badge variant="secondary">4K Support</Badge>
+                          <Badge variant="secondary">4 Languages</Badge>
+                          <Badge variant="secondary">90% Less CPU</Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                 )}
-              </CardHeader>
-              <CardContent className="space-y-4 relative">
-                {entry.features.map((feature, i) => (
-                  <div key={i} className="flex gap-4">
-                    <div className={`flex-shrink-0 h-10 w-10 rounded-lg flex items-center justify-center ${
-                      entry.isMajor ? "bg-background border" : "bg-muted"
-                    } text-muted-foreground`}>
-                      {feature.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{feature.title}</span>
-                        {feature.tag && (
-                          <Badge variant="outline" className={getTagColor(feature.tag)}>
-                            {getTagLabel(feature.tag)}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{feature.description}</p>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Also includes section for major releases */}
-                {entry.alsoIncludes && entry.alsoIncludes.length > 0 && (
-                  <div className="pt-4 mt-4 border-t border-border/50">
-                    <p className="text-sm font-medium text-muted-foreground mb-3">
-                      {t("changelog.alsoIncludes")}
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      {entry.alsoIncludes.map((item, i) => (
-                        <Badge key={i} variant="secondary" className="font-normal">
-                          {item}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-
-          {/* v0.5.x Recap Section */}
-          <div className="pt-4">
-            <div className="flex items-center gap-3 mb-4">
-              <Separator className="flex-1" />
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted">
-                <Archive className="h-4 w-4 text-muted-foreground" />
-                <span className="text-sm font-medium text-muted-foreground">
-                  {t("changelog.previousVersions")}
-                </span>
+                {renderEntry(entry, globalIndex)}
               </div>
-              <Separator className="flex-1" />
-            </div>
-
-            {/* v0.5.x Summary Card */}
-            <Card className="mb-6 bg-muted/30 border-dashed">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Sparkles className="h-5 w-5 text-primary" />
-                  {t("changelog.v05RecapTitle")}
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground mb-4">
-                  {t("changelog.v05RecapDesc")}
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Badge variant="secondary">Skin Manager</Badge>
-                  <Badge variant="secondary">Mod Browser</Badge>
-                  <Badge variant="secondary">Dev Tools</Badge>
-                  <Badge variant="secondary">Cloud Backups</Badge>
-                  <Badge variant="secondary">Discord RPC</Badge>
-                  <Badge variant="secondary">P2P Sharing</Badge>
-                  <Badge variant="secondary">HTTP Tunnels</Badge>
-                  <Badge variant="secondary">Onboarding</Badge>
-                  <Badge variant="secondary">4K Support</Badge>
-                  <Badge variant="secondary">4 Languages</Badge>
-                  <Badge variant="secondary">90% Less CPU</Badge>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Previous Versions */}
-          {v05Releases.map((entry) => (
-            <Card key={entry.version} className="opacity-80 hover:opacity-100 transition-opacity">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-3">
-                    <span className="text-xl">v{entry.version}</span>
-                  </CardTitle>
-                  <span className="text-sm text-muted-foreground">{entry.date}</span>
-                </div>
-                {entry.highlights && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {entry.highlights.map((highlight, i) => (
-                      <Badge key={i} variant="secondary" className="font-normal">
-                        {highlight}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {entry.features.map((feature, i) => (
-                  <div key={i} className="flex gap-4">
-                    <div className="flex-shrink-0 h-10 w-10 rounded-lg bg-muted flex items-center justify-center text-muted-foreground">
-                      {feature.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium">{feature.title}</span>
-                        {feature.tag && (
-                          <Badge variant="outline" className={getTagColor(feature.tag)}>
-                            {getTagLabel(feature.tag)}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">{feature.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </CardContent>
-            </Card>
-          ))}
+            )
+          })}
         </div>
       </ScrollArea>
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-1 pt-2 border-t">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(1)}
+            disabled={currentPage === 1}
+          >
+            <ChevronsLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+
+          <div className="flex items-center gap-1 mx-2">
+            {getPageNumbers().map((page, i) => (
+              page === "ellipsis" ? (
+                <span key={`ellipsis-${i}`} className="px-2 text-muted-foreground">...</span>
+              ) : (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? "default" : "ghost"}
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </Button>
+              )
+            ))}
+          </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setCurrentPage(totalPages)}
+            disabled={currentPage === totalPages}
+          >
+            <ChevronsRight className="h-4 w-4" />
+          </Button>
+        </div>
+      )}
     </div>
   )
 }

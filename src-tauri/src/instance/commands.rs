@@ -1,5 +1,8 @@
 use crate::db::instances::{CreateInstance, Instance};
 use crate::error::{AppError, AppResult};
+use crate::instance::instance_backup::{
+    self, GlobalInstanceBackupInfo, InstanceBackupInfo, InstanceBackupManifest, InstanceBackupStats,
+};
 use crate::instance::worlds::{self, BackupInfo, BackupStats, GlobalBackupInfo, WorldInfo};
 use crate::minecraft::versions;
 use crate::state::SharedState;
@@ -2988,4 +2991,460 @@ pub async fn analyze_instance_logs(
     );
 
     Ok(all_issues)
+}
+
+// ============= Version Change Feature =============
+
+use tauri::Emitter;
+
+/// Request to change an instance's Minecraft version
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ChangeVersionRequest {
+    pub instance_id: String,
+    pub new_mc_version: String,
+    pub new_loader: Option<String>,
+    pub new_loader_version: Option<String>,
+    /// List of (project_id, new_version_id) tuples for mods to update
+    pub mods_to_update: Vec<(String, String)>,
+}
+
+/// Progress event for version change
+#[derive(Debug, Clone, Serialize)]
+pub struct VersionChangeProgress {
+    pub stage: String,
+    pub current: u32,
+    pub total: u32,
+    pub message: String,
+    pub instance_id: String,
+}
+
+/// Change the Minecraft version of an instance
+#[tauri::command]
+pub async fn change_instance_version(
+    state: State<'_, SharedState>,
+    app: AppHandle,
+    request: ChangeVersionRequest,
+) -> AppResult<()> {
+    let state_guard = state.read().await;
+
+    // Get the instance
+    let instance = Instance::get_by_id(&state_guard.db, &request.instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    // Check if instance is running
+    {
+        let running = state_guard.running_instances.read().await;
+        if running.contains_key(&request.instance_id) {
+            return Err(AppError::Instance(
+                "Cannot change version while instance is running".to_string(),
+            ));
+        }
+    }
+
+    let instance_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir);
+
+    let total_steps = 3 + request.mods_to_update.len() as u32;
+    let mut current_step = 0u32;
+
+    // Helper to emit progress
+    let emit_progress = |stage: &str, current: u32, total: u32, message: &str| {
+        let _ = app.emit(
+            "version-change-progress",
+            VersionChangeProgress {
+                stage: stage.to_string(),
+                current,
+                total,
+                message: message.to_string(),
+                instance_id: request.instance_id.clone(),
+            },
+        );
+    };
+
+    // Step 1: Clean old installation files
+    emit_progress(
+        "cleaning_files",
+        current_step,
+        total_steps,
+        "Removing old installation files...",
+    );
+
+    // Directories to remove (installation files, not user data)
+    let dirs_to_remove = if instance.is_server || instance.is_proxy {
+        // For servers, remove server.jar and run scripts
+        vec!["libraries", "versions"]
+    } else {
+        // For clients, remove client files
+        vec!["client", "libraries", "assets", "natives", "versions"]
+    };
+
+    for dir_name in dirs_to_remove {
+        let dir_path = instance_dir.join(dir_name);
+        if dir_path.exists() {
+            if let Err(e) = fs::remove_dir_all(&dir_path).await {
+                log::warn!("Failed to remove {}: {}", dir_name, e);
+            }
+        }
+    }
+
+    // Remove .installed marker
+    let installed_marker = instance_dir.join(".installed");
+    if installed_marker.exists() {
+        let _ = fs::remove_file(&installed_marker).await;
+    }
+
+    // For servers, remove server.jar
+    if instance.is_server || instance.is_proxy {
+        let server_jar = instance_dir.join("server.jar");
+        if server_jar.exists() {
+            let _ = fs::remove_file(&server_jar).await;
+        }
+        // Also remove run scripts
+        for script in ["run.bat", "run.sh", "start.bat", "start.sh"] {
+            let script_path = instance_dir.join(script);
+            if script_path.exists() {
+                let _ = fs::remove_file(&script_path).await;
+            }
+        }
+    }
+
+    // Remove NeoForge/Forge metadata if present
+    let neoforge_meta = instance_dir.join("neoforge_meta.json");
+    if neoforge_meta.exists() {
+        let _ = fs::remove_file(&neoforge_meta).await;
+    }
+
+    current_step += 1;
+
+    // Step 2: Update mods
+    if !request.mods_to_update.is_empty() {
+        emit_progress(
+            "updating_mods",
+            current_step,
+            total_steps,
+            "Updating mods...",
+        );
+
+        let folder_name = get_content_folder(instance.loader.as_deref(), instance.is_server);
+        let content_dir = instance_dir.join(folder_name);
+
+        // Create Modrinth client
+        let client = crate::modrinth::ModrinthClient::new(&state_guard.http_client);
+
+        for (i, (project_id, new_version_id)) in request.mods_to_update.iter().enumerate() {
+            emit_progress(
+                "updating_mods",
+                current_step + i as u32,
+                total_steps,
+                &format!("Updating mod {} of {}...", i + 1, request.mods_to_update.len()),
+            );
+
+            // Get the project info
+            let project = match client.get_project(project_id).await {
+                Ok(p) => p,
+                Err(e) => {
+                    log::warn!("Failed to get project {}: {}", project_id, e);
+                    continue;
+                }
+            };
+
+            // Get the version info
+            let version = match client.get_version(new_version_id).await {
+                Ok(v) => v,
+                Err(e) => {
+                    log::warn!("Failed to get version {}: {}", new_version_id, e);
+                    continue;
+                }
+            };
+
+            // Find the primary file
+            let file = match version.files.iter().find(|f| f.primary).or(version.files.first()) {
+                Some(f) => f,
+                None => {
+                    log::warn!("No files found for version {}", new_version_id);
+                    continue;
+                }
+            };
+
+            // Find and remove old mod file
+            let mut entries = match fs::read_dir(&content_dir).await {
+                Ok(e) => e,
+                Err(_) => continue,
+            };
+
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                let filename = entry.file_name().to_string_lossy().to_string();
+                if filename.ends_with(".meta.json") {
+                    let meta_path = entry.path();
+                    if let Ok(content) = fs::read_to_string(&meta_path).await {
+                        if let Ok(meta) = serde_json::from_str::<ModMetadata>(&content) {
+                            if meta.project_id == *project_id {
+                                // Found the old mod, remove it
+                                let base_name = filename.trim_end_matches(".meta.json");
+                                let jar_path = content_dir.join(format!("{}.jar", base_name));
+                                let disabled_path =
+                                    content_dir.join(format!("{}.jar.disabled", base_name));
+
+                                if jar_path.exists() {
+                                    let _ = fs::remove_file(&jar_path).await;
+                                }
+                                if disabled_path.exists() {
+                                    let _ = fs::remove_file(&disabled_path).await;
+                                }
+                                let _ = fs::remove_file(&meta_path).await;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Download new mod file
+            let new_path = content_dir.join(&file.filename);
+            if let Err(e) = client.download_file(file, &new_path).await {
+                log::warn!("Failed to download mod {}: {}", project_id, e);
+                continue;
+            }
+
+            // Save new metadata
+            let new_base = file.filename.trim_end_matches(".jar").trim_end_matches(".zip");
+            let new_meta_path = content_dir.join(format!("{}.meta.json", new_base));
+
+            let dependencies: Vec<StoredDependency> = version
+                .dependencies
+                .iter()
+                .filter(|d| d.dependency_type == "required" || d.dependency_type == "optional")
+                .filter_map(|d| {
+                    d.project_id.as_ref().map(|pid| StoredDependency {
+                        project_id: pid.clone(),
+                        dependency_type: d.dependency_type.clone(),
+                    })
+                })
+                .collect();
+
+            let metadata = ModMetadata {
+                name: project.title.clone(),
+                version: version.version_number.clone(),
+                project_id: project_id.clone(),
+                version_id: Some(new_version_id.clone()),
+                icon_url: project.icon_url.clone(),
+                server_side: Some(project.server_side.clone()),
+                client_side: Some(project.client_side.clone()),
+                dependencies,
+            };
+
+            if let Ok(meta_json) = serde_json::to_string_pretty(&metadata) {
+                let _ = fs::write(&new_meta_path, meta_json).await;
+            }
+
+            log::info!(
+                "Updated mod {} to version {}",
+                project.title,
+                version.version_number
+            );
+        }
+
+        current_step += request.mods_to_update.len() as u32;
+    }
+
+    // Step 3: Update database
+    emit_progress(
+        "updating_db",
+        current_step,
+        total_steps,
+        "Updating instance configuration...",
+    );
+
+    Instance::update_version(
+        &state_guard.db,
+        &request.instance_id,
+        &request.new_mc_version,
+        request.new_loader.as_deref(),
+        request.new_loader_version.as_deref(),
+    )
+    .await
+    .map_err(AppError::from)?;
+
+    current_step += 1;
+
+    // Step 4: Complete
+    emit_progress("complete", current_step, total_steps, "Version change complete!");
+
+    log::info!(
+        "Changed instance {} version from {} to {} (loader: {:?} -> {:?})",
+        instance.name,
+        instance.mc_version,
+        request.new_mc_version,
+        instance.loader,
+        request.new_loader
+    );
+
+    Ok(())
+}
+
+// ============================================================================
+// Instance Backup Commands (complete instance backups)
+// ============================================================================
+
+/// Create a complete backup of an instance
+#[tauri::command]
+pub async fn create_instance_backup(
+    state: State<'_, SharedState>,
+    app: AppHandle,
+    instance_id: String,
+) -> AppResult<InstanceBackupInfo> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let instances_dir = state_guard.get_instances_dir().await;
+
+    instance_backup::create_instance_backup(&instances_dir, &state_guard.data_dir, &instance, Some(&app))
+        .await
+}
+
+/// Get backups for a specific instance
+#[tauri::command]
+pub async fn get_instance_backups(
+    state: State<'_, SharedState>,
+    instance_id: String,
+) -> AppResult<Vec<InstanceBackupInfo>> {
+    let state_guard = state.read().await;
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    instance_backup::list_instance_backups(
+        &state_guard.data_dir,
+        &instance_id,
+        &instance.name,
+        &instance.mc_version,
+        instance.loader.as_deref(),
+        instance.is_server || instance.is_proxy,
+    )
+    .await
+}
+
+/// Get all instance backups across all instances
+#[tauri::command]
+pub async fn get_all_instance_backups(
+    state: State<'_, SharedState>,
+) -> AppResult<Vec<GlobalInstanceBackupInfo>> {
+    let state_guard = state.read().await;
+
+    let instances = Instance::get_all(&state_guard.db)
+        .await
+        .map_err(AppError::from)?;
+
+    let instance_info: Vec<(String, String, String, Option<String>, bool)> = instances
+        .iter()
+        .map(|i| {
+            (
+                i.id.clone(),
+                i.name.clone(),
+                i.mc_version.clone(),
+                i.loader.clone(),
+                i.is_server || i.is_proxy,
+            )
+        })
+        .collect();
+
+    instance_backup::list_all_instance_backups(&state_guard.data_dir, &instance_info).await
+}
+
+/// Delete an instance backup
+#[tauri::command]
+pub async fn delete_instance_backup(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    backup_filename: String,
+) -> AppResult<()> {
+    let state_guard = state.read().await;
+    instance_backup::delete_instance_backup(&state_guard.data_dir, &instance_id, &backup_filename).await
+}
+
+/// Get instance backup statistics
+#[tauri::command]
+pub async fn get_instance_backup_stats(
+    state: State<'_, SharedState>,
+) -> AppResult<InstanceBackupStats> {
+    let state_guard = state.read().await;
+    instance_backup::get_instance_backup_stats(&state_guard.data_dir).await
+}
+
+/// Get the manifest from an instance backup
+#[tauri::command]
+pub async fn get_instance_backup_manifest(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    backup_filename: String,
+) -> AppResult<InstanceBackupManifest> {
+    let state_guard = state.read().await;
+    let backup_path =
+        instance_backup::get_instance_backup_dir(&state_guard.data_dir, &instance_id).join(&backup_filename);
+
+    tokio::task::spawn_blocking(move || instance_backup::read_backup_manifest(&backup_path))
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read manifest: {}", e)))?
+}
+
+/// Restore an instance backup
+#[tauri::command]
+pub async fn restore_instance_backup(
+    state: State<'_, SharedState>,
+    app: AppHandle,
+    instance_id: String,
+    backup_filename: String,
+    restore_mode: String,
+    new_name: Option<String>,
+) -> AppResult<Option<Instance>> {
+    let state_guard = state.read().await;
+    let instances_dir = state_guard.get_instances_dir().await;
+
+    match restore_mode.as_str() {
+        "replace" => {
+            let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+                .await
+                .map_err(AppError::from)?
+                .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+            instance_backup::restore_instance_backup_replace(
+                &instances_dir,
+                &state_guard.data_dir,
+                &instance,
+                &backup_filename,
+                Some(&app),
+            )
+            .await?;
+
+            Ok(None)
+        }
+        "create_new" => {
+            let new_instance = instance_backup::restore_instance_backup_new(
+                &state_guard.db,
+                &instances_dir,
+                &state_guard.data_dir,
+                &instance_id,
+                &backup_filename,
+                new_name,
+                Some(&app),
+            )
+            .await?;
+
+            Ok(Some(new_instance))
+        }
+        _ => Err(AppError::Instance(format!(
+            "Invalid restore mode: {}. Use 'replace' or 'create_new'",
+            restore_mode
+        ))),
+    }
 }

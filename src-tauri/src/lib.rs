@@ -251,11 +251,20 @@ pub fn run() {
             instance::commands::get_all_backups,
             instance::commands::get_backup_stats,
             instance::commands::restore_backup_to_other_instance,
+            // Instance backup commands
+            instance::commands::create_instance_backup,
+            instance::commands::get_instance_backups,
+            instance::commands::get_all_instance_backups,
+            instance::commands::delete_instance_backup,
+            instance::commands::get_instance_backup_stats,
+            instance::commands::get_instance_backup_manifest,
+            instance::commands::restore_instance_backup,
             // Server from client feature
             instance::commands::analyze_mods_for_server,
             instance::commands::create_server_from_client,
             instance::commands::check_server_dependencies,
             instance::commands::analyze_instance_logs,
+            instance::commands::change_instance_version,
             // Minecraft version commands
             minecraft::commands::get_minecraft_versions,
             minecraft::commands::get_minecraft_version_details,
@@ -301,6 +310,7 @@ pub fn run() {
             modrinth::commands::enrich_instance_mods,
             modrinth::commands::analyze_mods_for_server_detailed,
             modrinth::commands::sync_mods_metadata,
+            modrinth::commands::check_mods_version_compatibility,
             // Tunnel commands
             tunnel::commands::check_tunnel_agent,
             tunnel::commands::install_tunnel_agent,
@@ -347,6 +357,8 @@ pub fn run() {
             cloud_storage::commands::list_remote_backups,
             cloud_storage::commands::delete_backup_sync_record,
             cloud_storage::commands::mark_backup_for_upload,
+            cloud_storage::commands::upload_instance_backup_to_cloud,
+            cloud_storage::commands::get_instance_backup_cloud_syncs,
             // Discord commands
             discord::commands::get_discord_config,
             discord::commands::save_discord_config,

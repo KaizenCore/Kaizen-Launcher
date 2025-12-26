@@ -6,7 +6,7 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { toast } from "sonner"
 import { useInstallationStore } from "@/stores/installationStore"
 import { useTourStore, TourStep } from "@/stores/tourStore"
-import { ArrowLeft, Settings, Package, Loader2, FolderOpen, Search, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, Share2, Settings2, Cpu, Archive } from "lucide-react"
+import { ArrowLeft, Settings, Package, Loader2, FolderOpen, Search, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, Share2, Settings2, Cpu, Archive, RefreshCw } from "lucide-react"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -38,6 +38,7 @@ const TunnelConfig = lazy(() => import("@/components/tunnel/TunnelConfig").then(
 const WorldsTab = lazy(() => import("@/components/instances/WorldsTab").then(m => ({ default: m.WorldsTab })))
 const ModsList = lazy(() => import("@/components/instances/ModsList").then(m => ({ default: m.ModsList })))
 const ExportInstanceDialog = lazy(() => import("@/components/sharing/ExportInstanceDialog").then(m => ({ default: m.ExportInstanceDialog })))
+const ChangeVersionDialog = lazy(() => import("@/components/dialogs/ChangeVersionDialog").then(m => ({ default: m.ChangeVersionDialog })))
 
 // Loading fallback for lazy components
 function ComponentLoader() {
@@ -125,6 +126,7 @@ export function InstanceDetails() {
 
   // Share dialog state
   const [showExportDialog, setShowExportDialog] = useState(false)
+  const [showChangeVersionDialog, setShowChangeVersionDialog] = useState(false)
   const [copiedAddress, setCopiedAddress] = useState<string | null>(null)
 
   // Content type (mods vs plugins vs none)
@@ -148,6 +150,7 @@ export function InstanceDetails() {
 
   // Auto-backup state
   const [autoBackupEnabled, setAutoBackupEnabled] = useState(false)
+  const [isCreatingBackup, setIsCreatingBackup] = useState(false)
 
   // Settings sub-tabs state
   const [settingsTab, setSettingsTab] = useState("general")
@@ -247,6 +250,20 @@ export function InstanceDetails() {
     } catch (err) {
       console.error("Failed to toggle auto-backup:", err)
       toast.error(t("instanceDetails.autoBackupError"))
+    }
+  }
+
+  const handleCreateInstanceBackup = async () => {
+    if (!instanceId || isCreatingBackup) return
+    setIsCreatingBackup(true)
+    try {
+      await invoke("create_instance_backup", { instanceId })
+      toast.success(t("instanceDetails.instanceBackupCreated"))
+    } catch (err) {
+      console.error("Failed to create instance backup:", err)
+      toast.error(t("instanceDetails.instanceBackupError"))
+    } finally {
+      setIsCreatingBackup(false)
     }
   }
 
@@ -1153,7 +1170,21 @@ export function InstanceDetails() {
                           {/* MC Version */}
                           <div className="flex items-center justify-between py-1.5 border-b border-border/50">
                             <span className="text-sm text-muted-foreground">Minecraft</span>
-                            <span className="text-sm font-medium">{instance?.mc_version}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm font-medium">{instance?.mc_version}</span>
+                              {!instance?.is_proxy && (
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6"
+                                  onClick={() => setShowChangeVersionDialog(true)}
+                                  disabled={isRunning}
+                                  title={t("changeVersion.title")}
+                                >
+                                  <RefreshCw className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
+                            </div>
                           </div>
 
                           {/* Loader */}
@@ -1314,28 +1345,60 @@ export function InstanceDetails() {
 
               {/* Backups Sub-Tab */}
               <TabsContent value="backups" className="mt-0 data-[state=active]:block">
-                <Card>
-                  <CardHeader className="pb-4">
-                    <CardTitle>{t("instanceDetails.worldBackups")}</CardTitle>
-                    <CardDescription>
-                      {t("instanceDetails.worldBackupsDesc")}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-0.5">
-                        <Label>{t("instanceDetails.autoBackup")}</Label>
-                        <p className="text-sm text-muted-foreground">
-                          {t("instanceDetails.autoBackupDesc")}
-                        </p>
+                <div className="space-y-4">
+                  {/* World Backups Card */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle>{t("instanceDetails.worldBackups")}</CardTitle>
+                      <CardDescription>
+                        {t("instanceDetails.worldBackupsDesc")}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label>{t("instanceDetails.autoBackup")}</Label>
+                          <p className="text-sm text-muted-foreground">
+                            {t("instanceDetails.autoBackupDesc")}
+                          </p>
+                        </div>
+                        <Switch
+                          checked={autoBackupEnabled}
+                          onCheckedChange={handleToggleAutoBackup}
+                        />
                       </div>
-                      <Switch
-                        checked={autoBackupEnabled}
-                        onCheckedChange={handleToggleAutoBackup}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
+
+                  {/* Full Instance Backup Card */}
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle className="flex items-center gap-2">
+                        <Archive className="h-5 w-5" />
+                        {t("instanceDetails.fullInstanceBackup")}
+                      </CardTitle>
+                      <CardDescription>
+                        {t("instanceDetails.fullInstanceBackupDesc")}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button
+                        onClick={handleCreateInstanceBackup}
+                        disabled={isCreatingBackup}
+                        className="gap-2"
+                      >
+                        {isCreatingBackup ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Archive className="h-4 w-4" />
+                        )}
+                        {isCreatingBackup
+                          ? t("instanceDetails.creatingBackup")
+                          : t("instanceDetails.createFullBackup")}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </div>
               </TabsContent>
 
               {/* Server Sub-Tab */}
@@ -1484,6 +1547,18 @@ export function InstanceDetails() {
             onOpenChange={setShowExportDialog}
             instanceId={instance.id}
             instanceName={instance.name}
+          />
+        </Suspense>
+      )}
+
+      {/* Change Version Dialog */}
+      {instance && (
+        <Suspense fallback={null}>
+          <ChangeVersionDialog
+            open={showChangeVersionDialog}
+            onOpenChange={setShowChangeVersionDialog}
+            instance={instance}
+            onSuccess={loadInstance}
           />
         </Suspense>
       )}

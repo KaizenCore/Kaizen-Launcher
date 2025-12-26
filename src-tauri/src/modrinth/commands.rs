@@ -2651,3 +2651,185 @@ async fn save_mod_metadata(
 
     tokio::fs::write(meta_path, meta_json).await
 }
+
+// ============= Version Change Compatibility Check =============
+
+/// Status of mod compatibility with a target Minecraft version
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ModCompatibilityStatus {
+    /// Compatible version available
+    Compatible {
+        version_id: String,
+        version_number: String,
+    },
+    /// No compatible version found on Modrinth
+    Incompatible,
+    /// Not a Modrinth mod (no project_id in metadata)
+    Unknown,
+}
+
+/// Information about a mod's compatibility with a target version
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModCompatibilityInfo {
+    pub filename: String,
+    pub name: String,
+    pub project_id: Option<String>,
+    pub current_version_id: Option<String>,
+    pub icon_url: Option<String>,
+    pub compatibility: ModCompatibilityStatus,
+}
+
+/// Check mod compatibility when changing Minecraft version
+#[tauri::command]
+pub async fn check_mods_version_compatibility(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    target_mc_version: String,
+    target_loader: Option<String>,
+) -> AppResult<Vec<ModCompatibilityInfo>> {
+    let state_guard = state.read().await;
+    let client = ModrinthClient::new(&state_guard.http_client);
+
+    let instance = Instance::get_by_id(&state_guard.db, &instance_id)
+        .await
+        .map_err(AppError::from)?
+        .ok_or_else(|| AppError::Instance("Instance not found".to_string()))?;
+
+    let folder_name = get_content_folder(Some("mod"), instance.loader.as_deref(), instance.is_server);
+    let instance_dir = state_guard
+        .data_dir
+        .join("instances")
+        .join(&instance.game_dir);
+    let content_dir = instance_dir.join(folder_name);
+
+    if !content_dir.exists() {
+        return Ok(vec![]);
+    }
+
+    let mut results = Vec::new();
+    let mut entries = tokio::fs::read_dir(&content_dir)
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read {} directory: {}", folder_name, e)))?;
+
+    // Collect all mods with their metadata
+    let mut mods_to_check: Vec<(String, ModMetadata)> = Vec::new();
+    let mut mods_without_metadata: Vec<String> = Vec::new();
+
+    while let Some(entry) = entries
+        .next_entry()
+        .await
+        .map_err(|e| AppError::Io(format!("Failed to read directory entry: {}", e)))?
+    {
+        let filename = entry.file_name().to_string_lossy().to_string();
+
+        // Only process jar files (including disabled ones)
+        if filename.ends_with(".jar") || filename.ends_with(".jar.disabled") {
+            let base_name = filename
+                .trim_end_matches(".disabled")
+                .trim_end_matches(".jar");
+            let meta_path = content_dir.join(format!("{}.meta.json", base_name));
+
+            if meta_path.exists() {
+                if let Ok(content) = tokio::fs::read_to_string(&meta_path).await {
+                    if let Ok(meta) = serde_json::from_str::<ModMetadata>(&content) {
+                        mods_to_check.push((filename.clone(), meta));
+                        continue;
+                    }
+                }
+            }
+
+            // No valid metadata
+            mods_without_metadata.push(filename);
+        }
+    }
+
+    // Use the target loader or fall back to instance loader
+    let loader_to_use = target_loader.or_else(|| instance.loader.clone());
+
+    // Check each mod with metadata for compatibility
+    for (filename, meta) in mods_to_check {
+        let game_versions = vec![target_mc_version.as_str()];
+
+        // Prepare loader filter
+        let loaders = loader_to_use
+            .as_ref()
+            .map(|l| vec![l.to_lowercase()]);
+        let loaders_refs: Option<Vec<&str>> = loaders
+            .as_ref()
+            .map(|v| v.iter().map(|s| s.as_str()).collect());
+
+        match client
+            .get_project_versions(
+                &meta.project_id,
+                loaders_refs.as_deref(),
+                Some(&game_versions),
+            )
+            .await
+        {
+            Ok(versions) => {
+                let compatibility = if let Some(latest) = versions.first() {
+                    ModCompatibilityStatus::Compatible {
+                        version_id: latest.id.clone(),
+                        version_number: latest.version_number.clone(),
+                    }
+                } else {
+                    ModCompatibilityStatus::Incompatible
+                };
+
+                results.push(ModCompatibilityInfo {
+                    filename,
+                    name: meta.name.clone(),
+                    project_id: Some(meta.project_id.clone()),
+                    current_version_id: meta.version_id.clone(),
+                    icon_url: meta.icon_url.clone(),
+                    compatibility,
+                });
+            }
+            Err(e) => {
+                log::warn!(
+                    "Failed to check compatibility for {}: {}",
+                    meta.project_id,
+                    e
+                );
+                // Treat API errors as unknown compatibility
+                results.push(ModCompatibilityInfo {
+                    filename,
+                    name: meta.name.clone(),
+                    project_id: Some(meta.project_id.clone()),
+                    current_version_id: meta.version_id.clone(),
+                    icon_url: meta.icon_url.clone(),
+                    compatibility: ModCompatibilityStatus::Unknown,
+                });
+            }
+        }
+    }
+
+    // Add mods without metadata as unknown
+    for filename in mods_without_metadata {
+        let base_name = filename
+            .trim_end_matches(".disabled")
+            .trim_end_matches(".jar");
+
+        results.push(ModCompatibilityInfo {
+            filename: filename.clone(),
+            name: base_name.to_string(),
+            project_id: None,
+            current_version_id: None,
+            icon_url: None,
+            compatibility: ModCompatibilityStatus::Unknown,
+        });
+    }
+
+    // Sort: compatible first, then unknown, then incompatible
+    results.sort_by(|a, b| {
+        let order = |c: &ModCompatibilityStatus| match c {
+            ModCompatibilityStatus::Compatible { .. } => 0,
+            ModCompatibilityStatus::Unknown => 1,
+            ModCompatibilityStatus::Incompatible => 2,
+        };
+        order(&a.compatibility).cmp(&order(&b.compatibility))
+    });
+
+    Ok(results)
+}

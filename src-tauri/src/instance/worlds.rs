@@ -475,7 +475,7 @@ pub async fn create_backup(
 }
 
 /// Recursively add a directory to a ZIP archive (skips symlinks)
-fn add_directory_to_zip<W: Write + std::io::Seek>(
+pub fn add_directory_to_zip<W: Write + std::io::Seek>(
     zip: &mut zip::ZipWriter<W>,
     dir_path: &Path,
     _base_name: &str,
@@ -959,6 +959,11 @@ pub async fn list_all_backups(
         let instance_id = instance_entry.file_name().to_string_lossy().to_string();
         let instance_path = instance_entry.path();
 
+        // Skip the "instances" folder - it's used for instance backups, not world backups
+        if instance_id == "instances" {
+            continue;
+        }
+
         // Skip if not a directory
         let metadata = match fs::symlink_metadata(&instance_path).await {
             Ok(m) => m,
@@ -1086,6 +1091,12 @@ pub async fn get_backup_storage_stats(data_dir: &Path) -> AppResult<BackupStats>
 
     while let Some(instance_entry) = instance_dirs.next_entry().await.unwrap_or(None) {
         let instance_path = instance_entry.path();
+        let instance_id = instance_entry.file_name().to_string_lossy().to_string();
+
+        // Skip the "instances" folder - it's used for instance backups, not world backups
+        if instance_id == "instances" {
+            continue;
+        }
 
         let metadata = match fs::symlink_metadata(&instance_path).await {
             Ok(m) => m,
@@ -1095,7 +1106,6 @@ pub async fn get_backup_storage_stats(data_dir: &Path) -> AppResult<BackupStats>
             continue;
         }
 
-        let instance_id = instance_entry.file_name().to_string_lossy().to_string();
         let mut has_backups = false;
 
         let mut world_dirs = match fs::read_dir(&instance_path).await {

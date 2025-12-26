@@ -1,4 +1,5 @@
 pub mod commands;
+pub mod instance_backup;
 pub mod log_parser;
 pub mod worlds;
 

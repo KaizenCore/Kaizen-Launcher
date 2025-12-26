@@ -217,4 +217,27 @@ impl Instance {
             .await?;
         Ok(())
     }
+
+    pub async fn update_version(
+        db: &SqlitePool,
+        id: &str,
+        mc_version: &str,
+        loader: Option<&str>,
+        loader_version: Option<&str>,
+    ) -> sqlx::Result<()> {
+        sqlx::query(
+            r#"
+            UPDATE instances
+            SET mc_version = ?, loader = ?, loader_version = ?
+            WHERE id = ?
+            "#,
+        )
+        .bind(mc_version)
+        .bind(loader)
+        .bind(loader_version)
+        .bind(id)
+        .execute(db)
+        .await?;
+        Ok(())
+    }
 }

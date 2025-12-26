@@ -2,6 +2,61 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.7.5] - 2025-12-26
+
+### Added
+- **Full Instance Backups** - Create complete backups of entire instances
+  - Backup includes: mods, configs, saves, libraries, assets, client files
+  - 100% autonomous backups that can be restored anywhere
+  - New "Create Full Backup" button in instance details → Backups tab
+  - Stored in `{data_dir}/backups/instances/{instance_id}/`
+- **Instance Backup Cloud Upload** - Upload instance backups to cloud storage
+  - Supports all configured providers: Google Drive, Dropbox, Nextcloud, S3
+  - Uses separate folder structure: "Kaizen Instance Backups/{instance_id}/"
+  - Same configuration as world backups (no additional setup needed)
+  - Shows sync status badge on uploaded backups
+- **Instance Backup Restore** - Restore instance backups with two options
+  - Replace existing instance: Overwrites all files in the original instance
+  - Create new instance: Creates a new instance from backup with custom name
+  - Progress tracking during restore operation
+- **Backups Page Redesign** - New tab-based interface
+  - Separate tabs for World Backups and Instance Backups
+  - Each tab has its own filtering, sorting, and statistics
+  - Fixed: World backups no longer show instance backups incorrectly
+- **Change Instance Minecraft Version** - Change the Minecraft version of existing instances
+  - New "Change Version" button in instance settings (next to version display)
+  - Multi-step dialog: Select version → Compatibility check → Progress → Complete
+  - Works for both client and server instances
+  - Preserves user data: mods, configs, worlds, resource packs, shader packs
+  - Cleans installation files: client/, libraries/, assets/, natives/, .installed
+- **Mod Compatibility Checking** - Automatic mod compatibility verification via Modrinth API
+  - Checks all mods with `.meta.json` files against the new version
+  - Three compatibility states: Compatible (update available), Incompatible, Unknown
+  - Shows grouped mod list with icons and version info
+  - Unknown mods (no Modrinth link) are preserved and shown separately
+- **Auto-Update Compatible Mods** - Automatically download new mod versions when changing versions
+  - Fetches latest compatible version from Modrinth for each mod
+  - Downloads and replaces mod files with SHA-512 verification
+  - Incompatible mods are preserved (user can manually remove if needed)
+
+### Fixed
+- World Backups tab no longer shows instance backups as "Unknown (instance)"
+- Backup statistics now correctly exclude instance backups from world backup counts
+
+### Technical
+- New `src-tauri/src/instance/instance_backup.rs` module for instance backup logic
+- New Tauri commands: `create_instance_backup`, `restore_instance_backup`, `get_all_instance_backups`, `get_instance_backup_stats`, `delete_instance_backup`, `upload_instance_backup_to_cloud`
+- New `src/components/backups/` directory with `WorldBackupsTab.tsx` and `InstanceBackupsTab.tsx`
+- Refactored `src/pages/Backups.tsx` to use tab-based layout
+- New `src/types/backups.ts` for TypeScript interfaces
+- `upload_instance_backup()` function in `cloud_storage/manager.rs`
+- Skip "instances" folder in `list_all_backups()` and `get_backup_storage_stats()` in `worlds.rs`
+- New `update_version()` method in `src-tauri/src/db/instances.rs`
+- New `check_mods_version_compatibility` command in `src-tauri/src/modrinth/commands.rs`
+- New `change_instance_version` command in `src-tauri/src/instance/commands.rs`
+- New `src/components/dialogs/ChangeVersionDialog.tsx` multi-step dialog component
+- New translation keys in all 4 locales (en, fr, de, nl) for instance backups and changeVersion
+
 ## [0.7.4] - 2025-12-26
 
 ### Added

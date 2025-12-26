@@ -413,6 +413,103 @@ pub async fn delete_backup_sync_record(state: State<'_, SharedState>, id: String
     db::delete_backup_sync(&state.db, &id).await
 }
 
+/// Upload an instance backup to cloud storage
+#[tauri::command]
+pub async fn upload_instance_backup_to_cloud(
+    state: State<'_, SharedState>,
+    app: AppHandle,
+    instance_id: String,
+    backup_filename: String,
+) -> AppResult<CloudBackupSync> {
+    let state_guard = state.read().await;
+
+    // Get cloud config
+    let config = db::get_config(&state_guard.db)
+        .await?
+        .ok_or_else(|| AppError::CloudStorage("No cloud storage configured".to_string()))?;
+
+    if !config.enabled {
+        return Err(AppError::CloudStorage(
+            "Cloud storage is not enabled".to_string(),
+        ));
+    }
+
+    // Build local backup path for instance backups
+    let backups_dir = state_guard.data_dir.join("backups").join("instances");
+    let local_path = backups_dir.join(&instance_id).join(&backup_filename);
+
+    if !local_path.exists() {
+        return Err(AppError::CloudStorage(format!(
+            "Backup file not found: {}",
+            local_path.display()
+        )));
+    }
+
+    // Get file size
+    let file_size = tokio::fs::metadata(&local_path)
+        .await
+        .map(|m| m.len() as i64)
+        .ok();
+
+    // Create sync record - use "_instance_backup_" as special world_name marker
+    let mut sync = CloudBackupSync::new(
+        &local_path.to_string_lossy(),
+        &instance_id,
+        "_instance_backup_",
+        &backup_filename,
+    );
+    sync.file_size_bytes = file_size;
+    sync.sync_status = CloudSyncStatus::Uploading;
+
+    // Save initial sync record
+    db::upsert_backup_sync(&state_guard.db, &sync).await?;
+
+    // Perform upload
+    let result = manager::upload_instance_backup(
+        &state_guard.http_client,
+        &config,
+        &state_guard.encryption_key,
+        &local_path,
+        &instance_id,
+        &backup_filename,
+        Some(&app),
+    )
+    .await;
+
+    // Update sync record based on result
+    match &result {
+        Ok(remote_path) => {
+            sync.remote_path = Some(remote_path.clone());
+            sync.sync_status = CloudSyncStatus::Synced;
+            sync.last_synced_at = Some(chrono::Utc::now().to_rfc3339());
+            sync.error_message = None;
+        }
+        Err(e) => {
+            sync.sync_status = CloudSyncStatus::Failed;
+            sync.error_message = Some(e.to_string());
+        }
+    }
+
+    db::upsert_backup_sync(&state_guard.db, &sync).await?;
+
+    result.map(|_| sync)
+}
+
+/// Get cloud sync status for instance backups
+#[tauri::command]
+pub async fn get_instance_backup_cloud_syncs(
+    state: State<'_, SharedState>,
+) -> AppResult<Vec<CloudBackupSync>> {
+    let state = state.read().await;
+    let all_syncs = db::get_all_backup_syncs(&state.db).await?;
+
+    // Filter to only instance backups (world_name == "_instance_backup_")
+    Ok(all_syncs
+        .into_iter()
+        .filter(|s| s.world_name == "_instance_backup_")
+        .collect())
+}
+
 /// Mark a local backup for cloud upload (creates pending sync record)
 #[tauri::command]
 pub async fn mark_backup_for_upload(
