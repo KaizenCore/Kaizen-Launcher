@@ -2,6 +2,105 @@
 
 All notable changes to Kaizen Launcher will be documented in this file.
 
+## [0.7.6] - 2025-12-30
+
+### Added
+- **Easy Mode / Advanced Mode Toggle** - Simplified interface for novice players
+  - Toggle in title bar to switch between Easy and Advanced modes
+  - Easy Mode enabled by default for new users
+  - Persistent setting stored in database
+- **Quick Play** - One-click Minecraft experience
+  - Available in both Easy and Advanced modes via tabbed interface
+  - Combined with "Last Played" in a unified card with tabs
+  - Default modpack: Fabulously Optimized (optimized vanilla experience)
+  - Smart version selector: shows only unique Minecraft versions (latest modpack version per MC version)
+  - One-click install and launch with progress tracking
+  - Modpack search and selection via Modrinth API
+  - Custom default modpack preference persisted in settings
+  - Comprehensive caching system to prevent reload flashing:
+    - Version cache (10 minutes)
+    - Instance check cache (2 minutes)
+    - Account check cache
+    - State persistence between tab switches
+- **Easy Mode Performance Tab** - Auto-optimization for instance settings
+  - Single "Optimize Now" button replaces complex RAM/Java/JVM settings
+  - Auto-detects mod count and selects optimal profile (Vanilla, Light, Heavy, Performance)
+  - Adjusts for loader type (Forge/NeoForge require more resources)
+  - Uses Aikar's flags for server instances
+- **Easy Mode Simplified Views** - Streamlined interface throughout
+  - General tab: Shows only essential info (name, version, loader, playtime)
+  - Backups tab: Shows only auto-backup toggle, hides full instance backup
+  - Server tab: Hidden completely in Easy Mode
+- **Backups Tab Relocated** - Moved from Settings sub-tab to main navigation tabs
+- **Instance Color Customization** - Choose a custom color for each instance
+  - 12-color palette (amber, red, orange, lime, green, emerald, teal, cyan, blue, violet, purple, pink)
+  - Colors persist in database and display on instance cards without icons
+  - Access via right-click context menu on instance cards
+  - Also available in instance settings (General tab) for icon-less instances
+- **InstanceColorPicker Component** - New reusable color picker component
+  - Popover-based selector with color grid
+  - Reset to auto option (returns to hash-based color)
+  - Inline variant for context menus
+- **Documentation Window** - In-app documentation system
+  - New documentation icon in title bar (BookOpen)
+  - Opens a separate Tauri window with full documentation
+  - 8 documentation sections: Home, Instances, Accounts, Skins, Browse, Backups, Sharing, Settings
+  - Sidebar navigation with search functionality
+  - Custom draggable title bar with minimize/close buttons
+  - French documentation content covering all launcher features
+
+### Improved
+- **Stacked Bar Storage Visualization** - Settings storage tab now shows instance storage as a colorful stacked bar
+  - Each instance has a unique color from a 12-color palette
+  - Hover tooltips show instance name, size, and percentage
+  - Compact legend displays top 5 instances by size
+  - Replaces the old list-based storage display with a more visual representation
+- **Modernized Instance Cards** - Better visual design for instances without icons
+  - Gradient backgrounds based on instance color (persisted or auto-generated from name hash)
+  - Colored text for instance initials matching the background
+  - Consistent styling across Instances page and Homepage
+- **Compact Instances Header** - Redesigned page header for more vertical space
+  - Two-line layout: title + actions on first line, tabs + filters on second line
+  - Unified toolbar design replacing the previous three-row layout
+  - Reduced top padding in main layout
+- **Homepage Color Support** - Instance colors now display everywhere
+  - Hero section shows colored icon for selected instance
+  - Dropdown instance selector shows colors
+  - Recent instances grid displays colored cards
+- **Compact Home Page Layout** - Redesigned home page with better spacing
+  - Reduced gaps between sections (gap-6 → gap-4)
+  - More compact stats cards with smaller text and padding
+  - Recent instances cards show hover ring effect instead of static selection badge
+  - Default tab changed to "Last Played" instead of mode-dependent
+
+### Technical
+- New `src/stores/easyModeStore.ts` Zustand store for Easy Mode state
+- New `src/stores/quickPlayStore.ts` Zustand store for Quick Play with comprehensive caching:
+  - Version cache with 10-minute TTL
+  - Instance check cache with 2-minute TTL
+  - Account state persistence
+  - Current instance and install stage in store (persists between tab switches)
+- New `src/components/home/QuickPlay.tsx` component with `embedded` prop for tab integration
+- New `src/components/instances/EasyModeOptimizer.tsx` component
+- New Tauri commands: `get_easy_mode_enabled`, `set_easy_mode_enabled`
+- New generic settings commands: `get_setting_value`, `set_setting_value`
+- Easy Mode toggle added to `src/components/layout/TitleBar.tsx`
+- Home page redesigned with tabbed "Last Played" / "Quick Play" card
+- Conditional rendering in `src/pages/Home.tsx` and `src/pages/InstanceDetails.tsx`
+- New i18n keys for `quickPlay.*`, `easyMode.*`, `home.lastPlayed` in en.json and fr.json
+- New database migration for `color` column in instances table (`state.rs`)
+- New `update_color()` method in `src-tauri/src/db/instances.rs`
+- New `update_instance_color` Tauri command with hex validation
+- New `src/components/instances/InstanceColorPicker.tsx` component
+- Added `color: string | null` to Instance interfaces in `Instances.tsx` and `Home.tsx`
+- Color mapping from hex values to Tailwind gradient classes
+- Hash-based color fallback for automatic color assignment
+- New `src/pages/Documentation.tsx` component for in-app documentation
+- New Tauri commands: `open_documentation_window`, `close_documentation_window` in `devtools/commands.rs`
+- Added "documentation" window to Tauri capabilities in `default.json`
+- New route `/documentation` in `App.tsx` (outside MainLayout for separate window)
+- New translation keys for documentation in all 4 locales
+
 ## [0.7.5] - 2025-12-26
 
 ### Added

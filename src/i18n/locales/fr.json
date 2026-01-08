@@ -72,6 +72,11 @@
     "changelog": "Nouveautes",
     "playground": "Playground"
   },
+  "documentation": {
+    "title": "Documentation",
+    "openTooltip": "Ouvrir la documentation",
+    "comingSoon": "La documentation arrive bientot."
+  },
   "permissions": {
     "locked": "Verrouille",
     "accessRestricted": "Acces restreint",
@@ -158,6 +163,7 @@
   "home": {
     "welcome": "Bienvenue sur Kaizen Launcher",
     "recentInstances": "Instances recentes",
+    "lastPlayed": "Dernier joue",
     "noInstances": "Aucune instance",
     "createFirst": "Creez votre premiere instance pour commencer",
     "quickActions": "Actions rapides",
@@ -254,7 +260,12 @@
     "instanceStopped": "Instance arretee",
     "unableToStop": "Impossible d'arreter l'instance",
     "unableToLoad": "Impossible de charger les instances",
-    "sortBy": "Trier par"
+    "sortBy": "Trier par",
+    "selectColor": "Choisir une couleur",
+    "changeColor": "Changer la couleur",
+    "resetColor": "Reinitialiser",
+    "colorUpdated": "Couleur mise a jour",
+    "colorUpdateError": "Impossible de mettre a jour la couleur"
   },
   "instanceDetails": {
     "notFound": "Instance non trouvee",
@@ -627,11 +638,16 @@
     "restartOnboardingButton": "Relancer",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Nouveautés v0.7.5",
-    "whatsNewInstanceBackups": "Sauvegardes completes d'instances avec upload cloud",
-    "whatsNewBackupsRedesign": "Page Sauvegardes redesignee avec onglets mondes/instances",
-    "whatsNewChangeVersion": "Changement de version Minecraft avec verification de compatibilite",
-    "whatsNewRestoreOptions": "Restauration pour remplacer ou creer de nouvelles instances",
+    "whatsNew": "Nouveautés v0.7.6",
+    "whatsNewEasyMode": "Mode Simple / Avancé dans la barre de titre",
+    "whatsNewQuickPlay": "Jeu Rapide : Minecraft en un clic avec Fabulously Optimized",
+    "whatsNewAutoOptimize": "Optimisation automatique basée sur le nombre de mods",
+    "whatsNewDocumentation": "Fenêtre de documentation intégrée avec 8 sections",
+    "whatsNewInstanceColors": "Choix de couleur personnalisée pour chaque instance",
+    "whatsNewStorageViz": "Barre empilée colorée pour le stockage par instance",
+    "whatsNewModernCards": "Cartes d'instances modernisées avec dégradés colorés",
+    "whatsNewCompactHeader": "Header compact pour la page des instances",
+    "whatsNewHomepageColors": "Couleurs des instances affichées sur la page d'accueil",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -820,6 +836,8 @@
     "thankYou": "Merci de faire partie de la communauté Kaizen !"
   },
   "content": {
+    "installed": "Installés",
+    "browse": "Parcourir",
     "browseMods": "Parcourir les mods",
     "browseModsDesc": "Recherchez et installez des mods depuis Modrinth",
     "browseModrinth": "Parcourir Modrinth",
@@ -2026,5 +2044,59 @@
     "downloadSuccess": "Schematic téléchargé : {name}",
     "downloadError": "Échec du téléchargement du schematic",
     "invalidPassword": "Mot de passe invalide"
+  },
+  "quickPlay": {
+    "title": "Jeu Rapide",
+    "description": "Lancez Minecraft en un clic",
+    "changeModpack": "Changer de Modpack",
+    "selectModpack": "Sélectionner un Modpack",
+    "selectModpackDesc": "Recherchez des modpacks optimisés à utiliser par défaut",
+    "searchModpacks": "Rechercher des modpacks...",
+    "noResults": "Aucun modpack trouvé",
+    "searchPrompt": "Rechercher des modpacks sur Modrinth",
+    "modpackChanged": "Modpack par défaut changé pour {name}",
+    "poweredBy": "Modpack optimisé depuis Modrinth",
+    "vanillaExperience": "Expérience vanilla pure, avec de meilleures performances",
+    "featureFps": "Meilleurs FPS",
+    "featureVanilla": "100% Vanilla",
+    "featureSafe": "Serveurs OK",
+    "selectVersion": "Version Minecraft",
+    "loadingVersions": "Chargement...",
+    "selectVersionPlaceholder": "Sélectionner une version",
+    "loadVersionsFailed": "Échec du chargement des versions",
+    "installingModpack": "Installation du modpack...",
+    "installingMinecraft": "Installation de Minecraft...",
+    "loginRequired": "Veuillez vous connecter pour jouer",
+    "loginFirst": "Connectez-vous pour jouer",
+    "launching": "Lancement...",
+    "installing": "Installation...",
+    "play": "Jouer",
+    "installAndPlay": "Installer et Jouer",
+    "readyToPlay": "Prêt à jouer : {name}",
+    "installFailed": "Échec de l'installation"
+  },
+  "easyMode": {
+    "easy": "Simple",
+    "advanced": "Avancé",
+    "easyTooltip": "Paramètres simplifiés avec optimisation automatique",
+    "advancedTooltip": "Contrôle complet sur tous les paramètres de performance",
+    "simpleSettings": "Aperçu de l'instance",
+    "simpleSettingsDesc": "Informations essentielles sur votre instance",
+    "simpleBackups": "Protection des mondes",
+    "simpleBackupsDesc": "Sauvegardez automatiquement vos mondes avant de jouer",
+    "autoOptimization": "Optimisation automatique",
+    "autoOptimizationDesc": "Laissez Kaizen configurer les meilleurs paramètres pour votre instance",
+    "detectedProfile": "Profil détecté :",
+    "modsDetected": "{count} mods détectés",
+    "profileVanilla": "Vanilla",
+    "profileLight": "Mods légers",
+    "profileHeavy": "Modpack lourd",
+    "profilePerformance": "Performance maximale",
+    "optimizing": "Optimisation...",
+    "optimized": "Optimisé",
+    "optimizeNow": "Optimiser maintenant",
+    "optimizationApplied": "Paramètres optimisés !",
+    "optimizationFailed": "Échec de l'optimisation",
+    "optimizationInfo": "Paramètres ajustés en fonction de votre système et vos mods"
   }
 }

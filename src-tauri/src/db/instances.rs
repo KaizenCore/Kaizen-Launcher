@@ -24,6 +24,7 @@ pub struct Instance {
     #[serde(default = "default_server_port")]
     pub server_port: i64,
     pub modrinth_project_id: Option<String>,
+    pub color: Option<String>,
 }
 
 fn default_server_port() -> i64 {
@@ -56,7 +57,8 @@ impl Instance {
                 COALESCE(is_server, 0) as is_server,
                 COALESCE(is_proxy, 0) as is_proxy,
                 COALESCE(server_port, 25565) as server_port,
-                modrinth_project_id
+                modrinth_project_id,
+                color
             FROM instances
             ORDER BY last_played DESC NULLS LAST, created_at DESC
             "#,
@@ -75,7 +77,8 @@ impl Instance {
                 COALESCE(is_server, 0) as is_server,
                 COALESCE(is_proxy, 0) as is_proxy,
                 COALESCE(server_port, 25565) as server_port,
-                modrinth_project_id
+                modrinth_project_id,
+                color
             FROM instances
             WHERE id = ?
             "#,
@@ -126,7 +129,8 @@ impl Instance {
                 COALESCE(is_server, 0) as is_server,
                 COALESCE(is_proxy, 0) as is_proxy,
                 COALESCE(server_port, 25565) as server_port,
-                modrinth_project_id
+                modrinth_project_id,
+                color
             FROM instances
             WHERE modrinth_project_id = ?
             ORDER BY created_at DESC
@@ -212,6 +216,19 @@ impl Instance {
     ) -> sqlx::Result<()> {
         sqlx::query("UPDATE instances SET icon_path = ? WHERE id = ?")
             .bind(icon_path)
+            .bind(id)
+            .execute(db)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_color(
+        db: &SqlitePool,
+        id: &str,
+        color: Option<&str>,
+    ) -> sqlx::Result<()> {
+        sqlx::query("UPDATE instances SET color = ? WHERE id = ?")
+            .bind(color)
             .bind(id)
             .execute(db)
             .await?;

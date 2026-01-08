@@ -229,6 +229,11 @@ impl AppState {
                 .execute(db)
                 .await;
 
+        // Migration: Add color column to instances for custom card colors
+        let _ = sqlx::query("ALTER TABLE instances ADD COLUMN color TEXT")
+            .execute(db)
+            .await;
+
         // Migration: Tunnel configurations table
         sqlx::query(
             r#"

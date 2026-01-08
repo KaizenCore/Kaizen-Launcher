@@ -218,6 +218,7 @@ pub fn run() {
             instance::commands::open_config_folder,
             instance::commands::update_instance_icon,
             instance::commands::clear_instance_icon,
+            instance::commands::update_instance_color,
             instance::commands::get_instance_icon,
             instance::commands::get_instance_icons,
             instance::commands::get_installed_modpack_ids,
@@ -340,6 +341,8 @@ pub fn run() {
             devtools::commands::submit_bug_report,
             devtools::commands::open_log_viewer_window,
             devtools::commands::close_log_viewer_window,
+            devtools::commands::open_documentation_window,
+            devtools::commands::close_documentation_window,
             // Cloud storage commands
             cloud_storage::commands::get_oauth_availability,
             cloud_storage::commands::get_cloud_storage_config,
@@ -436,6 +439,12 @@ pub fn run() {
             db::settings::get_appearance_settings,
             db::settings::save_appearance_setting,
             db::settings::save_custom_theme_settings,
+            // Easy mode settings commands
+            db::settings::get_easy_mode_enabled,
+            db::settings::set_easy_mode_enabled,
+            // Generic settings commands
+            db::settings::get_setting_value,
+            db::settings::set_setting_value,
             // External import commands
             external_import::commands::detect_external_launchers,
             external_import::commands::parse_external_path,

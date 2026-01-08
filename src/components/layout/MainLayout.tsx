@@ -22,7 +22,7 @@ export function MainLayout() {
         {/* Page content - pages manage their own scroll internally */}
         {/* Add bottom padding when installation footer is visible */}
         <main
-          className="flex-1 flex flex-col p-6 overflow-hidden transition-[padding] duration-300"
+          className="flex-1 flex flex-col px-6 pt-4 overflow-hidden transition-[padding] duration-300"
           style={{ paddingBottom: hasActiveInstallations() ? "6rem" : "1.5rem" }}
         >
           <Outlet />

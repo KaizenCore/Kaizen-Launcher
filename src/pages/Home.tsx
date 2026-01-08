@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useEffect, useCallback, useMemo, lazy, Suspense } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
@@ -22,7 +22,9 @@ import {
   Github,
   Heart,
   ExternalLink,
-  Bug
+  Bug,
+  Zap,
+  History
 } from "lucide-react"
 import { openUrl } from "@tauri-apps/plugin-opener"
 import { useTranslation } from "@/i18n"
@@ -30,12 +32,17 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useEasyModeStore } from "@/stores/easyModeStore"
+
+// Lazy load QuickPlay for Easy Mode
+const QuickPlay = lazy(() => import("@/components/home/QuickPlay").then(m => ({ default: m.QuickPlay })))
 
 interface Instance {
   id: string
@@ -48,6 +55,39 @@ interface Instance {
   last_played: string | null
   total_playtime_seconds: number
   is_server: boolean
+  color: string | null
+}
+
+// Color palette for instances without icons (same as Instances.tsx)
+const colorMap: Record<string, { bg: string; text: string }> = {
+  "#f59e0b": { bg: "from-amber-500/30 to-amber-600/10", text: "text-amber-300" },
+  "#ef4444": { bg: "from-red-500/30 to-red-600/10", text: "text-red-300" },
+  "#f97316": { bg: "from-orange-500/30 to-orange-600/10", text: "text-orange-300" },
+  "#84cc16": { bg: "from-lime-500/30 to-lime-600/10", text: "text-lime-300" },
+  "#22c55e": { bg: "from-green-500/30 to-green-600/10", text: "text-green-300" },
+  "#10b981": { bg: "from-emerald-500/30 to-emerald-600/10", text: "text-emerald-300" },
+  "#14b8a6": { bg: "from-teal-500/30 to-teal-600/10", text: "text-teal-300" },
+  "#06b6d4": { bg: "from-cyan-500/30 to-cyan-600/10", text: "text-cyan-300" },
+  "#3b82f6": { bg: "from-blue-500/30 to-blue-600/10", text: "text-blue-300" },
+  "#8b5cf6": { bg: "from-violet-500/30 to-violet-600/10", text: "text-violet-300" },
+  "#a855f7": { bg: "from-purple-500/30 to-purple-600/10", text: "text-purple-300" },
+  "#ec4899": { bg: "from-pink-500/30 to-pink-600/10", text: "text-pink-300" },
+}
+
+const defaultColors = Object.keys(colorMap)
+
+const getInstanceColor = (instance: Instance): { bg: string; text: string } => {
+  // Use persisted color if available
+  if (instance.color && colorMap[instance.color]) {
+    return colorMap[instance.color]
+  }
+  // Fallback to hash-based color
+  let hash = 0
+  for (let i = 0; i < instance.name.length; i++) {
+    hash = instance.name.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const colorIndex = Math.abs(hash) % defaultColors.length
+  return colorMap[defaultColors[colorIndex]]
 }
 
 // Safe account info from backend - NO TOKENS (security)
@@ -66,6 +106,7 @@ type InstanceStatus = "not_installed" | "installing" | "ready" | "running"
 export function Home() {
   const navigate = useNavigate()
   const { t } = useTranslation()
+  const { load: loadEasyMode } = useEasyModeStore()
   const [instances, setInstances] = useState<Instance[]>([])
   const [activeAccount, setActiveAccount] = useState<Account | null>(null)
   const [selectedInstance, setSelectedInstance] = useState<Instance | null>(null)
@@ -75,6 +116,11 @@ export function Home() {
   const [totalMods, setTotalMods] = useState<number>(0)
   const [installProgress, setInstallProgress] = useState<{ current: number; message: string } | null>(null)
   const [instanceIcons, setInstanceIcons] = useState<Record<string, string | null>>({})
+
+  // Load easy mode state
+  useEffect(() => {
+    loadEasyMode()
+  }, [loadEasyMode])
 
   const loadData = useCallback(async () => {
     console.log("[Home] Loading dashboard data...")
@@ -380,187 +426,232 @@ export function Home() {
 
   const canLaunch = selectedInstance && activeAccount && instanceStatus !== "installing"
 
-  return (
-    <div className="flex flex-col min-h-full">
-      <div className="flex flex-col gap-6 flex-1">
-      {/* Hero section with selected instance */}
-      <Card className="overflow-hidden">
-        <div className="relative">
-          {/* Background gradient */}
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-primary/5 to-transparent" />
+  // Default tab is always Last Played
+  const defaultTab = "lastPlayed"
 
-          <CardContent className="relative p-6">
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Instance icon and info */}
-              <div className="flex items-start gap-4 flex-1">
-                {selectedInstance ? (
-                  <>
-                    <div className="h-20 w-20 rounded-xl bg-muted/50 flex items-center justify-center overflow-hidden border border-border/50 flex-shrink-0">
-                      {getIconUrl(selectedInstance) ? (
-                        <img
-                          src={getIconUrl(selectedInstance)!}
-                          alt={selectedInstance.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            const target = e.target as HTMLImageElement
-                            target.style.display = "none"
-                          }}
-                        />
-                      ) : (
-                        <span className="text-3xl font-bold text-muted-foreground">
-                          {selectedInstance.name.charAt(0).toUpperCase()}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
-                              <h2 className="text-2xl font-bold truncate">{selectedInstance.name}</h2>
-                              <ChevronDown className="h-5 w-5 ml-1 text-muted-foreground" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="start" className="w-64">
-                            {instances.map((instance) => (
-                              <DropdownMenuItem
-                                key={instance.id}
-                                onClick={() => setSelectedInstance(instance)}
-                                className="flex items-center gap-2"
-                              >
-                                <div className="h-8 w-8 rounded bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
-                                  {getIconUrl(instance) ? (
-                                    <img
-                                      src={getIconUrl(instance)!}
-                                      alt={instance.name}
-                                      className="w-full h-full object-cover"
-                                    />
-                                  ) : (
-                                    <span className="text-sm font-bold">
-                                      {instance.name.charAt(0).toUpperCase()}
-                                    </span>
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium truncate">{instance.name}</p>
-                                  <p className="text-xs text-muted-foreground">{instance.mc_version}</p>
-                                </div>
-                                {selectedInstance?.id === instance.id && (
-                                  <Check className="h-4 w-4 text-primary" />
+  return (
+    <div className="flex flex-col min-h-full overflow-auto">
+      <div className="flex flex-col gap-4 flex-1">
+      {/* Combined Quick Play / Last Played section */}
+      <Card className="overflow-hidden relative">
+        {/* Gradient covering entire card */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-primary/5 to-transparent pointer-events-none" />
+
+        <Tabs defaultValue={defaultTab} className="w-full relative">
+          <CardHeader className="pb-2 pt-4">
+            <TabsList className="w-fit">
+              <TabsTrigger value="lastPlayed" className="gap-2">
+                <History className="h-4 w-4" />
+                {t("home.lastPlayed")}
+              </TabsTrigger>
+              <TabsTrigger value="quickPlay" className="gap-2">
+                <Zap className="h-4 w-4" />
+                {t("quickPlay.title")}
+              </TabsTrigger>
+            </TabsList>
+          </CardHeader>
+
+          {/* Last Played Tab */}
+          <TabsContent value="lastPlayed" className="mt-0">
+              <CardContent className="p-4 pt-2">
+                <div className="flex flex-col md:flex-row gap-4">
+                  {/* Instance icon and info */}
+                  <div className="flex items-start gap-4 flex-1">
+                    {selectedInstance ? (
+                      <>
+                        {(() => {
+                          const heroIconUrl = getIconUrl(selectedInstance)
+                          const heroColor = getInstanceColor(selectedInstance)
+                          return (
+                            <div className={`h-20 w-20 rounded-xl flex items-center justify-center overflow-hidden border border-border/50 flex-shrink-0 ${
+                              heroIconUrl ? 'bg-muted/50' : `bg-gradient-to-br ${heroColor.bg}`
+                            }`}>
+                              {heroIconUrl ? (
+                                <img
+                                  src={heroIconUrl}
+                                  alt={selectedInstance.name}
+                                  className="w-full h-full object-cover"
+                                  onError={(e) => {
+                                    const target = e.target as HTMLImageElement
+                                    target.style.display = "none"
+                                  }}
+                                />
+                              ) : (
+                                <span className={`text-3xl font-bold ${heroColor.text}`}>
+                                  {selectedInstance.name.charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                          )
+                        })()}
+
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="ghost" className="h-auto p-0 hover:bg-transparent">
+                                  <h2 className="text-2xl font-bold truncate">{selectedInstance.name}</h2>
+                                  <ChevronDown className="h-5 w-5 ml-1 text-muted-foreground" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="start" className="w-64">
+                                {instances.map((instance) => {
+                                  const dropdownIconUrl = getIconUrl(instance)
+                                  const dropdownColor = getInstanceColor(instance)
+                                  return (
+                                    <DropdownMenuItem
+                                      key={instance.id}
+                                      onClick={() => setSelectedInstance(instance)}
+                                      className="flex items-center gap-2"
+                                    >
+                                      <div className={`h-8 w-8 rounded flex items-center justify-center overflow-hidden flex-shrink-0 ${
+                                        dropdownIconUrl ? 'bg-muted' : `bg-gradient-to-br ${dropdownColor.bg}`
+                                      }`}>
+                                        {dropdownIconUrl ? (
+                                          <img
+                                            src={dropdownIconUrl}
+                                            alt={instance.name}
+                                            className="w-full h-full object-cover"
+                                          />
+                                        ) : (
+                                          <span className={`text-sm font-bold ${dropdownColor.text}`}>
+                                            {instance.name.charAt(0).toUpperCase()}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium truncate">{instance.name}</p>
+                                        <p className="text-xs text-muted-foreground">{instance.mc_version}</p>
+                                      </div>
+                                      {selectedInstance?.id === instance.id && (
+                                        <Check className="h-4 w-4 text-primary" />
+                                      )}
+                                    </DropdownMenuItem>
+                                  )
+                                })}
+                                {instances.length === 0 && (
+                                  <DropdownMenuItem disabled>
+                                    {t("home.noInstances")}
+                                  </DropdownMenuItem>
                                 )}
-                              </DropdownMenuItem>
-                            ))}
-                            {instances.length === 0 && (
-                              <DropdownMenuItem disabled>
-                                {t("home.noInstances")}
-                              </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                            {getStatusBadge()}
+                          </div>
+                          <p className="text-muted-foreground mb-2">
+                            Minecraft {selectedInstance.mc_version}
+                            {selectedInstance.loader && (
+                              <span className="ml-2">
+                                • {selectedInstance.loader}
+                                {selectedInstance.loader_version && ` ${selectedInstance.loader_version}`}
+                              </span>
                             )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        {getStatusBadge()}
+                          </p>
+                          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-4 w-4" />
+                              {formatPlaytime(selectedInstance.total_playtime_seconds)}
+                            </span>
+                            <span>
+                              {formatLastPlayed(selectedInstance.last_played)}
+                            </span>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1 flex flex-col items-center justify-center py-4 text-center">
+                        <Layers className="h-12 w-12 text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground mb-2">{t("home.noInstanceSelected")}</p>
+                        <Button variant="outline" size="sm" asChild>
+                          <Link to="/browse" className="gap-2">
+                            <Search className="h-4 w-4" />
+                            {t("home.browseModpacks")}
+                          </Link>
+                        </Button>
                       </div>
-                      <p className="text-muted-foreground mb-2">
-                        Minecraft {selectedInstance.mc_version}
-                        {selectedInstance.loader && (
-                          <span className="ml-2">
-                            • {selectedInstance.loader}
-                            {selectedInstance.loader_version && ` ${selectedInstance.loader_version}`}
-                          </span>
-                        )}
-                      </p>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span className="flex items-center gap-1">
-                          <Clock className="h-4 w-4" />
-                          {formatPlaytime(selectedInstance.total_playtime_seconds)}
-                        </span>
-                        <span>
-                          {formatLastPlayed(selectedInstance.last_played)}
-                        </span>
-                      </div>
-                    </div>
-                  </>
-                ) : (
-                  <div className="flex-1 flex flex-col items-center justify-center py-4 text-center">
-                    <Layers className="h-12 w-12 text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground mb-2">{t("home.noInstanceSelected")}</p>
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to="/browse" className="gap-2">
-                        <Search className="h-4 w-4" />
-                        {t("home.browseModpacks")}
+                    )}
+                  </div>
+
+                  {/* Play button and actions */}
+                  <div className="flex flex-col gap-3 items-end justify-center">
+                    <Button
+                      size="lg"
+                      className="gap-2 px-8 h-12 text-lg"
+                      disabled={!canLaunch || isLaunching}
+                      onClick={handleLaunch}
+                      variant={instanceStatus === "running" ? "destructive" : "default"}
+                    >
+                      {getButtonContent()}
+                    </Button>
+
+                    {selectedInstance && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground"
+                        onClick={() => navigate(`/instances/${selectedInstance.id}`)}
+                      >
+                        <Settings className="h-4 w-4 mr-1" />
+                        {t("home.manageInstance")}
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Install progress bar */}
+                {instanceStatus === "installing" && installProgress && (
+                  <div className="mt-4 space-y-2">
+                    <Progress value={installProgress.current} className="h-2" />
+                    <p className="text-sm text-muted-foreground text-center">
+                      {installProgress.message} ({installProgress.current}%)
+                    </p>
+                  </div>
+                )}
+
+                {/* Account warning */}
+                {!activeAccount && (
+                  <div className="mt-4 flex items-center gap-2 text-amber-500 bg-amber-500/10 rounded-lg p-3">
+                    <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                    <span className="text-sm">
+                      {t("home.requireAccount")}
+                    </span>
+                    <Button variant="outline" size="sm" asChild className="ml-auto">
+                      <Link to="/accounts">
+                        <User className="h-4 w-4 mr-1" />
+                        {t("home.addAccount")}
                       </Link>
                     </Button>
                   </div>
                 )}
-              </div>
+              </CardContent>
+          </TabsContent>
 
-              {/* Play button and actions */}
-              <div className="flex flex-col gap-3 items-end justify-center">
-                <Button
-                  size="lg"
-                  className="gap-2 px-8 h-12 text-lg"
-                  disabled={!canLaunch || isLaunching}
-                  onClick={handleLaunch}
-                  variant={instanceStatus === "running" ? "destructive" : "default"}
-                >
-                  {getButtonContent()}
-                </Button>
-
-                {selectedInstance && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-muted-foreground"
-                    onClick={() => navigate(`/instances/${selectedInstance.id}`)}
-                  >
-                    <Settings className="h-4 w-4 mr-1" />
-                    {t("home.manageInstance")}
-                  </Button>
-                )}
-              </div>
-            </div>
-
-            {/* Install progress bar */}
-            {instanceStatus === "installing" && installProgress && (
-              <div className="mt-4 space-y-2">
-                <Progress value={installProgress.current} className="h-2" />
-                <p className="text-sm text-muted-foreground text-center">
-                  {installProgress.message} ({installProgress.current}%)
-                </p>
-              </div>
-            )}
-
-            {/* Account warning */}
-            {!activeAccount && (
-              <div className="mt-4 flex items-center gap-2 text-amber-500 bg-amber-500/10 rounded-lg p-3">
-                <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                <span className="text-sm">
-                  {t("home.requireAccount")}
-                </span>
-                <Button variant="outline" size="sm" asChild className="ml-auto">
-                  <Link to="/accounts">
-                    <User className="h-4 w-4 mr-1" />
-                    {t("home.addAccount")}
-                  </Link>
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </div>
+          {/* Quick Play Tab */}
+          <TabsContent value="quickPlay" className="mt-0">
+            <Suspense fallback={
+              <CardContent className="flex items-center justify-center py-12">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </CardContent>
+            }>
+              <QuickPlay embedded />
+            </Suspense>
+          </TabsContent>
+        </Tabs>
       </Card>
 
       {/* Stats cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-3">
         <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => navigate("/instances")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Layers className="h-4 w-4" />
+          <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3 px-4">
+            <CardDescription className="flex items-center gap-2 text-xs">
+              <Layers className="h-3.5 w-3.5" />
               {t("nav.instances")}
             </CardDescription>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{instances.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+          <CardContent className="pt-0 pb-3 px-4">
+            <div className="text-2xl font-bold">{instances.length}</div>
+            <p className="text-xs text-muted-foreground">
               {instances.filter(i => !i.is_server).length} {t("home.clients")}
               {instances.filter(i => i.is_server).length > 0 && (
                 <span> • {instances.filter(i => i.is_server).length} {t("home.servers")}</span>
@@ -570,31 +661,31 @@ export function Home() {
         </Card>
 
         <Card className="hover:bg-accent/50 transition-colors cursor-pointer" onClick={() => navigate("/browse")}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
+          <CardHeader className="flex flex-row items-center justify-between pb-1 pt-3 px-4">
+            <CardDescription className="flex items-center gap-2 text-xs">
+              <Package className="h-3.5 w-3.5" />
               {t("home.installedMods")}
             </CardDescription>
-            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{totalMods}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+          <CardContent className="pt-0 pb-3 px-4">
+            <div className="text-2xl font-bold">{totalMods}</div>
+            <p className="text-xs text-muted-foreground">
               {t("home.onAllInstances")}
             </p>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardDescription className="flex items-center gap-2">
-              <Clock className="h-4 w-4" />
+          <CardHeader className="pb-1 pt-3 px-4">
+            <CardDescription className="flex items-center gap-2 text-xs">
+              <Clock className="h-3.5 w-3.5" />
               {t("home.playtime")}
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{formatPlaytime(totalPlaytime)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
+          <CardContent className="pt-0 pb-3 px-4">
+            <div className="text-2xl font-bold">{formatPlaytime(totalPlaytime)}</div>
+            <p className="text-xs text-muted-foreground">
               {t("home.totalAccumulated")}
             </p>
           </CardContent>
@@ -603,8 +694,8 @@ export function Home() {
 
       {/* Recent instances */}
       <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-semibold">{t("home.recentInstances")}</h2>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold">{t("home.recentInstances")}</h2>
           <Button variant="ghost" size="sm" asChild>
             <Link to="/instances" className="gap-1">
               {t("home.viewAll")}
@@ -637,21 +728,21 @@ export function Home() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-6">
+          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 3xl:grid-cols-5 4xl:grid-cols-6 p-0.5">
             {instances.slice(0, 6).map((instance) => {
               const iconUrl = getIconUrl(instance)
-              const isSelected = selectedInstance?.id === instance.id
+              const instanceColor = getInstanceColor(instance)
               return (
                 <Card
                   key={instance.id}
-                  className={`cursor-pointer transition-all hover:bg-accent/50 ${
-                    isSelected ? 'ring-2 ring-primary' : ''
-                  }`}
+                  className="cursor-pointer transition-all hover:ring-2 hover:ring-primary/50"
                   onClick={() => navigate(`/instances/${instance.id}`)}
                 >
                   <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="h-12 w-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className={`h-12 w-12 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0 ${
+                        iconUrl ? 'bg-muted' : `bg-gradient-to-br ${instanceColor.bg}`
+                      }`}>
                         {iconUrl ? (
                           <img
                             src={iconUrl}
@@ -663,20 +754,13 @@ export function Home() {
                             }}
                           />
                         ) : (
-                          <span className="text-lg font-bold text-muted-foreground">
+                          <span className={`text-lg font-bold ${instanceColor.text}`}>
                             {instance.name.charAt(0).toUpperCase()}
                           </span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-sm truncate">{instance.name}</h3>
-                          {isSelected && (
-                            <Badge variant="secondary" className="text-xs px-1.5 py-0">
-                              {t("common.selected")}
-                            </Badge>
-                          )}
-                        </div>
+                        <h3 className="font-medium text-sm truncate">{instance.name}</h3>
                         <p className="text-xs text-muted-foreground">
                           {instance.mc_version}
                           {instance.loader && ` • ${instance.loader}`}
@@ -706,7 +790,7 @@ export function Home() {
               <Github className="h-3 w-3" />
               {t("home.footer.openSource")}
             </Badge>
-            <span className="text-xs">v0.6.6</span>
+            <span className="text-xs">v0.7.6</span>
           </div>
 
           <div className="flex items-center gap-4">

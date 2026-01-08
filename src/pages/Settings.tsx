@@ -677,16 +677,85 @@ export function Settings() {
                     </div>
 
                     <div className="space-y-2">
-                      {/* Instances */}
-                      <div className="space-y-1">
+                      {/* Instances - Stacked Bar */}
+                      <div className="space-y-1.5">
                         <div className="flex justify-between text-xs">
                           <span className="text-muted-foreground">Instances ({storageInfo.instance_count})</span>
                           <span>{formatBytes(storageInfo.instances_size_bytes)}</span>
                         </div>
-                        <Progress
-                          value={(storageInfo.instances_size_bytes / storageInfo.total_size_bytes) * 100}
-                          className="h-2"
-                        />
+                        {instancesStorage.length > 0 ? (
+                          <div className="space-y-1.5">
+                            {/* Stacked bar */}
+                            <div className="relative h-3 rounded-full overflow-hidden bg-muted/50 flex">
+                              {(() => {
+                                const totalSize = instancesStorage.reduce((acc, i) => acc + i.size_bytes, 0)
+                                const colors = [
+                                  "bg-blue-500", "bg-emerald-500", "bg-violet-500", "bg-amber-500",
+                                  "bg-rose-500", "bg-cyan-500", "bg-pink-500", "bg-lime-500",
+                                  "bg-indigo-500", "bg-orange-500", "bg-teal-500", "bg-fuchsia-500"
+                                ]
+                                return instancesStorage.map((instance, index) => {
+                                  const percentage = (instance.size_bytes / totalSize) * 100
+                                  if (percentage < 0.5) return null
+                                  return (
+                                    <div
+                                      key={instance.id}
+                                      className={cn(
+                                        "h-full transition-all hover:opacity-80 cursor-pointer relative group",
+                                        colors[index % colors.length]
+                                      )}
+                                      style={{ width: `${percentage}%` }}
+                                    >
+                                      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1.5 bg-popover border rounded-md shadow-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 whitespace-nowrap text-xs">
+                                        <p className="font-medium">{instance.name}</p>
+                                        <p className="text-muted-foreground">
+                                          {formatBytes(instance.size_bytes)} ({percentage.toFixed(1)}%)
+                                        </p>
+                                      </div>
+                                    </div>
+                                  )
+                                })
+                              })()}
+                            </div>
+                            {/* Compact inline legend */}
+                            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+                              {(() => {
+                                const colors = [
+                                  "bg-blue-500", "bg-emerald-500", "bg-violet-500", "bg-amber-500",
+                                  "bg-rose-500", "bg-cyan-500", "bg-pink-500", "bg-lime-500",
+                                  "bg-indigo-500", "bg-orange-500", "bg-teal-500", "bg-fuchsia-500"
+                                ]
+                                const sorted = [...instancesStorage].sort((a, b) => b.size_bytes - a.size_bytes)
+                                const displayed = sorted.slice(0, 5)
+                                const othersCount = sorted.length - 5
+
+                                return (
+                                  <>
+                                    {displayed.map((instance) => {
+                                      const originalIndex = instancesStorage.findIndex(i => i.id === instance.id)
+                                      return (
+                                        <div key={instance.id} className="flex items-center gap-1">
+                                          <div className={cn("w-2 h-2 rounded-sm shrink-0", colors[originalIndex % colors.length])} />
+                                          <span className="text-[10px] text-muted-foreground truncate max-w-[80px]" title={instance.name}>
+                                            {instance.name}
+                                          </span>
+                                        </div>
+                                      )
+                                    })}
+                                    {othersCount > 0 && (
+                                      <span className="text-[10px] text-muted-foreground">+{othersCount}</span>
+                                    )}
+                                  </>
+                                )
+                              })()}
+                            </div>
+                          </div>
+                        ) : (
+                          <Progress
+                            value={(storageInfo.instances_size_bytes / storageInfo.total_size_bytes) * 100}
+                            className="h-2"
+                          />
+                        )}
                       </div>
 
                       {/* Java */}
@@ -825,35 +894,6 @@ export function Settings() {
                     </Button>
                   </div>
 
-                  <Separator />
-
-                  {/* Instances storage */}
-                  <div className="space-y-3">
-                    <label className="text-sm font-medium">{t("settings.spacePerInstance")}</label>
-                    {instancesStorage.length === 0 ? (
-                      <p className="text-sm text-muted-foreground">{t("settings.noInstance")}</p>
-                    ) : (
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                        {instancesStorage.map((instance) => (
-                          <div
-                            key={instance.id}
-                            className="flex items-center justify-between p-3 rounded-lg border bg-card"
-                          >
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium truncate">{instance.name}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {instance.mc_version}
-                                {instance.loader && ` - ${instance.loader}`}
-                              </p>
-                            </div>
-                            <span className="text-sm font-medium ml-4">
-                              {formatBytes(instance.size_bytes)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-8">
@@ -962,14 +1002,15 @@ export function Settings() {
                 <div className="flex items-center gap-2">
                   <Newspaper className="h-4 w-4 text-primary" />
                   <span className="text-sm font-medium">{t("settings.whatsNew")}</span>
-                  <span className="text-xs bg-gradient-to-r from-primary to-purple-500 text-white px-2 py-0.5 rounded-full">v0.7.5</span>
+                  <span className="text-xs bg-gradient-to-r from-primary to-purple-500 text-white px-2 py-0.5 rounded-full">v0.7.6</span>
                 </div>
                 <div className="space-y-2 text-xs text-muted-foreground">
                   <ul className="list-disc list-inside space-y-1">
-                    <li>{t("settings.whatsNewInstanceBackups")}</li>
-                    <li>{t("settings.whatsNewBackupsRedesign")}</li>
-                    <li>{t("settings.whatsNewChangeVersion")}</li>
-                    <li>{t("settings.whatsNewRestoreOptions")}</li>
+                    <li>{t("settings.whatsNewEasyMode")}</li>
+                    <li>{t("settings.whatsNewQuickPlay")}</li>
+                    <li>{t("settings.whatsNewDocumentation")}</li>
+                    <li>{t("settings.whatsNewInstanceColors")}</li>
+                    <li>{t("settings.whatsNewStorageViz")}</li>
                   </ul>
                 </div>
               </div>

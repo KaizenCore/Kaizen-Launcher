@@ -4,7 +4,7 @@ import { invoke } from "@tauri-apps/api/core"
 import { listen } from "@tauri-apps/api/event"
 import { useInstallationStore } from "@/stores/installationStore"
 import { useSharingStore } from "@/stores/sharingStore"
-import { Plus, Play, Trash2, Download, Loader2, Coffee, Monitor, Server, Network, Square, Circle, Search, Star, LayoutGrid, LayoutList, Columns, ArrowUpDown, FolderDown, Link2, ChevronDown } from "lucide-react"
+import { Plus, Play, Trash2, Download, Loader2, Coffee, Monitor, Server, Network, Square, Circle, Search, Star, LayoutGrid, LayoutList, Columns, ArrowUpDown, FolderDown, Link2, ChevronDown, Palette, X } from "lucide-react"
 import { toast } from "sonner"
 import { useTranslation, TranslationKey } from "@/i18n"
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,9 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
+import { COLOR_PALETTE } from "@/components/instances/InstanceColorPicker"
 import {
   Tooltip,
   TooltipContent,
@@ -43,6 +45,7 @@ interface Instance {
   total_playtime_seconds: number
   is_server: boolean
   is_proxy: boolean
+  color: string | null
 }
 
 // Safe account info from backend - NO TOKENS (security)
@@ -89,6 +92,7 @@ interface InstanceCardProps {
   onInstall: (instance: Instance) => void
   onStop: (id: string) => void
   onDelete: (instance: Instance) => void
+  onColorChange: (id: string, color: string | null) => void
   formatPlaytime: (seconds: number) => string
   t: (key: TranslationKey) => string
 }
@@ -112,6 +116,7 @@ const InstanceCard = memo(function InstanceCard({
   onInstall,
   onStop,
   onDelete,
+  onColorChange,
   formatPlaytime,
   t,
 }: InstanceCardProps) {
@@ -279,41 +284,86 @@ const InstanceCard = memo(function InstanceCard({
     )
   }
 
+  // Color mapping from hex to Tailwind classes
+  const colorMap: Record<string, { bg: string; icon: string; text: string }> = {
+    "#f59e0b": { bg: "from-amber-500/20 to-amber-500/5", icon: "from-amber-500/30 to-amber-500/15", text: "text-amber-400" },
+    "#ef4444": { bg: "from-red-500/20 to-red-500/5", icon: "from-red-500/30 to-red-500/15", text: "text-red-400" },
+    "#f97316": { bg: "from-orange-500/20 to-orange-500/5", icon: "from-orange-500/30 to-orange-500/15", text: "text-orange-400" },
+    "#84cc16": { bg: "from-lime-500/20 to-lime-500/5", icon: "from-lime-500/30 to-lime-500/15", text: "text-lime-400" },
+    "#22c55e": { bg: "from-green-500/20 to-green-500/5", icon: "from-green-500/30 to-green-500/15", text: "text-green-400" },
+    "#10b981": { bg: "from-emerald-500/20 to-emerald-500/5", icon: "from-emerald-500/30 to-emerald-500/15", text: "text-emerald-400" },
+    "#14b8a6": { bg: "from-teal-500/20 to-teal-500/5", icon: "from-teal-500/30 to-teal-500/15", text: "text-teal-400" },
+    "#06b6d4": { bg: "from-cyan-500/20 to-cyan-500/5", icon: "from-cyan-500/30 to-cyan-500/15", text: "text-cyan-400" },
+    "#3b82f6": { bg: "from-blue-500/20 to-blue-500/5", icon: "from-blue-500/30 to-blue-500/15", text: "text-blue-400" },
+    "#8b5cf6": { bg: "from-violet-500/20 to-violet-500/5", icon: "from-violet-500/30 to-violet-500/15", text: "text-violet-400" },
+    "#a855f7": { bg: "from-purple-500/20 to-purple-500/5", icon: "from-purple-500/30 to-purple-500/15", text: "text-purple-400" },
+    "#ec4899": { bg: "from-pink-500/20 to-pink-500/5", icon: "from-pink-500/30 to-pink-500/15", text: "text-pink-400" },
+  }
+
+  // Get color from persisted color or generate from name hash
+  const getInstanceColor = () => {
+    // Use persisted color if available
+    if (instance.color && colorMap[instance.color]) {
+      return { ...colorMap[instance.color], hex: instance.color }
+    }
+
+    // Fallback: generate color from name hash
+    const defaultColors = [
+      { bg: "from-amber-500/20 to-amber-500/5", icon: "from-amber-500/30 to-amber-500/15", text: "text-amber-400", hex: "#f59e0b" },
+      { bg: "from-emerald-500/20 to-emerald-500/5", icon: "from-emerald-500/30 to-emerald-500/15", text: "text-emerald-400", hex: "#10b981" },
+      { bg: "from-blue-500/20 to-blue-500/5", icon: "from-blue-500/30 to-blue-500/15", text: "text-blue-400", hex: "#3b82f6" },
+      { bg: "from-purple-500/20 to-purple-500/5", icon: "from-purple-500/30 to-purple-500/15", text: "text-purple-400", hex: "#a855f7" },
+      { bg: "from-rose-500/20 to-rose-500/5", icon: "from-rose-500/30 to-rose-500/15", text: "text-rose-400", hex: "#ef4444" },
+      { bg: "from-cyan-500/20 to-cyan-500/5", icon: "from-cyan-500/30 to-cyan-500/15", text: "text-cyan-400", hex: "#06b6d4" },
+    ]
+    let hash = 0
+    for (let i = 0; i < instance.name.length; i++) {
+      hash = instance.name.charCodeAt(i) + ((hash << 5) - hash)
+    }
+    return defaultColors[Math.abs(hash) % defaultColors.length]
+  }
+
+  const instanceColor = getInstanceColor()
+
   // Grid view (default) - Modern card design
   return (
     <div
       className={cn(
-        "group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-300",
-        "bg-gradient-to-br from-card to-card/80",
-        "border border-border/50 hover:border-border",
+        "group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-300 h-full",
+        "bg-card border border-border/50 hover:border-border",
         "hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-0.5",
         isRunning && "border-green-500/50 shadow-green-500/10"
       )}
       onClick={() => onNavigate(instance.id)}
     >
-      {/* Background image/gradient overlay */}
-      <div className="absolute inset-0 opacity-10">
+      {/* Background gradient overlay */}
+      <div className="absolute inset-0">
         {iconUrl ? (
           <img
             src={iconUrl}
             alt=""
             loading="lazy"
-            className="w-full h-full object-cover blur-2xl scale-150"
+            className="w-full h-full object-cover blur-2xl scale-150 opacity-15"
           />
         ) : (
-          <div className="w-full h-full bg-gradient-to-br from-primary/20 to-transparent" />
+          <div className={cn(
+            "w-full h-full bg-gradient-to-br",
+            instanceColor.bg
+          )} />
         )}
       </div>
 
       {/* Content */}
-      <div className="relative p-4">
+      <div className="relative p-4 h-full flex flex-col">
         {/* Header with icon and favorite */}
         <div className="flex items-start justify-between mb-3">
           <div className={cn(
             "h-14 w-14 rounded-xl flex items-center justify-center relative overflow-hidden",
-            "bg-background/80 backdrop-blur-sm border border-border/50",
             "shadow-sm",
-            isRunning && "ring-2 ring-green-500/50"
+            isRunning && "ring-2 ring-green-500/50",
+            iconUrl
+              ? "bg-background/80 backdrop-blur-sm border border-border/50"
+              : cn("bg-gradient-to-br border border-white/10", instanceColor.icon)
           )}>
             {iconUrl ? (
               <img
@@ -327,7 +377,7 @@ const InstanceCard = memo(function InstanceCard({
                 }}
               />
             ) : (
-              <span className="text-2xl font-bold bg-gradient-to-br from-foreground to-foreground/60 bg-clip-text text-transparent">
+              <span className={cn("text-2xl font-bold", instanceColor.text)}>
                 {instance.name.charAt(0).toUpperCase()}
               </span>
             )}
@@ -339,25 +389,81 @@ const InstanceCard = memo(function InstanceCard({
             )}
           </div>
 
-          {/* Favorite button */}
-          <button
-            className={cn(
-              "p-2 rounded-lg transition-all",
-              "opacity-0 group-hover:opacity-100",
-              isFavorite && "opacity-100",
-              "hover:bg-background/50"
+          {/* Actions: Favorite + Options menu */}
+          <div className="flex items-center gap-1">
+            {/* Favorite button */}
+            <button
+              className={cn(
+                "p-1.5 rounded-lg transition-all",
+                "opacity-0 group-hover:opacity-100",
+                isFavorite && "opacity-100",
+                "hover:bg-background/50"
+              )}
+              aria-label={isFavorite ? t("skins.removeFromFavorites") : t("skins.addToFavorites")}
+              onClick={(e) => {
+                e.stopPropagation()
+                onToggleFavorite(instance.id)
+              }}
+            >
+              <Star className={cn(
+                "h-4 w-4 transition-colors",
+                isFavorite ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
+              )} />
+            </button>
+
+            {/* Options menu with color picker - only show if no icon */}
+            {!iconUrl && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className={cn(
+                      "p-1.5 rounded-lg transition-all",
+                      "opacity-0 group-hover:opacity-100",
+                      "hover:bg-background/50"
+                    )}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <Palette className="h-4 w-4 text-muted-foreground" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48" onClick={(e) => e.stopPropagation()}>
+                  <div className="px-2 py-1.5 text-sm font-medium">{t("instances.selectColor")}</div>
+                  <div className="grid grid-cols-6 gap-1.5 p-2">
+                    {COLOR_PALETTE.map((color) => (
+                      <button
+                        key={color.hex}
+                        className={cn(
+                          "h-6 w-6 rounded-md transition-all hover:scale-110 flex items-center justify-center",
+                          instance.color === color.hex && "ring-2 ring-offset-1 ring-offset-background ring-foreground"
+                        )}
+                        style={{ backgroundColor: color.hex }}
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          onColorChange(instance.id, color.hex)
+                        }}
+                        title={color.name}
+                      />
+                    ))}
+                  </div>
+                  {instance.color && (
+                    <>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onColorChange(instance.id, null)
+                        }}
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        {t("instances.resetColor")}
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
-            aria-label={isFavorite ? t("skins.removeFromFavorites") : t("skins.addToFavorites")}
-            onClick={(e) => {
-              e.stopPropagation()
-              onToggleFavorite(instance.id)
-            }}
-          >
-            <Star className={cn(
-              "h-4 w-4 transition-colors",
-              isFavorite ? "fill-yellow-500 text-yellow-500" : "text-muted-foreground"
-            )} />
-          </button>
+          </div>
         </div>
 
         {/* Title and info */}
@@ -388,13 +494,14 @@ const InstanceCard = memo(function InstanceCard({
           </div>
         </div>
 
-        {/* Playtime info */}
-        {instance.total_playtime_seconds > 0 && (
-          <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
-            <Play className="h-3 w-3" />
-            <span>{formatPlaytime(instance.total_playtime_seconds)}</span>
-          </div>
-        )}
+        {/* Spacer to push content down */}
+        <div className="flex-1" />
+
+        {/* Playtime info - always show */}
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
+          <Play className="h-3 w-3" />
+          <span>{formatPlaytime(instance.total_playtime_seconds)}</span>
+        </div>
 
         {/* Install progress */}
         {isInstalling && installProgress && (
@@ -600,6 +707,20 @@ export function Instances() {
       return newFavorites
     })
   }, [])
+
+  const handleColorChange = useCallback(async (instanceId: string, color: string | null) => {
+    try {
+      await invoke("update_instance_color", { instanceId, color })
+      // Update local state
+      setInstances(prev => prev.map(inst =>
+        inst.id === instanceId ? { ...inst, color } : inst
+      ))
+      toast.success(t("instances.colorUpdated"))
+    } catch (err) {
+      console.error("Failed to update instance color:", err)
+      toast.error(t("instances.colorUpdateError"))
+    }
+  }, [t])
 
   const checkJava = async () => {
     console.log("[Instances] Checking Java installation...")
@@ -870,6 +991,7 @@ export function Instances() {
 
   // Format playtime - memoized
   const formatPlaytime = useCallback((seconds: number): string => {
+    if (seconds === 0) return "0 min"
     if (seconds < 60) return "< 1 min"
     if (seconds < 3600) return `${Math.floor(seconds / 60)} min`
     return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
@@ -902,12 +1024,13 @@ export function Instances() {
         onInstall={handleInstall}
         onStop={handleStop}
         onDelete={openDeleteDialog}
+        onColorChange={handleColorChange}
         formatPlaytime={formatPlaytime}
         t={t}
       />
     )
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewMode, installedVersions, isInstalling, getInstallation, launchingInstance, launchStep, runningInstances, stoppingInstance, getIconUrl, favorites, handleNavigate, toggleFavorite, handleLaunch, handleInstall, handleStop, openDeleteDialog, formatPlaytime])
+  }, [viewMode, installedVersions, isInstalling, getInstallation, launchingInstance, launchStep, runningInstances, stoppingInstance, getIconUrl, favorites, handleNavigate, toggleFavorite, handleLaunch, handleInstall, handleStop, openDeleteDialog, handleColorChange, formatPlaytime])
 
   const sortLabels: Record<SortBy, string> = {
     name: t("common.name"),
@@ -918,22 +1041,20 @@ export function Instances() {
 
   return (
     <TooltipProvider delayDuration={0}>
-      <div className="flex flex-col gap-6">
-        {/* Header */}
+      <div className="flex flex-col gap-4">
+        {/* Header Row - Title + Actions */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">{t("instances.title")}</h1>
-            <p className="text-muted-foreground">
-              {t("instances.subtitle")}
-            </p>
+            <p className="text-muted-foreground">{t("instances.subtitle")}</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" className="gap-2">
                   <FolderDown className="h-4 w-4" />
                   {t("sharing.import")}
-                  <ChevronDown className="h-4 w-4 ml-1" />
+                  <ChevronDown className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -954,47 +1075,46 @@ export function Instances() {
           </div>
         </div>
 
-        {/* Java warning */}
-        {javaChecked && !javaInfo && (
-          <Alert className="border-amber-500/50 bg-amber-500/10">
-            <Coffee className="h-4 w-4 text-amber-500" />
-            <AlertTitle className="text-amber-500">{t("java.required")}</AlertTitle>
-            <AlertDescription className="flex items-center justify-between">
-              <span>{t("java.notInstalled")}</span>
-              <Button
-                size="sm"
-                variant="outline"
-                className="ml-4"
-                onClick={handleInstallJava}
-                disabled={installingJava}
-              >
-                {installingJava ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    {t("instances.installing")}
-                  </>
-                ) : (
-                  <>
-                    <Download className="mr-2 h-4 w-4" />
-                    {t("java.install21")}
-                  </>
-                )}
-              </Button>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Error message */}
-        {error && (
-          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
-            <p className="text-sm text-destructive">{error}</p>
-          </div>
-        )}
-
-        {/* Search and filters */}
+        {/* Filter Row - Tabs + Search + Sort + Views */}
         <div className="flex items-center gap-3">
+          {/* Tabs */}
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as InstanceTab)} className="flex-shrink-0">
+            <TabsList>
+              <TabsTrigger value="client" className="gap-2">
+                <Monitor className="h-4 w-4" />
+                {t("instances.clients")}
+                {clientCount > 0 && (
+                  <span className="rounded-full bg-background/50 px-1.5 text-xs font-medium">
+                    {clientCount}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="server" className="gap-2">
+                <Server className="h-4 w-4" />
+                {t("instances.servers")}
+                {serverCount > 0 && (
+                  <span className="rounded-full bg-background/50 px-1.5 text-xs font-medium">
+                    {serverCount}
+                  </span>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="proxy" className="gap-2">
+                <Network className="h-4 w-4" />
+                {t("instances.proxies")}
+                {proxyCount > 0 && (
+                  <span className="rounded-full bg-background/50 px-1.5 text-xs font-medium">
+                    {proxyCount}
+                  </span>
+                )}
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+
+          {/* Flexible spacer */}
+          <div className="flex-1" />
+
           {/* Search */}
-          <div className="relative flex-1 max-w-sm">
+          <div className="relative w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
               placeholder={t("instances.searchPlaceholder")}
@@ -1072,38 +1192,42 @@ export function Instances() {
           </div>
         </div>
 
-        {/* Instance type tabs */}
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as InstanceTab)}>
-          <TabsList className="w-fit">
-            <TabsTrigger value="client" className="gap-2">
-              <Monitor className="h-4 w-4" />
-              {t("instances.clients")}
-              {clientCount > 0 && (
-                <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs">
-                  {clientCount}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="server" className="gap-2">
-              <Server className="h-4 w-4" />
-              {t("instances.servers")}
-              {serverCount > 0 && (
-                <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs">
-                  {serverCount}
-                </span>
-              )}
-            </TabsTrigger>
-            <TabsTrigger value="proxy" className="gap-2">
-              <Network className="h-4 w-4" />
-              {t("instances.proxies")}
-              {proxyCount > 0 && (
-                <span className="ml-1 rounded-full bg-muted px-2 py-0.5 text-xs">
-                  {proxyCount}
-                </span>
-              )}
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
+        {/* Java warning */}
+        {javaChecked && !javaInfo && (
+          <Alert className="border-amber-500/50 bg-amber-500/10">
+            <Coffee className="h-4 w-4 text-amber-500" />
+            <AlertTitle className="text-amber-500">{t("java.required")}</AlertTitle>
+            <AlertDescription className="flex items-center justify-between">
+              <span>{t("java.notInstalled")}</span>
+              <Button
+                size="sm"
+                variant="outline"
+                className="ml-4"
+                onClick={handleInstallJava}
+                disabled={installingJava}
+              >
+                {installingJava ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    {t("instances.installing")}
+                  </>
+                ) : (
+                  <>
+                    <Download className="mr-2 h-4 w-4" />
+                    {t("java.install21")}
+                  </>
+                )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Error message */}
+        {error && (
+          <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4">
+            <p className="text-sm text-destructive">{error}</p>
+          </div>
+        )}
 
         {/* Instances */}
         {isLoading ? (

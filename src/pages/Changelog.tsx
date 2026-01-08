@@ -57,6 +57,7 @@ import {
   Code2,
   MemoryStick,
   RotateCcw,
+  BookOpen,
 } from "lucide-react"
 import { useTranslation } from "@/i18n"
 
@@ -76,6 +77,84 @@ interface ChangelogEntry {
 }
 
 const changelog: ChangelogEntry[] = [
+  {
+    version: "0.7.6",
+    date: "2025-12-30",
+    highlights: [
+      "Easy Mode / Advanced Mode",
+      "Quick Play",
+      "Documentation Window",
+      "Instance Colors",
+    ],
+    features: [
+      {
+        icon: <Sparkles className="h-5 w-5" />,
+        title: "Easy Mode / Advanced Mode",
+        description: "New toggle in the title bar to switch between Easy and Advanced modes. Easy Mode simplifies the interface for novice players, hiding complex settings and showing only essential options. Enabled by default for new users.",
+        tag: "new",
+      },
+      {
+        icon: <Zap className="h-5 w-5" />,
+        title: "Quick Play",
+        description: "Available in both Easy and Advanced modes via a tabbed interface combined with Last Played. Select your Minecraft version, click play, and Kaizen handles everything. Smart version selector shows only unique Minecraft versions. Comprehensive caching prevents reload flashing when switching tabs.",
+        tag: "new",
+      },
+      {
+        icon: <Gauge className="h-5 w-5" />,
+        title: "Auto-Optimization",
+        description: "Easy Mode replaces complex performance settings with a single 'Optimize Now' button. Automatically detects your mod count and selects the optimal JVM profile (Vanilla, Light, Heavy, or Performance).",
+        tag: "new",
+      },
+      {
+        icon: <Settings className="h-5 w-5" />,
+        title: "Simplified Instance Settings",
+        description: "In Easy Mode, instance details show only essential information: name, version, loader, and playtime. Technical tabs like Server are hidden, and Backups shows only auto-backup toggle.",
+        tag: "new",
+      },
+      {
+        icon: <Palette className="h-5 w-5" />,
+        title: "Instance Color Customization",
+        description: "Choose a custom color for each instance from a palette of 12 colors. Colors are persisted in the database and displayed on instance cards without icons. Access via right-click menu or instance settings.",
+        tag: "new",
+      },
+      {
+        icon: <Paintbrush className="h-5 w-5" />,
+        title: "Modernized Instance Cards",
+        description: "Instance cards without icons now display beautiful gradient backgrounds based on the instance color. Automatic color assignment based on name hash when no custom color is set.",
+        tag: "improved",
+      },
+      {
+        icon: <Layout className="h-5 w-5" />,
+        title: "Compact Instances Header",
+        description: "Redesigned instances page header with a compact two-line layout. Title and actions on the first line, tabs and filters on the second line for more vertical space.",
+        tag: "improved",
+      },
+      {
+        icon: <LayoutGrid className="h-5 w-5" />,
+        title: "Homepage Color Support",
+        description: "Instance colors now display on the homepage too. The hero section, dropdown selector, and recent instances grid all show the custom or auto-generated colors.",
+        tag: "improved",
+      },
+      {
+        icon: <Database className="h-5 w-5" />,
+        title: "Stacked Bar Storage Visualization",
+        description: "Settings storage tab now displays instance storage as a colorful stacked bar. Each instance has a unique color, with tooltips showing size and percentage. Compact legend shows top 5 instances.",
+        tag: "improved",
+      },
+      {
+        icon: <LayoutGrid className="h-5 w-5" />,
+        title: "Compact Home Page Layout",
+        description: "Redesigned home page with reduced spacing and more compact stats cards. Recent instances grid now shows hover effects instead of static selection indicator.",
+        tag: "improved",
+      },
+      {
+        icon: <BookOpen className="h-5 w-5" />,
+        title: "Documentation Window",
+        description: "New in-app documentation accessible via icon in the title bar. Opens a separate window with 8 sections covering all launcher features: Home, Instances, Accounts, Skins, Browse, Backups, Sharing, and Settings. Includes sidebar navigation with search.",
+        tag: "new",
+      },
+    ],
+  },
   {
     version: "0.7.5",
     date: "2025-12-26",

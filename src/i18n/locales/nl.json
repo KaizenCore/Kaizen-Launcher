@@ -71,6 +71,11 @@
     "downloads": "Downloads",
     "changelog": "Wijzigingen"
   },
+  "documentation": {
+    "title": "Documentatie",
+    "openTooltip": "Documentatie openen",
+    "comingSoon": "Documentatie komt binnenkort."
+  },
   "home": {
     "welcome": "Welkom bij Kaizen Launcher",
     "recentInstances": "Recente Instanties",
@@ -515,11 +520,16 @@
     "restartOnboardingButton": "Herstarten",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Wat is nieuw in v0.7.5",
-    "whatsNewInstanceBackups": "Volledige instantie back-ups met cloud upload ondersteuning",
-    "whatsNewBackupsRedesign": "Vernieuwde Back-ups pagina met tabs voor werelden en instanties",
-    "whatsNewChangeVersion": "Minecraft-versie wijzigen met mod-compatibiliteitscontrole",
-    "whatsNewRestoreOptions": "Herstellen om instanties te vervangen of nieuw aan te maken",
+    "whatsNew": "Wat is nieuw in v0.7.6",
+    "whatsNewEasyMode": "Easy Mode / Advanced Mode schakelaar in de titelbalk",
+    "whatsNewQuickPlay": "Quick Play: één-klik Minecraft met Fabulously Optimized",
+    "whatsNewAutoOptimize": "Auto-optimalisatie op basis van je mod-aantal",
+    "whatsNewDocumentation": "In-app documentatievenster met 8 secties",
+    "whatsNewInstanceColors": "Aangepaste kleurkiezer voor elke instantie",
+    "whatsNewStorageViz": "Gestapelde staafvisualisatie voor instantie-opslag",
+    "whatsNewModernCards": "Gemoderniseerde instantiekaarten met kleurverlopen",
+    "whatsNewCompactHeader": "Compact instantie-pagina header ontwerp",
+    "whatsNewHomepageColors": "Instantiekleuren weergegeven op de startpagina",
     "devtools": "DevTools"
   },
   "devtools": {

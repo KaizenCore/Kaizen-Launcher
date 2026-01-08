@@ -1509,6 +1509,36 @@ pub async fn clear_instance_icon(
 }
 
 #[tauri::command]
+pub async fn update_instance_color(
+    state: State<'_, SharedState>,
+    instance_id: String,
+    color: Option<String>,
+) -> AppResult<()> {
+    // Validate hex color format if provided
+    if let Some(ref c) = color {
+        if !c.starts_with('#') || c.len() != 7 {
+            return Err(AppError::Instance(
+                "Invalid color format. Use hex format like #ff5500".to_string(),
+            ));
+        }
+        // Validate hex characters
+        if !c[1..].chars().all(|ch| ch.is_ascii_hexdigit()) {
+            return Err(AppError::Instance(
+                "Invalid color format. Use hex format like #ff5500".to_string(),
+            ));
+        }
+    }
+
+    let state_guard = state.read().await;
+
+    Instance::update_color(&state_guard.db, &instance_id, color.as_deref())
+        .await
+        .map_err(AppError::from)?;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn get_instance_icon(
     state: State<'_, SharedState>,
     instance_id: String,

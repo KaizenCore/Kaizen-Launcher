@@ -23,7 +23,6 @@ import {
   CloudDownload,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
@@ -512,17 +511,17 @@ export function ModsList({ instanceId, contentType, onOpenFolder, onModsChange }
   const disabledCount = useMemo(() => mods.filter((m) => !m.enabled).length, [mods])
 
   return (
-    <Card className="flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 min-h-0">
       {/* Header */}
-      <CardHeader className="flex-shrink-0 pb-3">
+      <div className="flex-shrink-0 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <CardTitle className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
               {t("instanceDetails.installedMods")}
               {mods.length > 0 && (
                 <Badge variant="secondary">{mods.length}</Badge>
               )}
-            </CardTitle>
+            </h3>
             {modUpdates.length > 0 && (
               <Badge variant="default" className="bg-green-500 hover:bg-green-600">
                 {modUpdates.length} {t("instanceDetails.updatesAvailable")}
@@ -587,9 +586,9 @@ export function ModsList({ instanceId, contentType, onOpenFolder, onModsChange }
             </Button>
           </div>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="flex-1 flex flex-col min-h-0 pt-0">
+      <div className="flex-1 flex flex-col min-h-0">
         {/* Toolbar */}
         {mods.length > 0 && (
           <div className="space-y-3 mb-3">
@@ -1037,7 +1036,7 @@ export function ModsList({ instanceId, contentType, onOpenFolder, onModsChange }
             )}
           </div>
         )}
-      </CardContent>
+      </div>
 
       {/* Delete confirmation dialog */}
       <AlertDialog open={!!modToDelete} onOpenChange={(open) => !open && setModToDelete(null)}>
@@ -1061,6 +1060,6 @@ export function ModsList({ instanceId, contentType, onOpenFolder, onModsChange }
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Card>
+    </div>
   )
 }

@@ -6,6 +6,7 @@ import { listen, UnlistenFn } from "@tauri-apps/api/event"
 import { toast } from "sonner"
 import { useInstallationStore } from "@/stores/installationStore"
 import { useTourStore, TourStep } from "@/stores/tourStore"
+import { useEasyModeStore } from "@/stores/easyModeStore"
 import { ArrowLeft, Settings, Package, Loader2, FolderOpen, Search, Download, Play, AlertCircle, Square, Copy, Check, ImageIcon, Link, X, Share2, Settings2, Cpu, Archive, RefreshCw } from "lucide-react"
 import { ErrorBoundary } from "@/components/ErrorBoundary"
 import { Button } from "@/components/ui/button"
@@ -22,7 +23,8 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { useTranslation } from "@/i18n"
-import { Wrench, Terminal, Server, Globe } from "lucide-react"
+import { Wrench, Terminal, Server, Globe, Palette, Sparkles, Database } from "lucide-react"
+import { InstanceColorPicker } from "@/components/instances/InstanceColorPicker"
 
 // Lazy load heavy components - only loaded when their tab is selected
 const RamSlider = lazy(() => import("@/components/config/RamSlider").then(m => ({ default: m.RamSlider })))
@@ -39,6 +41,7 @@ const WorldsTab = lazy(() => import("@/components/instances/WorldsTab").then(m =
 const ModsList = lazy(() => import("@/components/instances/ModsList").then(m => ({ default: m.ModsList })))
 const ExportInstanceDialog = lazy(() => import("@/components/sharing/ExportInstanceDialog").then(m => ({ default: m.ExportInstanceDialog })))
 const ChangeVersionDialog = lazy(() => import("@/components/dialogs/ChangeVersionDialog").then(m => ({ default: m.ChangeVersionDialog })))
+const EasyModeOptimizer = lazy(() => import("@/components/instances/EasyModeOptimizer").then(m => ({ default: m.EasyModeOptimizer })))
 
 // Loading fallback for lazy components
 function ComponentLoader() {
@@ -65,6 +68,7 @@ interface Instance {
   jvm_args: string | null
   is_server: boolean
   is_proxy: boolean
+  color: string | null
 }
 
 // Determine what type of content this server/instance supports
@@ -154,6 +158,9 @@ export function InstanceDetails() {
 
   // Settings sub-tabs state
   const [settingsTab, setSettingsTab] = useState("general")
+
+  // Easy mode
+  const { enabled: easyMode } = useEasyModeStore()
 
   // Auto-save ref to track if initial load is complete
   const isInitialLoadRef = useRef(true)
@@ -850,34 +857,32 @@ export function InstanceDetails() {
       {/* Tabs */}
       <Tabs defaultValue={instance?.is_server || instance?.is_proxy ? "console" : "settings"} className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <TabsList className="flex-shrink-0">
-          {/* Console tab - available for all instances */}
-          <TabsTrigger value="console" className="gap-2" data-tour="console-tab">
-            <Terminal className="h-4 w-4" />
-            {t("instanceDetails.console")}
-          </TabsTrigger>
           <TabsTrigger value="settings" className="gap-2" data-tour="settings-tab">
             <Settings className="h-4 w-4" />
             {t("common.settings")}
           </TabsTrigger>
           {contentType !== "none" && (
-            <TabsTrigger value="mods" className="gap-2" data-tour="mods-tab">
+            <TabsTrigger value="content" className="gap-2" data-tour="mods-tab">
               <Package className="h-4 w-4" />
               {contentLabel.plural}
-            </TabsTrigger>
-          )}
-          {contentType !== "none" && (
-            <TabsTrigger value="content" className="gap-2" data-tour="browse-tab">
-              <Search className="h-4 w-4" />
-              {t("content.manageContent")}
             </TabsTrigger>
           )}
           <TabsTrigger value="worlds" className="gap-2" data-tour="worlds-tab">
             <Globe className="h-4 w-4" />
             {t("instanceDetails.worlds")}
           </TabsTrigger>
+          <TabsTrigger value="backups" className="gap-2" data-tour="backups-tab">
+            <Archive className="h-4 w-4" />
+            {t("instanceDetails.backups")}
+          </TabsTrigger>
           <TabsTrigger value="config" className="gap-2" data-tour="config-tab">
             <Wrench className="h-4 w-4" />
             Config
+          </TabsTrigger>
+          {/* Console tab - available for all instances */}
+          <TabsTrigger value="console" className="gap-2" data-tour="console-tab">
+            <Terminal className="h-4 w-4" />
+            {t("instanceDetails.console")}
           </TabsTrigger>
           {/* Tunnel tab - only for servers */}
           {(instance?.is_server || instance?.is_proxy) && (
@@ -889,7 +894,7 @@ export function InstanceDetails() {
         </TabsList>
 
         {/* Console Tab - Available for all instances */}
-        <TabsContent value="console" className="gap-3">
+        <TabsContent value="console" className="mt-4 space-y-3">
           {/* Server Stats - only for servers */}
           {(instance?.is_server || instance?.is_proxy) && (
             <div className="flex-shrink-0">
@@ -1007,8 +1012,8 @@ export function InstanceDetails() {
         </TabsContent>
 
         {/* Settings Tab */}
-        <TabsContent value="settings">
-          <Tabs value={settingsTab} onValueChange={setSettingsTab} className="flex flex-col h-full">
+        <TabsContent value="settings" className="mt-4 overflow-y-auto">
+          <Tabs value={settingsTab} onValueChange={setSettingsTab}>
             <TabsList className="flex-shrink-0 w-fit mb-4">
               <TabsTrigger value="general" className="gap-2">
                 <Settings2 className="h-4 w-4" />
@@ -1018,12 +1023,8 @@ export function InstanceDetails() {
                 <Cpu className="h-4 w-4" />
                 {t("instanceDetails.settingsTabPerformance")}
               </TabsTrigger>
-              <TabsTrigger value="backups" className="gap-2">
-                <Archive className="h-4 w-4" />
-                {t("instanceDetails.settingsTabBackups")}
-              </TabsTrigger>
-              {/* Server tab - shown for servers OR modded clients that can create servers */}
-              {(instance?.is_server || instance?.is_proxy ||
+              {/* Server tab - shown for servers OR modded clients that can create servers (hidden in Easy Mode) */}
+              {!easyMode && (instance?.is_server || instance?.is_proxy ||
                 (instance?.loader && ["fabric", "forge", "neoforge", "quilt"].includes(instance.loader.toLowerCase()))) && (
                 <TabsTrigger value="server" className="gap-2">
                   <Server className="h-4 w-4" />
@@ -1032,373 +1033,418 @@ export function InstanceDetails() {
               )}
             </TabsList>
 
-            <div className="flex-1 overflow-y-auto">
+            <div>
               {/* General Sub-Tab */}
               <TabsContent value="general" className="mt-0 data-[state=active]:block">
-                <div className="grid gap-4 lg:grid-cols-2">
-                  {/* Left Column - Identity & Quick Actions */}
-                  <div className="space-y-4">
-                    {/* Instance Identity Card */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base">{t("instanceDetails.instanceName")}</CardTitle>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        {/* Name */}
-                        <div className="space-y-2">
-                          <Input
-                            id="name"
-                            value={name}
-                            onChange={(e) => setName(e.target.value)}
-                            placeholder={t("createInstance.namePlaceholder")}
-                          />
-                        </div>
+                {easyMode ? (
+                  /* Easy Mode: Simplified general settings */
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle>{t("easyMode.simpleSettings")}</CardTitle>
+                      <CardDescription>{t("easyMode.simpleSettingsDesc")}</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      {/* Instance Name */}
+                      <div className="space-y-2">
+                        <Label className="text-sm font-medium">{t("instanceDetails.instanceName")}</Label>
+                        <Input
+                          id="name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder={t("createInstance.namePlaceholder")}
+                        />
+                      </div>
 
-                        {/* Icon */}
-                        <div className="space-y-2">
-                          <Label className="text-sm text-muted-foreground">{t("instanceDetails.icon")}</Label>
-                          <div className="flex items-center gap-2">
-                            <div className="flex-shrink-0 w-10 h-10 rounded-lg border bg-muted flex items-center justify-center overflow-hidden">
-                              {iconDataUrl ? (
-                                <img
-                                  src={iconDataUrl}
-                                  alt={instance?.name || "Instance"}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <span className="text-sm font-bold text-muted-foreground">
-                                  {instance?.name?.charAt(0).toUpperCase() || "?"}
-                                </span>
-                              )}
-                            </div>
-                            <div className="relative flex-1 min-w-[150px]">
-                              <Link className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                              <Input
-                                value={iconInputUrl}
-                                onChange={(e) => setIconInputUrl(e.target.value)}
-                                placeholder={t("instanceDetails.imageUrlPlaceholder")}
-                                className="pl-8 h-9 text-sm"
-                                disabled={isUpdatingIcon}
-                              />
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={handleUpdateIconFromUrl}
-                              disabled={!iconInputUrl.trim() || isUpdatingIcon}
-                              className="h-9"
-                            >
-                              {isUpdatingIcon ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "OK"}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={handleSelectIconFile}
-                              disabled={isUpdatingIcon}
-                              className="h-9 gap-1.5"
-                            >
-                              <ImageIcon className="h-3.5 w-3.5" />
-                              {t("instanceDetails.file")}
-                            </Button>
-                            {instance?.icon_path && (
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={handleClearIcon}
-                                disabled={isUpdatingIcon}
-                                className="h-9 w-9 p-0 text-destructive hover:text-destructive"
-                              >
-                                <X className="h-3.5 w-3.5" />
-                              </Button>
-                            )}
+                      {/* Instance Info - Compact */}
+                      <div className="p-4 rounded-lg bg-muted/50 border space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">{t("instanceDetails.instanceType")}</span>
+                          <Badge variant="secondary">
+                            {instance?.is_proxy
+                              ? t("instanceDetails.instanceTypeProxy")
+                              : instance?.is_server
+                              ? t("instanceDetails.instanceTypeServer")
+                              : t("instanceDetails.instanceTypeClient")}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Minecraft</span>
+                          <span className="text-sm font-medium">{instance?.mc_version}</span>
+                        </div>
+                        {instance?.loader && (
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-muted-foreground">Loader</span>
+                            <span className="text-sm font-medium">{instance.loader}</span>
                           </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">{t("instanceDetails.totalPlaytime")}</span>
+                          <span className="text-sm font-medium">
+                            {instance?.total_playtime_seconds
+                              ? (() => {
+                                  const hours = Math.floor(instance.total_playtime_seconds / 3600)
+                                  const minutes = Math.floor((instance.total_playtime_seconds % 3600) / 60)
+                                  if (hours > 0) {
+                                    return `${hours}h ${minutes}m`
+                                  }
+                                  return `${minutes}m`
+                                })()
+                              : t("instanceDetails.neverPlayed")}
+                          </span>
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
 
-                    {/* Quick Actions Card */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base">{t("instanceDetails.quickActions")}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex flex-wrap gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleOpenInstanceFolder}
-                            className="gap-2"
-                          >
-                            <FolderOpen className="h-4 w-4" />
-                            {t("common.openFolder")}
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setShowExportDialog(true)}
-                            className="gap-2"
-                          >
-                            <Share2 className="h-4 w-4" />
-                            {t("instanceDetails.exportInstance")}
-                          </Button>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </div>
-
-                  {/* Right Column - Information & Statistics */}
-                  <div className="space-y-4">
-                    {/* Instance Information Card */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base">{t("instanceDetails.instanceInfo")}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid gap-3">
-                          {/* Type */}
-                          <div className="flex items-center justify-between py-1.5 border-b border-border/50">
-                            <span className="text-sm text-muted-foreground">{t("instanceDetails.instanceType")}</span>
-                            <Badge variant="secondary">
-                              {instance?.is_proxy
-                                ? t("instanceDetails.instanceTypeProxy")
-                                : instance?.is_server
-                                ? t("instanceDetails.instanceTypeServer")
-                                : t("instanceDetails.instanceTypeClient")}
-                            </Badge>
+                      {/* Simple Action */}
+                      <Button
+                        variant="outline"
+                        onClick={handleOpenInstanceFolder}
+                        className="w-full gap-2"
+                      >
+                        <FolderOpen className="h-4 w-4" />
+                        {t("common.openFolder")}
+                      </Button>
+                    </CardContent>
+                  </Card>
+                ) : (
+                  /* Advanced Mode: Full settings */
+                  <div className="grid gap-4 lg:grid-cols-2">
+                    {/* Left Column - Identity & Quick Actions */}
+                    <div className="space-y-4">
+                      {/* Instance Identity Card */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">{t("instanceDetails.instanceName")}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {/* Name */}
+                          <div className="space-y-2">
+                            <Input
+                              id="name"
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              placeholder={t("createInstance.namePlaceholder")}
+                            />
                           </div>
 
-                          {/* MC Version */}
-                          <div className="flex items-center justify-between py-1.5 border-b border-border/50">
-                            <span className="text-sm text-muted-foreground">Minecraft</span>
+                          {/* Icon */}
+                          <div className="space-y-2">
+                            <Label className="text-sm text-muted-foreground">{t("instanceDetails.icon")}</Label>
                             <div className="flex items-center gap-2">
-                              <span className="text-sm font-medium">{instance?.mc_version}</span>
-                              {!instance?.is_proxy && (
+                              <div className="flex-shrink-0 w-10 h-10 rounded-lg border bg-muted flex items-center justify-center overflow-hidden">
+                                {iconDataUrl ? (
+                                  <img
+                                    src={iconDataUrl}
+                                    alt={instance?.name || "Instance"}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <span className="text-sm font-bold text-muted-foreground">
+                                    {instance?.name?.charAt(0).toUpperCase() || "?"}
+                                  </span>
+                                )}
+                              </div>
+                              <div className="relative flex-1 min-w-[150px]">
+                                <Link className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <Input
+                                  value={iconInputUrl}
+                                  onChange={(e) => setIconInputUrl(e.target.value)}
+                                  placeholder={t("instanceDetails.imageUrlPlaceholder")}
+                                  className="pl-8 h-9 text-sm"
+                                  disabled={isUpdatingIcon}
+                                />
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={handleUpdateIconFromUrl}
+                                disabled={!iconInputUrl.trim() || isUpdatingIcon}
+                                className="h-9"
+                              >
+                                {isUpdatingIcon ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "OK"}
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleSelectIconFile}
+                                disabled={isUpdatingIcon}
+                                className="h-9 gap-1.5"
+                              >
+                                <ImageIcon className="h-3.5 w-3.5" />
+                                {t("instanceDetails.file")}
+                              </Button>
+                              {instance?.icon_path && (
                                 <Button
                                   variant="ghost"
-                                  size="icon"
-                                  className="h-6 w-6"
-                                  onClick={() => setShowChangeVersionDialog(true)}
-                                  disabled={isRunning}
-                                  title={t("changeVersion.title")}
+                                  size="sm"
+                                  onClick={handleClearIcon}
+                                  disabled={isUpdatingIcon}
+                                  className="h-9 w-9 p-0 text-destructive hover:text-destructive"
                                 >
-                                  <RefreshCw className="h-3.5 w-3.5" />
+                                  <X className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                             </div>
                           </div>
 
-                          {/* Loader */}
-                          {instance?.loader && (
-                            <div className="flex items-center justify-between py-1.5 border-b border-border/50">
-                              <span className="text-sm text-muted-foreground">Loader</span>
-                              <span className="text-sm font-medium">
-                                {instance.loader}
-                                {instance.loader_version && (
-                                  <span className="text-muted-foreground ml-1">({instance.loader_version})</span>
-                                )}
-                              </span>
+                          {/* Color - only show if no icon */}
+                          {!instance?.icon_path && (
+                            <div className="space-y-2">
+                              <Label className="text-sm text-muted-foreground">{t("instances.changeColor")}</Label>
+                              <InstanceColorPicker
+                                instanceId={instanceId!}
+                                currentColor={instance?.color || null}
+                                onColorChange={(color) => {
+                                  setInstance(prev => prev ? { ...prev, color } : prev)
+                                }}
+                              />
                             </div>
                           )}
+                        </CardContent>
+                      </Card>
 
-                          {/* Game Directory */}
-                          <div className="flex items-center justify-between py-1.5">
-                            <span className="text-sm text-muted-foreground">{t("instanceDetails.gameDirectory")}</span>
+                      {/* Quick Actions Card */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">{t("instanceDetails.quickActions")}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="flex flex-wrap gap-2">
                             <Button
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               onClick={handleOpenInstanceFolder}
-                              className="h-7 gap-1.5 text-xs"
+                              className="gap-2"
                             >
-                              <FolderOpen className="h-3.5 w-3.5" />
-                              {t("instanceDetails.openGameDir")}
+                              <FolderOpen className="h-4 w-4" />
+                              {t("common.openFolder")}
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowExportDialog(true)}
+                              className="gap-2"
+                            >
+                              <Share2 className="h-4 w-4" />
+                              {t("instanceDetails.exportInstance")}
                             </Button>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+                    </div>
 
-                    {/* Statistics Card */}
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="text-base">{t("instanceDetails.statistics")}</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid gap-3">
-                          {/* Total Playtime */}
-                          <div className="flex items-center justify-between py-1.5 border-b border-border/50">
-                            <span className="text-sm text-muted-foreground">{t("instanceDetails.totalPlaytime")}</span>
-                            <span className="text-sm font-medium">
-                              {instance?.total_playtime_seconds
-                                ? (() => {
-                                    const hours = Math.floor(instance.total_playtime_seconds / 3600)
-                                    const minutes = Math.floor((instance.total_playtime_seconds % 3600) / 60)
-                                    if (hours > 0) {
-                                      return `${hours}h ${minutes}m`
-                                    }
-                                    return `${minutes}m`
-                                  })()
-                                : t("instanceDetails.neverPlayed")}
-                            </span>
-                          </div>
+                    {/* Right Column - Information & Statistics */}
+                    <div className="space-y-4">
+                      {/* Instance Information Card */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">{t("instanceDetails.instanceInfo")}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid gap-3">
+                            {/* Type */}
+                            <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                              <span className="text-sm text-muted-foreground">{t("instanceDetails.instanceType")}</span>
+                              <Badge variant="secondary">
+                                {instance?.is_proxy
+                                  ? t("instanceDetails.instanceTypeProxy")
+                                  : instance?.is_server
+                                  ? t("instanceDetails.instanceTypeServer")
+                                  : t("instanceDetails.instanceTypeClient")}
+                              </Badge>
+                            </div>
 
-                          {/* Last Played */}
-                          <div className="flex items-center justify-between py-1.5">
-                            <span className="text-sm text-muted-foreground">{t("instanceDetails.lastPlayed")}</span>
-                            <span className="text-sm font-medium">
-                              {instance?.last_played
-                                ? new Date(instance.last_played).toLocaleDateString(undefined, {
-                                    year: "numeric",
-                                    month: "short",
-                                    day: "numeric",
-                                  })
-                                : t("instanceDetails.neverPlayed")}
-                            </span>
+                            {/* MC Version */}
+                            <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                              <span className="text-sm text-muted-foreground">Minecraft</span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{instance?.mc_version}</span>
+                                {!instance?.is_proxy && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6"
+                                    onClick={() => setShowChangeVersionDialog(true)}
+                                    disabled={isRunning}
+                                    title={t("changeVersion.title")}
+                                  >
+                                    <RefreshCw className="h-3.5 w-3.5" />
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Loader */}
+                            {instance?.loader && (
+                              <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                                <span className="text-sm text-muted-foreground">Loader</span>
+                                <span className="text-sm font-medium">
+                                  {instance.loader}
+                                  {instance.loader_version && (
+                                    <span className="text-muted-foreground ml-1">({instance.loader_version})</span>
+                                  )}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Game Directory */}
+                            <div className="flex items-center justify-between py-1.5">
+                              <span className="text-sm text-muted-foreground">{t("instanceDetails.gameDirectory")}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={handleOpenInstanceFolder}
+                                className="h-7 gap-1.5 text-xs"
+                              >
+                                <FolderOpen className="h-3.5 w-3.5" />
+                                {t("instanceDetails.openGameDir")}
+                              </Button>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
+                        </CardContent>
+                      </Card>
+
+                      {/* Statistics Card */}
+                      <Card>
+                        <CardHeader className="pb-3">
+                          <CardTitle className="text-base">{t("instanceDetails.statistics")}</CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid gap-3">
+                            {/* Total Playtime */}
+                            <div className="flex items-center justify-between py-1.5 border-b border-border/50">
+                              <span className="text-sm text-muted-foreground">{t("instanceDetails.totalPlaytime")}</span>
+                              <span className="text-sm font-medium">
+                                {instance?.total_playtime_seconds
+                                  ? (() => {
+                                      const hours = Math.floor(instance.total_playtime_seconds / 3600)
+                                      const minutes = Math.floor((instance.total_playtime_seconds % 3600) / 60)
+                                      if (hours > 0) {
+                                        return `${hours}h ${minutes}m`
+                                      }
+                                      return `${minutes}m`
+                                    })()
+                                  : t("instanceDetails.neverPlayed")}
+                              </span>
+                            </div>
+
+                            {/* Last Played */}
+                            <div className="flex items-center justify-between py-1.5">
+                              <span className="text-sm text-muted-foreground">{t("instanceDetails.lastPlayed")}</span>
+                              <span className="text-sm font-medium">
+                                {instance?.last_played
+                                  ? new Date(instance.last_played).toLocaleDateString(undefined, {
+                                      year: "numeric",
+                                      month: "short",
+                                      day: "numeric",
+                                    })
+                                  : t("instanceDetails.neverPlayed")}
+                              </span>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
                   </div>
-                </div>
+                )}
               </TabsContent>
 
               {/* Performance Sub-Tab */}
               <TabsContent value="performance" className="mt-0 data-[state=active]:block">
-                <Card>
-                  <CardHeader className="pb-4">
-                    <CardTitle>{t("instanceDetails.settingsTabPerformance")}</CardTitle>
-                    <CardDescription>
-                      {t("instanceDetails.configureOptions")}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-5">
-                    {/* Memory Settings */}
-                    <div className="space-y-3">
-                      <Label className="text-sm font-medium">{t("instances.memory")}</Label>
+                {easyMode ? (
+                  /* Easy Mode: Show simplified optimizer */
+                  <Suspense fallback={<ComponentLoader />}>
+                    <EasyModeOptimizer
+                      instanceId={instanceId!}
+                      loader={instance?.loader || null}
+                      isServer={instance?.is_server || false}
+                      onOptimized={({ memoryMin: newMin, memoryMax: newMax, jvmArgs: newArgs }) => {
+                        setMemoryMin(newMin)
+                        setMemoryMax(newMax)
+                        setJvmArgs(newArgs)
+                      }}
+                    />
+                  </Suspense>
+                ) : (
+                  /* Advanced Mode: Show full settings */
+                  <Card>
+                    <CardHeader className="pb-4">
+                      <CardTitle>{t("instanceDetails.settingsTabPerformance")}</CardTitle>
+                      <CardDescription>
+                        {t("instanceDetails.configureOptions")}
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-5">
+                      {/* Memory Settings */}
+                      <div className="space-y-3">
+                        <Label className="text-sm font-medium">{t("instances.memory")}</Label>
 
-                      {/* Memory explanation tip */}
-                      <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm">
-                        <p className="font-medium text-blue-500 mb-1">{t("ram.tipTitle")}</p>
-                        <p className="text-muted-foreground text-xs">{t("ram.tipContent")}</p>
+                        {/* Memory explanation tip */}
+                        <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-sm">
+                          <p className="font-medium text-blue-500 mb-1">{t("ram.tipTitle")}</p>
+                          <p className="text-muted-foreground text-xs">{t("ram.tipContent")}</p>
+                        </div>
+
+                        <Suspense fallback={<ComponentLoader />}>
+                          <div className="grid gap-4 md:grid-cols-2 p-4 rounded-lg border bg-muted/30">
+                            <div className="space-y-2">
+                              <div className="text-xs text-muted-foreground mb-2">
+                                <span className="font-medium text-foreground">{t("ram.minMemoryTitle")}</span>
+                                <p className="mt-0.5">{t("ram.minMemoryDesc")}</p>
+                              </div>
+                              <RamSlider
+                                label="Minimum (Xms)"
+                                value={memoryMin}
+                                onChange={setMemoryMin}
+                                minValue={512}
+                                recommendedValue="min"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <div className="text-xs text-muted-foreground mb-2">
+                                <span className="font-medium text-foreground">{t("ram.maxMemoryTitle")}</span>
+                                <p className="mt-0.5">{t("ram.maxMemoryDesc")}</p>
+                              </div>
+                              <RamSlider
+                                label="Maximum (Xmx)"
+                                value={memoryMax}
+                                onChange={setMemoryMax}
+                                minValue={memoryMin}
+                                recommendedValue="max"
+                              />
+                            </div>
+                          </div>
+                        </Suspense>
                       </div>
 
+                      {/* Java Selection */}
                       <Suspense fallback={<ComponentLoader />}>
-                        <div className="grid gap-4 md:grid-cols-2 p-4 rounded-lg border bg-muted/30">
-                          <div className="space-y-2">
-                            <div className="text-xs text-muted-foreground mb-2">
-                              <span className="font-medium text-foreground">{t("ram.minMemoryTitle")}</span>
-                              <p className="mt-0.5">{t("ram.minMemoryDesc")}</p>
-                            </div>
-                            <RamSlider
-                              label="Minimum (Xms)"
-                              value={memoryMin}
-                              onChange={setMemoryMin}
-                              minValue={512}
-                              recommendedValue="min"
-                            />
-                          </div>
-                          <div className="space-y-2">
-                            <div className="text-xs text-muted-foreground mb-2">
-                              <span className="font-medium text-foreground">{t("ram.maxMemoryTitle")}</span>
-                              <p className="mt-0.5">{t("ram.maxMemoryDesc")}</p>
-                            </div>
-                            <RamSlider
-                              label="Maximum (Xmx)"
-                              value={memoryMax}
-                              onChange={setMemoryMax}
-                              minValue={memoryMin}
-                              recommendedValue="max"
-                            />
-                          </div>
-                        </div>
+                        <JavaSelector
+                          value={javaPath}
+                          onChange={setJavaPath}
+                          recommendedVersion={21}
+                        />
                       </Suspense>
-                    </div>
 
-                    {/* Java Selection */}
-                    <Suspense fallback={<ComponentLoader />}>
-                      <JavaSelector
-                        value={javaPath}
-                        onChange={setJavaPath}
-                        recommendedVersion={21}
-                      />
-                    </Suspense>
-
-                    {/* JVM Arguments with Templates */}
-                    <Suspense fallback={<ComponentLoader />}>
-                      {(instance?.is_server || instance?.is_proxy) ? (
-                        <ServerJvmTemplates
-                          value={jvmArgs}
-                          onChange={setJvmArgs}
-                          ramMb={memoryMax}
-                        />
-                      ) : (
-                        <JvmTemplates
-                          value={jvmArgs}
-                          onChange={setJvmArgs}
-                          ramMb={memoryMax}
-                          loader={instance?.loader || null}
-                        />
-                      )}
-                    </Suspense>
-                  </CardContent>
-                </Card>
-              </TabsContent>
-
-              {/* Backups Sub-Tab */}
-              <TabsContent value="backups" className="mt-0 data-[state=active]:block">
-                <div className="space-y-4">
-                  {/* World Backups Card */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle>{t("instanceDetails.worldBackups")}</CardTitle>
-                      <CardDescription>
-                        {t("instanceDetails.worldBackupsDesc")}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center justify-between">
-                        <div className="space-y-0.5">
-                          <Label>{t("instanceDetails.autoBackup")}</Label>
-                          <p className="text-sm text-muted-foreground">
-                            {t("instanceDetails.autoBackupDesc")}
-                          </p>
-                        </div>
-                        <Switch
-                          checked={autoBackupEnabled}
-                          onCheckedChange={handleToggleAutoBackup}
-                        />
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Full Instance Backup Card */}
-                  <Card>
-                    <CardHeader className="pb-4">
-                      <CardTitle className="flex items-center gap-2">
-                        <Archive className="h-5 w-5" />
-                        {t("instanceDetails.fullInstanceBackup")}
-                      </CardTitle>
-                      <CardDescription>
-                        {t("instanceDetails.fullInstanceBackupDesc")}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button
-                        onClick={handleCreateInstanceBackup}
-                        disabled={isCreatingBackup}
-                        className="gap-2"
-                      >
-                        {isCreatingBackup ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
+                      {/* JVM Arguments with Templates */}
+                      <Suspense fallback={<ComponentLoader />}>
+                        {(instance?.is_server || instance?.is_proxy) ? (
+                          <ServerJvmTemplates
+                            value={jvmArgs}
+                            onChange={setJvmArgs}
+                            ramMb={memoryMax}
+                          />
                         ) : (
-                          <Archive className="h-4 w-4" />
+                          <JvmTemplates
+                            value={jvmArgs}
+                            onChange={setJvmArgs}
+                            ramMb={memoryMax}
+                            loader={instance?.loader || null}
+                          />
                         )}
-                        {isCreatingBackup
-                          ? t("instanceDetails.creatingBackup")
-                          : t("instanceDetails.createFullBackup")}
-                      </Button>
+                      </Suspense>
                     </CardContent>
                   </Card>
-                </div>
+                )}
               </TabsContent>
 
               {/* Server Sub-Tab */}
@@ -1460,43 +1506,121 @@ export function InstanceDetails() {
           </Tabs>
         </TabsContent>
 
-        {/* Installed Mods/Plugins Tab */}
+        {/* Content Tab - Unified tabs for Installed + Browse content types */}
         {contentType !== "none" && (
-        <TabsContent value="mods">
-          <ErrorBoundary>
-            <Suspense fallback={<ComponentLoader />}>
-              <ModsList
-                key={modsRefreshKey}
-                instanceId={instanceId!}
-                contentType={contentType}
-                onOpenFolder={handleOpenModsFolder}
-                onModsChange={handleContentChanged}
-              />
-            </Suspense>
-          </ErrorBoundary>
-        </TabsContent>
-        )}
+        <TabsContent value="content" className="mt-4 overflow-y-auto">
+          <Tabs defaultValue="installed">
+            <TabsList className="flex-shrink-0 w-fit mb-4">
+              <TabsTrigger value="installed" className="gap-2">
+                <Package className="h-4 w-4" />
+                {t("content.installed")}
+              </TabsTrigger>
+              <TabsTrigger value="mod" className="gap-2">
+                <Search className="h-4 w-4" />
+                {t("browse.mods")}
+              </TabsTrigger>
+              {/* Additional content types for client instances only */}
+              {!instance.is_server && !instance.is_proxy && (
+                <>
+                  <TabsTrigger value="resourcepack" className="gap-2">
+                    <Palette className="h-4 w-4" />
+                    {t("browse.resourcePacks")}
+                  </TabsTrigger>
+                  <TabsTrigger value="shader" className="gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    {t("browse.shaders")}
+                  </TabsTrigger>
+                  <TabsTrigger value="datapack" className="gap-2">
+                    <Database className="h-4 w-4" />
+                    {t("browse.datapacks")}
+                  </TabsTrigger>
+                </>
+              )}
+            </TabsList>
 
-        {/* Browse Content Tab (Modrinth with tabs for different content types) */}
-        {contentType !== "none" && (
-        <TabsContent value="content">
-          <ErrorBoundary>
-            <Suspense fallback={<ComponentLoader />}>
-              <ModrinthBrowser
-                instanceId={instanceId!}
-                mcVersion={instance.mc_version}
-                loader={instance.loader}
-                isServer={instance.is_server}
-                onModInstalled={handleContentChanged}
-                showContentTabs={!instance.is_server && !instance.is_proxy}
-              />
-            </Suspense>
-          </ErrorBoundary>
+            <TabsContent value="installed" className="mt-0">
+              <ErrorBoundary>
+                <Suspense fallback={<ComponentLoader />}>
+                  <ModsList
+                    key={modsRefreshKey}
+                    instanceId={instanceId!}
+                    contentType={contentType}
+                    onOpenFolder={handleOpenModsFolder}
+                    onModsChange={handleContentChanged}
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            </TabsContent>
+
+            <TabsContent value="mod" className="mt-0">
+              <ErrorBoundary>
+                <Suspense fallback={<ComponentLoader />}>
+                  <ModrinthBrowser
+                    instanceId={instanceId!}
+                    mcVersion={instance.mc_version}
+                    loader={instance.loader}
+                    isServer={instance.is_server}
+                    onModInstalled={handleContentChanged}
+                    contentType="mod"
+                  />
+                </Suspense>
+              </ErrorBoundary>
+            </TabsContent>
+
+            {!instance.is_server && !instance.is_proxy && (
+              <>
+                <TabsContent value="resourcepack" className="mt-0">
+                  <ErrorBoundary>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <ModrinthBrowser
+                        instanceId={instanceId!}
+                        mcVersion={instance.mc_version}
+                        loader={instance.loader}
+                        isServer={instance.is_server}
+                        onModInstalled={handleContentChanged}
+                        contentType="resourcepack"
+                      />
+                    </Suspense>
+                  </ErrorBoundary>
+                </TabsContent>
+
+                <TabsContent value="shader" className="mt-0">
+                  <ErrorBoundary>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <ModrinthBrowser
+                        instanceId={instanceId!}
+                        mcVersion={instance.mc_version}
+                        loader={instance.loader}
+                        isServer={instance.is_server}
+                        onModInstalled={handleContentChanged}
+                        contentType="shader"
+                      />
+                    </Suspense>
+                  </ErrorBoundary>
+                </TabsContent>
+
+                <TabsContent value="datapack" className="mt-0">
+                  <ErrorBoundary>
+                    <Suspense fallback={<ComponentLoader />}>
+                      <ModrinthBrowser
+                        instanceId={instanceId!}
+                        mcVersion={instance.mc_version}
+                        loader={instance.loader}
+                        isServer={instance.is_server}
+                        onModInstalled={handleContentChanged}
+                        contentType="datapack"
+                      />
+                    </Suspense>
+                  </ErrorBoundary>
+                </TabsContent>
+              </>
+            )}
+          </Tabs>
         </TabsContent>
         )}
 
         {/* Worlds Tab */}
-        <TabsContent value="worlds">
+        <TabsContent value="worlds" className="mt-4 overflow-y-auto">
           <ErrorBoundary>
             <Suspense fallback={<ComponentLoader />}>
               <WorldsTab
@@ -1507,8 +1631,91 @@ export function InstanceDetails() {
           </ErrorBoundary>
         </TabsContent>
 
+        {/* Backups Tab */}
+        <TabsContent value="backups" className="mt-4 overflow-y-auto">
+          {easyMode ? (
+            /* Easy Mode: Just auto-backup toggle */
+            <Card>
+              <CardHeader className="pb-4">
+                <CardTitle>{t("easyMode.simpleBackups")}</CardTitle>
+                <CardDescription>{t("easyMode.simpleBackupsDesc")}</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center justify-between p-4 rounded-lg bg-muted/50 border">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">{t("instanceDetails.autoBackup")}</Label>
+                    <p className="text-sm text-muted-foreground">
+                      {t("instanceDetails.autoBackupDesc")}
+                    </p>
+                  </div>
+                  <Switch
+                    checked={autoBackupEnabled}
+                    onCheckedChange={handleToggleAutoBackup}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          ) : (
+            /* Advanced Mode: Full backup options */
+            <div className="space-y-4">
+              {/* World Backups Card */}
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle>{t("instanceDetails.worldBackups")}</CardTitle>
+                  <CardDescription>
+                    {t("instanceDetails.worldBackupsDesc")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label>{t("instanceDetails.autoBackup")}</Label>
+                      <p className="text-sm text-muted-foreground">
+                        {t("instanceDetails.autoBackupDesc")}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={autoBackupEnabled}
+                      onCheckedChange={handleToggleAutoBackup}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Full Instance Backup Card */}
+              <Card>
+                <CardHeader className="pb-4">
+                  <CardTitle className="flex items-center gap-2">
+                    <Archive className="h-5 w-5" />
+                    {t("instanceDetails.fullInstanceBackup")}
+                  </CardTitle>
+                  <CardDescription>
+                    {t("instanceDetails.fullInstanceBackupDesc")}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <Button
+                    onClick={handleCreateInstanceBackup}
+                    disabled={isCreatingBackup}
+                    className="gap-2"
+                  >
+                    {isCreatingBackup ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Archive className="h-4 w-4" />
+                    )}
+                    {isCreatingBackup
+                      ? t("instanceDetails.creatingBackup")
+                      : t("instanceDetails.createFullBackup")}
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+        </TabsContent>
+
         {/* Config Tab */}
-        <TabsContent value="config">
+        <TabsContent value="config" className="mt-4 overflow-y-auto">
           <Card className="flex flex-col flex-1 min-h-0">
             <CardHeader className="flex-shrink-0 pb-2">
               <CardTitle>{t("instanceDetails.configEditor")}</CardTitle>
@@ -1526,7 +1733,7 @@ export function InstanceDetails() {
 
         {/* Tunnel Tab - Server only */}
         {(instance?.is_server || instance?.is_proxy) && (
-          <TabsContent value="tunnel" className="overflow-y-auto">
+          <TabsContent value="tunnel" className="mt-4 overflow-y-auto">
             <Suspense fallback={<ComponentLoader />}>
               <TunnelConfig
                 instanceId={instanceId!}

@@ -71,6 +71,11 @@
     "downloads": "Downloads",
     "changelog": "Aenderungen"
   },
+  "documentation": {
+    "title": "Dokumentation",
+    "openTooltip": "Dokumentation oeffnen",
+    "comingSoon": "Dokumentation kommt bald."
+  },
   "home": {
     "welcome": "Willkommen bei Kaizen Launcher",
     "recentInstances": "Letzte Instanzen",
@@ -515,11 +520,16 @@
     "restartOnboardingButton": "Neustart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "Was ist neu in v0.7.5",
-    "whatsNewInstanceBackups": "Vollstaendige Instanz-Backups mit Cloud-Upload",
-    "whatsNewBackupsRedesign": "Neugestaltete Backup-Seite mit Tabs fuer Welten und Instanzen",
-    "whatsNewChangeVersion": "Minecraft-Version aendern mit Mod-Kompatibilitaetspruefung",
-    "whatsNewRestoreOptions": "Wiederherstellung zum Ersetzen oder Erstellen neuer Instanzen",
+    "whatsNew": "Was ist neu in v0.7.6",
+    "whatsNewEasyMode": "Easy Mode / Advanced Mode Umschalter in der Titelleiste",
+    "whatsNewQuickPlay": "Quick Play: Ein-Klick Minecraft mit Fabulously Optimized",
+    "whatsNewAutoOptimize": "Auto-Optimierung basierend auf Ihrer Mod-Anzahl",
+    "whatsNewDocumentation": "In-App Dokumentationsfenster mit 8 Abschnitten",
+    "whatsNewInstanceColors": "Benutzerdefinierte Farbauswahl fuer jede Instanz",
+    "whatsNewStorageViz": "Gestapelte Balkenvisualisierung fuer Instanz-Speicher",
+    "whatsNewModernCards": "Modernisierte Instanzkarten mit Farbverlaeufen",
+    "whatsNewCompactHeader": "Kompaktes Instanzen-Seiten-Header-Design",
+    "whatsNewHomepageColors": "Instanzfarben auf der Startseite angezeigt",
     "devtools": "DevTools"
   },
   "devtools": {

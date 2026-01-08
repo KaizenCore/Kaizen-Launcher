@@ -326,3 +326,42 @@ pub async fn close_log_viewer_window(app: AppHandle) -> AppResult<()> {
     }
     Ok(())
 }
+
+// ============================================================================
+// Documentation Window
+// ============================================================================
+
+/// Open the documentation in a separate window
+#[tauri::command]
+pub async fn open_documentation_window(app: AppHandle) -> AppResult<()> {
+    // Check if window already exists
+    if let Some(window) = app.get_webview_window("documentation") {
+        window
+            .set_focus()
+            .map_err(|e| AppError::DevTools(format!("Failed to focus documentation: {}", e)))?;
+        return Ok(());
+    }
+
+    // Create new window
+    WebviewWindowBuilder::new(&app, "documentation", WebviewUrl::App("/documentation".into()))
+        .title("Kaizen Launcher - Documentation")
+        .inner_size(1000.0, 700.0)
+        .min_inner_size(600.0, 400.0)
+        .decorations(false)
+        .center()
+        .build()
+        .map_err(|e| AppError::DevTools(format!("Failed to create documentation window: {}", e)))?;
+
+    Ok(())
+}
+
+/// Close the documentation window
+#[tauri::command]
+pub async fn close_documentation_window(app: AppHandle) -> AppResult<()> {
+    if let Some(window) = app.get_webview_window("documentation") {
+        window
+            .close()
+            .map_err(|e| AppError::DevTools(format!("Failed to close documentation: {}", e)))?;
+    }
+    Ok(())
+}

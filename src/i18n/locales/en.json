@@ -72,6 +72,11 @@
     "changelog": "Changelog",
     "playground": "Playground"
   },
+  "documentation": {
+    "title": "Documentation",
+    "openTooltip": "Open documentation",
+    "comingSoon": "Documentation is coming soon."
+  },
   "permissions": {
     "locked": "Locked",
     "accessRestricted": "Access Restricted",
@@ -158,6 +163,7 @@
   "home": {
     "welcome": "Welcome to Kaizen Launcher",
     "recentInstances": "Recent Instances",
+    "lastPlayed": "Last Played",
     "noInstances": "No instances",
     "createFirst": "Create your first instance to get started",
     "quickActions": "Quick Actions",
@@ -254,7 +260,12 @@
     "instanceStopped": "Instance stopped",
     "unableToStop": "Unable to stop instance",
     "unableToLoad": "Unable to load instances",
-    "sortBy": "Sort by"
+    "sortBy": "Sort by",
+    "selectColor": "Select a color",
+    "changeColor": "Change color",
+    "resetColor": "Reset to auto",
+    "colorUpdated": "Color updated",
+    "colorUpdateError": "Failed to update color"
   },
   "instanceDetails": {
     "notFound": "Instance not found",
@@ -627,11 +638,16 @@
     "restartOnboardingButton": "Restart",
     "cloudBackup": "Cloud",
     "discord": "Discord",
-    "whatsNew": "What's New in v0.7.5",
-    "whatsNewInstanceBackups": "Full instance backups with cloud upload support",
-    "whatsNewBackupsRedesign": "Redesigned Backups page with tabs for worlds and instances",
-    "whatsNewChangeVersion": "Change Minecraft version with mod compatibility checking",
-    "whatsNewRestoreOptions": "Restore backups to replace or create new instances",
+    "whatsNew": "What's New in v0.7.6",
+    "whatsNewEasyMode": "Easy Mode / Advanced Mode toggle in title bar",
+    "whatsNewQuickPlay": "Quick Play: one-click Minecraft with Fabulously Optimized",
+    "whatsNewAutoOptimize": "Auto-optimization based on your mod count",
+    "whatsNewDocumentation": "In-app documentation window with 8 sections",
+    "whatsNewInstanceColors": "Custom color picker for each instance",
+    "whatsNewStorageViz": "Stacked bar visualization for instance storage",
+    "whatsNewModernCards": "Modernized instance cards with gradient backgrounds",
+    "whatsNewCompactHeader": "Compact instances page header design",
+    "whatsNewHomepageColors": "Instance colors displayed on homepage",
     "devtools": "DevTools"
   },
   "devtools": {
@@ -820,6 +836,8 @@
     "thankYou": "Thank you for being part of the Kaizen community!"
   },
   "content": {
+    "installed": "Installed",
+    "browse": "Browse",
     "browseMods": "Browse Mods",
     "browseModsDesc": "Search and install mods from Modrinth",
     "browseModrinth": "Browse Modrinth",
@@ -2026,5 +2044,59 @@
     "downloadSuccess": "Downloaded schematic: {name}",
     "downloadError": "Failed to download schematic",
     "invalidPassword": "Invalid password"
+  },
+  "quickPlay": {
+    "title": "Quick Play",
+    "description": "Jump into Minecraft with one click",
+    "changeModpack": "Change Modpack",
+    "selectModpack": "Select Modpack",
+    "selectModpackDesc": "Search for optimized modpacks to use as your default",
+    "searchModpacks": "Search modpacks...",
+    "noResults": "No modpacks found",
+    "searchPrompt": "Search for modpacks on Modrinth",
+    "modpackChanged": "Default modpack changed to {name}",
+    "poweredBy": "Optimized modpack from Modrinth",
+    "vanillaExperience": "Pure vanilla experience, but with better performance",
+    "featureFps": "Better FPS",
+    "featureVanilla": "100% Vanilla",
+    "featureSafe": "Server Safe",
+    "selectVersion": "Minecraft Version",
+    "loadingVersions": "Loading...",
+    "selectVersionPlaceholder": "Select a version",
+    "loadVersionsFailed": "Failed to load modpack versions",
+    "installingModpack": "Installing modpack...",
+    "installingMinecraft": "Installing Minecraft...",
+    "loginRequired": "Please log in to play",
+    "loginFirst": "Log in to Play",
+    "launching": "Launching...",
+    "installing": "Installing...",
+    "play": "Play",
+    "installAndPlay": "Install & Play",
+    "readyToPlay": "Ready to play: {name}",
+    "installFailed": "Installation failed"
+  },
+  "easyMode": {
+    "easy": "Easy",
+    "advanced": "Advanced",
+    "easyTooltip": "Simplified settings with automatic optimization",
+    "advancedTooltip": "Full control over all performance settings",
+    "simpleSettings": "Instance Overview",
+    "simpleSettingsDesc": "Essential information about your instance",
+    "simpleBackups": "World Protection",
+    "simpleBackupsDesc": "Automatically backup your worlds before playing",
+    "autoOptimization": "Auto-Optimization",
+    "autoOptimizationDesc": "Let Kaizen configure the best settings for your instance",
+    "detectedProfile": "Detected profile:",
+    "modsDetected": "{count} mods detected",
+    "profileVanilla": "Vanilla",
+    "profileLight": "Light Mods",
+    "profileHeavy": "Heavy Modpack",
+    "profilePerformance": "Maximum Performance",
+    "optimizing": "Optimizing...",
+    "optimized": "Optimized",
+    "optimizeNow": "Optimize Now",
+    "optimizationApplied": "Settings optimized!",
+    "optimizationFailed": "Optimization failed",
+    "optimizationInfo": "Settings adjusted based on your system and mods"
   }
 }

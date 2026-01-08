@@ -106,6 +106,7 @@ const Skins = lazy(() => import("@/pages/Skins").then(m => ({ default: m.Skins }
 const Schematics = lazy(() => import("@/pages/Schematics").then(m => ({ default: m.Schematics })))
 const CreateServerFromClient = lazy(() => import("@/pages/CreateServerFromClient").then(m => ({ default: m.CreateServerFromClient })))
 const LogViewer = lazy(() => import("@/pages/LogViewer"))
+const Documentation = lazy(() => import("@/pages/Documentation"))
 const Playground = lazy(() => import("@/pages/Playground"))
 
 // Loading fallback for lazy components
@@ -291,6 +292,8 @@ function App() {
         <Routes>
           {/* Log Viewer - separate window without MainLayout */}
           <Route path="log-viewer" element={<Suspense fallback={<PageLoader />}><LogViewer /></Suspense>} />
+          {/* Documentation - separate window without MainLayout */}
+          <Route path="documentation" element={<Suspense fallback={<PageLoader />}><Documentation /></Suspense>} />
           <Route path="/" element={<MainLayout />}>
             <Route index element={<Home />} />
             <Route path="instances" element={<Suspense fallback={<PageLoader />}><Instances /></Suspense>} />

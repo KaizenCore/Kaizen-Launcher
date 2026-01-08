@@ -131,3 +131,61 @@ pub async fn save_custom_theme_settings(
 
     Ok(())
 }
+
+// ============================================================================
+// Easy Mode Settings - Tauri Commands
+// ============================================================================
+
+/// Get the current easy mode setting
+/// Defaults to true for novice-friendly experience
+#[tauri::command]
+pub async fn get_easy_mode_enabled(
+    state: tauri::State<'_, SharedState>,
+) -> AppResult<bool> {
+    let state = state.read().await;
+    let setting = get_setting(&state.db, "easy_mode_enabled").await?;
+    Ok(setting.map(|s| s == "true").unwrap_or(true))
+}
+
+/// Set the easy mode setting
+#[tauri::command]
+pub async fn set_easy_mode_enabled(
+    state: tauri::State<'_, SharedState>,
+    enabled: bool,
+) -> AppResult<()> {
+    let state = state.read().await;
+    set_setting(
+        &state.db,
+        "easy_mode_enabled",
+        if enabled { "true" } else { "false" },
+    )
+    .await?;
+    Ok(())
+}
+
+// ============================================================================
+// Generic Settings Commands - For storing arbitrary key-value pairs
+// ============================================================================
+
+/// Get a generic setting value by key
+#[tauri::command]
+pub async fn get_setting_value(
+    state: tauri::State<'_, SharedState>,
+    key: String,
+) -> AppResult<Option<String>> {
+    let state = state.read().await;
+    let value = get_setting(&state.db, &key).await?;
+    Ok(value)
+}
+
+/// Set a generic setting value
+#[tauri::command]
+pub async fn set_setting_value(
+    state: tauri::State<'_, SharedState>,
+    key: String,
+    value: String,
+) -> AppResult<()> {
+    let state = state.read().await;
+    set_setting(&state.db, &key, &value).await?;
+    Ok(())
+}
